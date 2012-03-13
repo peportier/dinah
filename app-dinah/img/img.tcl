@@ -32,6 +32,7 @@ itcl::class Img {
     public method zoom {k}
     public method setBindings {}
     public method unsetBindings {}
+    public method scaleInsideRect {width height}
     public method z {}
     private method rem {n m}
     public method sample {factor}
@@ -118,9 +119,15 @@ itcl::body Img::mkImage {} {
     set height  [image height $original]
 }
 
+ictl::body Img::highResExists {} {
+
+}
+
 itcl::body Img::specificLayout {} {
     set canvas [::dinah::canvas'new $center.main -width 300 -height 300 \
         -scrollregion [list 0 0 $width $height]]
+    set zPlus [button $center.menu.zPlus -text "+"]
+    pack $zPlus -side left -padx 4 -pady 4
 }
 
 itcl::body Img::afterLayout {} {
@@ -154,12 +161,16 @@ itcl::body Img::rem {n m} {
     expr {$n>$m ? int($n/$m) : 1}
 }
 
+itcl::body Img::scaleInsideRect {width height} {
+    for {set k [rem $width $canvasWidth]} {$width / $k - $canvasWidth > 0} {incr k} {}
+    for {} {$height / $k - $canvasHeight > 0} {incr k} {}
+    sample $k
+}
+
 itcl::body Img::z {} {
     set canvasHeight [winfo height $canvas]
     set canvasWidth [winfo width $canvas]
-    for {set k [rem $width $canvasWidth]} {$width / $k - $canvasWidth > 100} {incr k} {}
-    for {} {$height / $k - $canvasHeight > 200} {incr k} {}
-    sample $k
+    scaleInsideRect [expr {$canvasWidth + 100}] [expr {$canvasHeight + 200}]
 }
 
 itcl::body Img::sample {k} {
@@ -177,8 +188,8 @@ itcl::body Img::zoom {k} {
     }
 }
 
-itcl::body Img::path {} {
-    return $::dinah::db(base)[::dinah::db'get $dbid path]$::dinah::db(imgExtension)
+itcl::body Img::path {{resolution ""}} {
+    return $::dinah::db(base)[::dinah::db'get $dbid path]$resolution$::dinah::db(imgExtension)
 }
 
 itcl::body Img::high {} {}

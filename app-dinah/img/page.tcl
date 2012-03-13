@@ -8,7 +8,7 @@ itcl::class Page {
     } {
     }
 
-    method path {} {
+    public method path {} {
 	variable ::dinah::db
         return $db(base)[::dinah::db'get $dbid path]$resolution$db(imgExtension)
     }
