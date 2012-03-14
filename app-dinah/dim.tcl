@@ -84,8 +84,6 @@ itcl::class Dim {
     private method cell {gridPos}
     private method insideW {row col}
     public method updateInfo {}
-    public method high {}
-    public method low {}
     private method scCell {}
     private method scDimName {}
     private method scDimIndex {}
@@ -412,8 +410,6 @@ itcl::body Dim::setBindings {} {
     bind $t <Key-W> [list $this newWindow]
     bind $t <Key-w> [list $this newWindowOnCursor]
     bind $t <Key-a> [list $this newTreeOnCursor]
-    bind $t <Key-h> [list $this high]
-    bind $t <Key-b> [list $this low]
     bind $t <Key-d> [list $this deleteRow]
     bind $t <Key-s> [list $this swapDim]
     bind $t <Control-Key-q> {exit}
@@ -1007,18 +1003,6 @@ itcl::body Dim::z {} {
     foreach {pos o} [array get objects] {
         $o z
     }
-}
-
-itcl::body Dim::high {} {
-    ::dinah::Page::high
-    mkGrid
-    $resolutionLabel configure -text "H"
-}
-
-itcl::body Dim::low {} {
-    ::dinah::Page::low
-    mkGrid
-    $resolutionLabel configure -text "B"
 }
 
 itcl::body Dim::cell {gridPos} {
