@@ -19,7 +19,7 @@ namespace eval ::dinah {
     source $starkit::topdir/lib/app-dinah/canvas.tcl
     source $starkit::topdir/lib/app-dinah/autocomplete.tcl
     source $starkit::topdir/lib/app-dinah/obj.tcl
-    source $starkit::topdir/lib/app-dinah/img.tcl
+    source $starkit::topdir/lib/app-dinah/page.tcl
     source $starkit::topdir/lib/app-dinah/txt.tcl
     source $starkit::topdir/lib/app-dinah/date.tcl
     source $starkit::topdir/lib/app-dinah/dim.tcl
