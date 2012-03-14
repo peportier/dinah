@@ -16,7 +16,7 @@ itcl::class Page {
         if {[array names resolutions -exact $id] eq ""} {
             set resolutions($id) [list 1]
             foreach suffix $::dinah::resolutions_suffix  {
-                lappend resolutions($id) {$suffix 0 0}
+                lappend resolutions($id) [list $suffix 0 0]
             }
         }
         mkImage
@@ -81,6 +81,13 @@ itcl::class Page {
         setCurrentResolutionMaxHeight [image height $original]
     }
 
+    method reloadImage {} {
+        deleteImage
+        mkImage 
+        set factor 1
+        $canvas create image 0 0 -image $copy -anchor nw
+    }
+
     method deleteImage {} {
         image delete $original
         image delete $copy
@@ -125,16 +132,15 @@ itcl::class Page {
             set factor $k
             $copy copy $original -shrink -subsample $factor $factor
             $canvas configure -scrollregion [list 0 0 [image width $copy] [image height $copy]]
-            if {[currentResolutionIndex != 1]} {
-                if {([image width copy] < [prevResolutionMaxWidth]) || ([image height $copy] < [prevResolutionMaxHeight])} {
+            if {[currentResolutionIndex] != 1} {
+                if {([image width $copy] < [prevResolutionMaxWidth]) || ([image height $copy] < [prevResolutionMaxHeight])} {
                     prevResolution
-                    mkImage
+                    reloadImage
                     $canvas configure -scrollregion [list 0 0 [currentResolutionMaxWidth] [currentResolutionMaxHeight]]
                 }
             }
         } elseif {[nextResolution]} {
-            deleteImage
-            mkImage
+            reloadImage
             scaleInsideRect [prevResolutionMaxWidth] [prevResolutionMaxHeight]
         }
     }
@@ -191,7 +197,7 @@ itcl::class Page {
     }
     
     method prevResolution {} {
-        if {[currentResolutionIndex] > 1)} {
+        if {[currentResolutionIndex] > 1} {
             lset resolutions($dbid) 0 [expr {[currentResolutionIndex] - 1}]
             return 1
         }
