@@ -225,18 +225,42 @@ itcl::body Dim::mkWindow {{parent {}}} {
     }
     set f [frame $t.frame -borderwidth 1 -bg black -highlightcolor green -highlightthickness 1]
     frame $f.menu
-    label $f.menu.x_label -text "X: "
+    set btnBegin [button $f.menu.btnBegin -text "|" -command [list $this zeroKey]]
+    set btnLeftLeft [button $f.menu.btnLeftLeft -text "<<" -command [list $this wHorizByOneScreen -1]]
+    set btnLeft [button $f.menu.btnLeft -text "<" -command [list $this scLeft]]
+    set btnDown [button $f.menu.btnDown -text "v" -command [list $this scDown]]
+    set btnUp [button $f.menu.btnUp -text "^" -command [list $this scUp]]
+    set btnRight [button $f.menu.btnRight -text ">" -command [list $this scRight]]
+    set btnRightRight [button $f.menu.btnRightRight -text ">>" -command [list $this wHorizByOneScreen 1]]
+    set btnEnd [button $f.menu.btnEnd -text "|" -command [list $this gotoRowEnd]]
+    set btnExtendX [button $f.menu.btnExtendX -text "+X" -command [list $this incrWWidth 1]]
+    set btnReduceX [button $f.menu.btnReduceX -text "-X" -command [list $this incrWWidth -1]]
+    set btnExtendY [button $f.menu.btnExtendY -text "+Y" -command [list $this incrWHeight 1]]
+    set btnReduceY [button $f.menu.btnReduceY -text "-Y" -command [list $this incrWHeight -1]]
+    set btnX [button $f.menu.btnX -text "X:" -command [list $this switchScDimsX]]
     set x_entry [::dinah::Autocomplete x_entry#auto $f.menu.x_entry $db(dimensions)]
-    label $f.menu.y_label -text "Y: "
+    set btnY [button $f.menu.btnY -text "Y:" -command [list $this switchScDimsY]]
     set y_entry [::dinah::Autocomplete y_entry#auto $f.menu.y_entry $db(dimensions)]
     button $f.menu.ok -text "OK" -command [list $this query]
     entry $f.menu.label
     bindtags $f.menu.label [list $f.menu.label [winfo class $f.menu.label] all]
     bind $f.menu.label <Key-Escape> [list focus $t]
     set resolutionLabel [label $f.menu.resolution -text ""]
-    pack $f.menu.x_label -side left -padx 4 -pady 4
+    pack $btnBegin -side left -padx 4 -pady 4
+    pack $btnLeftLeft -side left -padx 4 -pady 4
+    pack $btnLeft -side left -padx 4 -pady 4
+    pack $btnDown -side left -padx 4 -pady 4
+    pack $btnUp -side left -padx 4 -pady 4
+    pack $btnRight -side left -padx 4 -pady 4
+    pack $btnRightRight -side left -padx 4 -pady 4
+    pack $btnEnd -side left -padx 4 -pady 4
+    pack $btnExtendX -side left -padx 4 -pady 4
+    pack $btnReduceX -side left -padx 4 -pady 4
+    pack $btnExtendY -side left -padx 4 -pady 4
+    pack $btnReduceY -side left -padx 4 -pady 4
+    pack $btnX -side left -padx 4 -pady 4
     pack $f.menu.x_entry -side left -padx 4 -pady 4
-    pack $f.menu.y_label -side left -padx 4 -pady 4
+    pack $btnY -side left -padx 4 -pady 4
     pack $f.menu.y_entry -side left -padx 4 -pady 4
     pack $f.menu.ok -side left -padx 4 -pady 4
     pack $f.menu.label -side left -padx 4 -pady 4
