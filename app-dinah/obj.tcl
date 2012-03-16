@@ -20,8 +20,6 @@ itcl::class Obj {
     public method layout {}
     public method dragAndDrop {}
     public method notificate {txt}
-    public method setBindings {}
-    public method unsetBindings {}
     public method openNS {}
     public method closeNS {}
     public method openEW {}
@@ -41,18 +39,12 @@ itcl::class Obj {
     public method menu2 {x y}
     public method menu2motion {x y}
     public method getContainer {}
-    public method edit {}
-    public method leave {}
     public method select {}
 }
 
 itcl::body Obj::select {} {catch {$container buildAndGrid $dbid}}
 
 itcl::body Obj::getContainer {} {return $container}
-
-itcl::body Obj::edit {} {catch {$container unsetBindings}}
-
-itcl::body Obj::leave {} {$this unsetBindings}
 
 itcl::body Obj::z {} {return ""}
 
@@ -79,8 +71,6 @@ itcl::body Obj::mkWindow {{parentw ""}} {
     set genericMenu [menu $frame.genericMenu]
     $genericMenu add command -label del -command [list $this delete]
     $genericMenu add command -label fold -command [list $this fold]
-    $genericMenu add command -label edit -command [list $this edit]
-    $genericMenu add command -label leave -command [list $this leave]
     bind $center.menu $::dinah::mouse(B3) [list tk_popup $genericMenu %X %Y]
     bind $center.menu <Double-1> [list $this select]
     bind $center.menu <1> [list $this menu1 %x %y]
@@ -163,10 +153,6 @@ itcl::body Obj::dragAndDrop {} {
 itcl::body Obj::notificate {txt} {
     $notificationLabel configure -text [concat [$notificationLabel cget -text] $txt]
 }
-
-itcl::body Obj::setBindings {} {return ""}
-
-itcl::body Obj::unsetBindings {} {return ""}
 
 itcl::body Obj::openNS {} {
     $top configure -bg $::dinah::openColor

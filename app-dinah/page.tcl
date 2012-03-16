@@ -52,23 +52,8 @@ itcl::class Page {
         focus -force $t
     }
 
-    method setBindings {} {
-        focus $frame
-        bind $frame <Control-Key-e> [list $this unsetBindings]
-        bind $frame <Control-Key-z> [list $this editZones]
-    }
-
     method editZones {} {
         ::dinah::zonemaker::run $dbid $container
-    }
-
-    method unsetBindings {} {
-        foreach tag [bind $frame] {
-            bind $frame $tag ""
-        }
-        if {$container ne ""} {
-            $container setBindings
-        }
     }
 
     method mkImage {} {

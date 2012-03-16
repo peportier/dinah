@@ -20,8 +20,6 @@ itcl::class Txt {
     private method events {}
     private method newBindings {}
     private method defaultTags {}
-    public method setBindings {}
-    public method unsetBindings {}
     public method newInterval {{tagName ""}}
     public method openInterval {}
     public method interpretLine {}
@@ -191,23 +189,13 @@ itcl::body Txt::openInterval {} {
     }
 }
 
-itcl::body Txt::setBindings {} {
-    #::dinah::activateMouse $txtWindow
-    focus $txtWindow
-}
-
-itcl::body Txt::unsetBindings {} {
-    save
-    if {$container ne ""} { $container setBindings }
-    #::dinah::desactivateMouse $txtWindow
-    catch {$container getFocus}
-}
-
 itcl::body Txt::specificLayout {} {
     variable ::dinah::db
 
+    set btnSave [button $center.menu.btnSave -text "save" -command [list $this save]]
     set saveStateLabel [label $center.menu.saveState -text ""]
     pack $saveStateLabel -side left -padx 4 -pady 4
+    pack $btnSave -side left -padx 4 -pady 4
     set tagNameLabel [label $center.menu.tagNameLabel -text ""]
     pack $tagNameLabel -side right -padx 4 -pady 4
 
@@ -344,8 +332,6 @@ itcl::body Txt::isSaved {} {
 
 itcl::body Txt::events {} {
     bind $txtWindow <<Modified>> [list $this showSavedState]
-    bind $txtWindow <Control-Key-e> [list $this unsetBindings]
-    bind $txtWindow <Control-Key-e> +{break}
     bind $txtWindow <Control-Key-s> [list $this save]
     bind $txtWindow <Control-Key-s> +{break}
     bind $txtWindow <Control-Key-n> [list $this newInterval]

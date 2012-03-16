@@ -16,8 +16,6 @@ itcl::class Struct {
         destroy $standalone
     }
 
-    public method setBindings {}
-    public method unsetBindings {}
     public method remDim {d}
     public method addFrag {d fid}
     public method remFrag {d fid}
@@ -127,16 +125,6 @@ itcl::body Struct::lbrightClick3 {item} {
         set leftSelectedItemPreviousColor black
         remDim [selectedDim]
     }
-}
-
-itcl::body Struct::setBindings {} {
-    focus $frame
-    bind $frame <Control-Key-e> [list $this unsetBindings]
-}
-
-itcl::body Struct::unsetBindings {} {
-    if {$container ne ""} { $container setBindings }
-    focus [winfo toplevel $frame]
 }
 
 itcl::body Struct::remDim {d} {

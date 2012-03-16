@@ -29,28 +29,8 @@ itcl::class Date {
     private method load {} {}
 
     public method save {}
-    public method setBindings {}
-    public method unsetBindings {}
     public method specificLayout {}
     public method afterLayout {}
-}
-
-itcl::body Date::setBindings {} {
-    foreach w [list $d $m $y $h $min $certain] {
-        bind $w <Control-Key-e> [list $this unsetBindings]
-    }
-    focus $d
-}
-
-itcl::body Date::unsetBindings {} {
-    save
-    foreach tag [bind $frame] {
-        bind $frame $tag ""
-    }
-    if {$container ne ""} {
-        $container setBindings
-    }
-    focus [winfo toplevel $frame]
 }
 
 itcl::body Date::specificLayout {} {
@@ -70,7 +50,6 @@ itcl::body Date::specificLayout {} {
 }
 
 itcl::body Date::afterLayout {} {
-    setBindings
     load
 }
 
