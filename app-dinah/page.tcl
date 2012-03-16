@@ -98,8 +98,10 @@ itcl::class Page {
             -scrollregion [list 0 0 [currentResolutionMaxWidth] [currentResolutionMaxHeight]]]
         set zPlus [button $center.menu.zPlus -text "+" -command [list $this zoom 1]]
         set zMinus [button $center.menu.zMinus -text "-" -command [list $this zoom -1]]
+        set quickZoom [button $center.menu.quickZoom -text "z" -command [list $this quickZoom]]
         pack $zPlus -side left -padx 4 -pady 4
         pack $zMinus -side left -padx 4 -pady 4
+        pack $quickZoom -side left -padx 4 -pady 4
     }
 
     method afterLayout {} {

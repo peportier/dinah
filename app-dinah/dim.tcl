@@ -543,10 +543,8 @@ itcl::body Dim::query {} {
 itcl::body Dim::initGrid {} {
     grid rowconfigure $g all -uniform {} -weight 0
     grid columnconfigure $g all -uniform {} -weight 0
-    foreach {pos o} [array get objects] {
-        grid forget [$o cget -frame]
-        $o destructor
-    }
+    foreach slave [grid slaves $g] { grid forget $slave ; destroy $slave }
+    foreach {pos o} [array get objects] { $o destructor }
 }
 
 itcl::body Dim::setX {dim} { set x $dim }
@@ -947,6 +945,16 @@ itcl::body Dim::mkGrid {} {
     set lastScreenRow 0
     set lastScreenCol 0
     array set id2obj {}
+    set twoVertic [expr {(($wHeight == 2) && ($wWidth == 1)) ? 1 : 0}]
+    set twoHoriz [expr {(($wHeight == 1) && ($wWidth == 2)) ? 1 : 0}]
+    set usePanedwin 1
+    if {$twoVertic} {
+        set panedwin [panedwindow $g.pan -orient vertical -handlesize 10 -showhandle 1]
+    } elseif {$twoHoriz} {
+        set panedwin [panedwindow $g.pan -orient horizontal -handlesize 10 -showhandle 1]
+    } else {
+        set usePanedwin 0
+    }
     for {set i 0} {$i < $wHeight} {incr i} {
         set nbCols 0
         for {set j 0} {$j < $wWidth} {incr j} {
@@ -955,12 +963,16 @@ itcl::body Dim::mkGrid {} {
             set absolutePos [list $absoluteI $absoluteJ]
             set objId [id [cell $absolutePos]] 
             if {! ($objId eq {})} {
-                set o [::dinah::mkObj $objId $g]
+                if {$usePanedwin} {
+                    set o [::dinah::mkObj $objId $panedwin]
+                } else {
+                    set o [::dinah::mkObj $objId $g]
+                }
                 lappend id2obj($objId) $o
                 $o configure -container $this
                 set objects($absolutePos) $o
-                set pos([$o cget -frame]) $absolutePos
                 set w [$o cget -frame]
+                set pos($w) $absolutePos
                 $o openNS
                 if {[scRowIndex] == $absoluteI} {
                     $o openEW
@@ -970,7 +982,11 @@ itcl::body Dim::mkGrid {} {
                 } else {
                     $o closeEW
                 }
-                grid $w -column $j -row $i -sticky news
+                if {$usePanedwin} {
+                    $panedwin add $w -stretch always
+                } else {
+                    grid $w -column $j -row $i -sticky news
+                }
                 incr nbCols
                 set lastScreenRow $i
             }
@@ -983,7 +999,9 @@ itcl::body Dim::mkGrid {} {
             foreach o $objs {$o setMenuColor $color}
         }
     }
-
+    if {$usePanedwin} {
+        grid $panedwin -sticky news
+    }
     grid rowconfigure $g all -uniform 1 -weight 1
     grid columnconfigure $g all -uniform 1 -weight 1
     updateInfo
@@ -995,7 +1013,11 @@ itcl::body Dim::mkGrid {} {
         applyNormalHooks $o
     }
 
-    if {[scRowIndex] ne {} && [insideW [scRowIndex] $wCol]} {
+    if {$twoVertic} {
+
+    } elseif {$twoHoriz} {
+
+    } elseif {[scRowIndex] ne {} && [insideW [scRowIndex] $wCol]} {
         set mainRowPathnames [lreverse [grid slaves $g -row [expr {[scRowIndex]-$wRow}]]]
         set leftMostPathname [lindex $mainRowPathnames 0]
         set firstVisibleCol [expr {[lindex $pos($leftMostPathname) 1] + 1}]
