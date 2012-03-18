@@ -59,6 +59,7 @@ proc specific_init_preamble {} {
 proc specific_init_postamble {} {
     set c0 [::dinah::Container #auto]
     focus [$c0 mkWindow .]
+    $c0 initTopLeftVisible
     set win [$c0 quart 1]
     $win setX $::dinah::dimInsert
     $win setY $::dinah::dimSameLevel

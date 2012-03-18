@@ -1,3 +1,5 @@
+set ::dinah::dimAlternative "d.alternative"
+set ::dinah::dimAttribute "d.attribute"
 set ::dinah::dimNote "d.note"
 set ::dinah::dimArchive "d.archive"
 set ::dinah::dimSameLevel "d.sameLevel"
@@ -15,7 +17,11 @@ set ::dinah::closeColor blue
 set ::dinah::openColor black
 set ::dinah::font helvetica
 
+set ::dinah::resolutions_suffix {""}
+
 proc specific_init_preamble {} {
+    ::dinah::newDim? $::dinah::dimAlternative
+    ::dinah::newDim? $::dinah::dimAttribute
     ::dinah::newDim? $::dinah::dimNote
     ::dinah::newDim? $::dinah::dimArchive
     ::dinah::newDim? $::dinah::dimSameLevel
@@ -33,12 +39,12 @@ proc specific_init_preamble {} {
     ::dinah::addToTxtMenu titre3 -font "$::dinah::font 11 underline"
     ::dinah::addToTxtMenu sub -offset -6
     ::dinah::addToTxtMenu sup -offset 6
-    ::dinah::Page::high
 }
 
 proc specific_init_postamble {} {
     set c0 [::dinah::Container #auto]
     focus [$c0 mkWindow .]
+    $c0 initLeftVisible
     set quart1 [$c0 quart 1]
     $quart1 setX $::dinah::dimContains
     $quart1 setY $::dinah::dimSameLevel

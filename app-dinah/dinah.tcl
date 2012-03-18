@@ -12,8 +12,8 @@ namespace eval ::dinah {
     source $starkit::topdir/lib/app-dinah/db.tcl
     source $starkit::topdir/lib/app-dinah/algo_dim_agreg.tcl
     source $starkit::topdir/lib/app-dinah/zonemaker.tcl
-    #source $starkit::topdir/lib/app-dinah/bouvard.tcl
-    source $starkit::topdir/lib/app-dinah/desanti.tcl
+    source $starkit::topdir/lib/app-dinah/bouvard.tcl
+    #source $starkit::topdir/lib/app-dinah/desanti.tcl
     source $starkit::topdir/lib/app-dinah/common.tcl
     #load_conf
     source $starkit::topdir/lib/app-dinah/canvas.tcl
@@ -41,5 +41,6 @@ namespace eval ::dinah {
         }
     }
 
+    #console show
     ::dinah::init
 }

@@ -8,3 +8,9 @@ proc remove_img_frag {} {
 	}
     }
 }
+
+proc img_to_page {} {
+    foreach {k v} [array get ::dinah::db *,isa] {
+        if {$v eq "Img"} { set ::dinah::db($k) "Page" }
+    }
+}

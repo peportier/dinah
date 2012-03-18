@@ -195,11 +195,12 @@ namespace eval ::dinah::zonemaker {
         variable ::dinah::zonemaker::c
         variable ::dinah::zonemaker::convert
         set pts ""; set xs {}; set ys {}
-        set scale 40%
+        set scales {"30%" "35%" "40%"}
         set imgPath [$img cget -file]
         delete_poly_images $id
-        foreach resolution {high low} {
-            set $resolution $db(base)[::dinah::db'get $id path]_$resolution$db(imgExtension)
+        set paths {}
+        foreach suffix $::dinah::resolutions_suffix {
+            lappend paths $db(base)[::dinah::db'get $id path]$suffix$db(imgExtension)
         }
         foreach {x y} $db($id,coords) {
             set x [int $x]; set y [int $y]
@@ -214,9 +215,11 @@ namespace eval ::dinah::zonemaker {
         set croprect [expr $xmax - $xmin]x[expr $ymax - $ymin]+$xmin+$ymin
         exec $convert -size [image width $img]x[image height $img] xc:white \
             -fill $imgPath -draw "polygon $pts" polygon.jpeg
-        exec $convert polygon.jpeg -crop $croprect +repage $high
+        exec $convert polygon.jpeg -crop $croprect +repage [::dinah::lpop paths]
         file delete polygon.jpeg
-        exec -ignorestderr $convert $high -scale $scale $low
+        while {[llength $paths] != 0} {
+            exec -ignorestderr $convert $high -scale [::dinah::lpop scales] [::dinah::lpop paths]
+        }
     }
 
     proc create_poly {coords} {
