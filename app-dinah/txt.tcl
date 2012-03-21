@@ -30,14 +30,14 @@ itcl::class Txt {
     public method afterLayout {}
     public method specificLayout {}
     public method click {w x y}
-    public method delete {}
+    public method deleteSelection {}
     public method initNewInterval {name fragId}
     public method newStone {tagName}
     public proc cr {w}
     public proc insert {w s}
 }
 
-itcl::body Txt::delete {} {
+itcl::body Txt::deleteSelection {} {
     set tags [$txtWindow tag names current]
     set sel [$txtWindow tag ranges sel]
     if {$sel eq ""} {return}
@@ -96,7 +96,7 @@ itcl::body Txt::contextualMenu {} {
         regexp {(.*),option} $k -> name
         lappend names $name
     }
-    $menu add command -label delete -command [list $this delete]
+    $menu add command -label delete -command [list $this deleteSelection]
     foreach name [lsort -dictionary $names] {
         $menu add command -label $name -command [list $this execMenuCmd $name]
     }

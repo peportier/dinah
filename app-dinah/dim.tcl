@@ -914,7 +914,7 @@ itcl::class Dim {
                       ( ( $wRow <= $row ) && ( $row < ($wRow + $wHeight) ) )}]
     }
 
-    method new {type} {
+    method new {type {delta 1}} {
         variable ::dinah::db
         if { [::dinah::editable $x] } {
             if { !( $sc eq {} ) } {
@@ -925,14 +925,14 @@ itcl::class Dim {
                 foreach l $db($x) {
                     set i [lsearch $l $dbid]
                     if {$i > -1} {
-                        lappend newX [linsert $l [expr {$i + 1}] $newId]
+                        lappend newX [linsert $l [expr {$i + $delta}] $newId]
                         set found 1
                     } else {
                         lappend newX $l 
                     }
                 }
                 if {! $found} {
-                    lappend newX [list $dbid $newId]
+                    lappend newX [linsert [list $dbid] $delta $newId]
                 }
                 set db($x) $newX
             } else {
