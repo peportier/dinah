@@ -5,6 +5,7 @@ itcl::class Txt {
     private variable fontsize "10"
     private variable saveStateLabel ""
     private variable tagNameLabel ""
+    private variable deleteMenu ""
 
     constructor {id} { set dbid $id }
 
@@ -35,7 +36,7 @@ itcl::class Txt {
                     $txtWindow tag remove $t {*}$sel
                 }
                 if {[$txtWindow tag ranges "interval$id"] eq ""} {
-                    foreach d [list $::dinah::dimAttribute $::dinah::dimNote $::dinah::dimAlternative] {
+                    foreach d [list $::dinah::dimNote] {
                         set found [::dinah::findInDim $d $id]
                         if {$found != {}} {
                             set si [lindex $found 0]
@@ -48,11 +49,48 @@ itcl::class Txt {
         }
     }
 
+    method inRange {index start end} {
+
+    }
+
+    method dbIdFromTagName {tagName} {
+        regexp {^interval(.*)} $tagName -> dbId
+        return $dbId
+    }
+
+    method removeTagFromDB {tagDBId} {
+        foreach d [list $::dinah::dimNote] {
+            set found [::dinah::findInDim $d $id]
+            if {$found != {}} {
+                set si [lindex $found 0]
+                set ::dinah::db($d) [lreplace $::dinah::db($d) $si $si]
+            }
+        }
+        ::dinah::remfrag $::dinah::dimFragments $id
+    }
+
+    method removeTag {tagName insideIndex} {
+        foreach tagName [$txtWindow tag names $insideIndex] {
+            foreach tagRange [$txtWindow tag ranges $tagName] {
+                if {[inRange $insideIndex {*}$tagRange]} {
+                    $txtWindow tag remove $tagName {*}$tagRange
+                    set tagDBId [dbIdFromTagName $tagName]
+                    if {$tagDBId ne ""} {
+                        removeTagFromDB $tagDBId
+                    }
+                }
+            }
+        }
+    }
+
     method click {w x y} {
+        puts $txtWindow
         $tagNameLabel configure -text "" 
+        $deleteMenu delete 0 end
         foreach t [$txtWindow tag names @$x,$y] {
             if {! [regexp {^interval.*} $t]} {
                 $tagNameLabel configure -text $t
+                $deleteMenu add command -label "$t" -command [list $this removeTag $t [$txtWindow index @$x,$y]]
             }
             set id ""
             regexp {^interval(.*)} $t -> id
@@ -60,7 +98,7 @@ itcl::class Txt {
                 set t [$container getTopFrame]
                 set c [$container getContainer]
                 if {[$c frameOfQuart 1] eq $t} {
-                    foreach {quartIndex dim} [list 2 $::dinah::dimAttribute 3 $::dinah::dimNote 4 $::dinah::dimAlternative] {
+                    foreach {quartIndex dim} [list 3 $::dinah::dimNote] {
                         set quart [$c quart $quartIndex]
                         $quart setX $dim
                         $quart setY $::dinah::dimNil
@@ -77,16 +115,18 @@ itcl::class Txt {
 
     method contextualMenu {} {
         set menu [menu $frame.contextualMenu]
+        set deleteMenu [menu $frame.contextualMenu.deleteMenu]
         set names {}
         foreach {k pairs} [array get ::dinah::txtClick *,option] {
             regexp {(.*),option} $k -> name
             lappend names $name
         }
-        $menu add command -label delete -command [list $this deleteSelection]
+        $menu add cascade -label "delete" -menu $deleteMenu
         foreach name [lsort -dictionary $names] {
             $menu add command -label $name -command [list $this execMenuCmd $name]
         }
-        bind $txtWindow $::dinah::mouse(B3) [list tk_popup $menu %X %Y]
+        bind $txtWindow $::dinah::mouse(B3) [list $this click %w %x %y]
+        bind $txtWindow $::dinah::mouse(B3) +[list tk_popup $menu %X %Y]
     }
 
     method execMenuCmd {name} {
@@ -102,16 +142,6 @@ itcl::class Txt {
     }
 
     method initNewInterval {name fragId} {
-        if {[::dinah::findInDim $::dinah::dimAttribute $fragId] eq ""} {
-            set structId [::dinah::emptyNode "Struct"]
-            lappend ::dinah::db($::dinah::dimAttribute) [list $fragId $structId] 
-        }
-        if {$name in {abbr sic orig}} {
-            if {[::dinah::findInDim $::dinah::dimAlternative $fragId] eq ""} {
-                set alternativeId [::dinah::emptyNode "Txt" "Alternative pour $fragId"]
-                lappend ::dinah::db($::dinah::dimAlternative) [list $fragId $alternativeId] 
-            }
-        }
         set noteId [::dinah::emptyNode Txt "note ($fragId)"]
         lappend ::dinah::db($::dinah::dimNote) [list $fragId $noteId]
     }
@@ -289,16 +319,15 @@ itcl::class Txt {
 
     method defaultTags {} {
         $txtWindow tag configure P -font "$::dinah::font $fontsize normal" -lmargin1 30 -spacing3 30
-        $txtWindow tag configure STRONG -font "$::dinah::font $fontsize bold"
-        $txtWindow tag configure EM -font "$::dinah::font $fontsize italic"
-        $txtWindow tag configure UNDERLINE -font "$::dinah::font $fontsize underline"
-        $txtWindow tag configure OVERSTRIKE -font "$::dinah::font $fontsize overstrike"
+        $txtWindow tag configure STRONG -font "$::dinah::font $fontsize bold" 
+        $txtWindow tag configure EM -font "$::dinah::font $fontsize italic" 
+        $txtWindow tag configure UNDERLINE -font "$::dinah::font $fontsize underline" 
+        $txtWindow tag configure OVERSTRIKE -font "$::dinah::font $fontsize overstrike" 
         $txtWindow tag configure SUB -font "$::dinah::font $fontsize normal" -offset -6
         $txtWindow tag configure SUP -font "$::dinah::font $fontsize normal" -offset 6
         $txtWindow tag configure TITLE1 -font [list $::dinah::font [expr {$fontsize + 6}] underline]
         $txtWindow tag configure TITLE2 -font [list $::dinah::font [expr {$fontsize + 4}] underline]
         $txtWindow tag configure TITLE3 -font [list $::dinah::font [expr {$fontsize + 2}] underline italic]
-        #$txtWindow tag configure interval -background yellow
         foreach {k pairs} [array get ::dinah::txtClick *,option] {
             regexp {(.*),option} $k -> name
             foreach {optionName optionValue} $pairs {
@@ -309,9 +338,9 @@ itcl::class Txt {
 
     method showSavedState {} {
         if {[isSaved]} {
-            $saveStateLabel configure -text ""
+            $saveStateLabel configure -text "" 
         } else {
-            $saveStateLabel configure -text "modified"
+            $saveStateLabel configure -text "modified" 
         }
     }
 
