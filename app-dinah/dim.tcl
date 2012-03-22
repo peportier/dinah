@@ -153,6 +153,7 @@ itcl::class Dim {
         $dimMenu add command -label "prev segment" -command [list $this nextList -1]
         $dimMenu add command -label "goto label" -command [list $this msgGoto]
         $dimMenu add command -label "reload" -command [list $this reload]
+        $dimMenu add command -label "new Txt" -command [list $this new Txt]
         $dimMenu add command -label "delete segment" -command [list $this deleteRow]
         $dimMenu add cascade -label "mode" -menu $modeMenu
         $modeMenu add command -label "nil" -command [list $this setMode 0]
