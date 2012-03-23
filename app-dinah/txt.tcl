@@ -24,56 +24,39 @@ itcl::class Txt {
         $txtWindow configure -font [list -size $fontsize]
     }
 
-    method deleteSelection {} {
-        set tags [$txtWindow tag names current]
-        set sel [$txtWindow tag ranges sel]
-        if {$sel eq ""} {return}
-        foreach t $tags {
-            set id ""
-            regexp {^interval(.*)} $t -> id
-            if {$id ne "" && $container ne ""} {
-                foreach t $tags {
-                    $txtWindow tag remove $t {*}$sel
-                }
-                if {[$txtWindow tag ranges "interval$id"] eq ""} {
-                    foreach d [list $::dinah::dimNote] {
-                        set found [::dinah::findInDim $d $id]
-                        if {$found != {}} {
-                            set si [lindex $found 0]
-                            set ::dinah::db($d) [lreplace $::dinah::db($d) $si $si]
-                        }
-                    }
-                    ::dinah::remfrag $::dinah::dimFragments $id
-                }
-            }
-        }
-    }
-
     method inRange {index start end} {
-
+        return [expr {($start <= $index) && ($index < $end)}]
     }
 
     method dbIdFromTagName {tagName} {
-        regexp {^interval(.*)} $tagName -> dbId
-        return $dbId
+        if {[regexp {^interval(.*)} $tagName -> dbId]} {
+            return $dbId
+        } else {
+            return ""
+        }
     }
 
     method removeTagFromDB {tagDBId} {
         foreach d [list $::dinah::dimNote] {
-            set found [::dinah::findInDim $d $id]
+            set found [::dinah::findInDim $d $tagDBId]
             if {$found != {}} {
                 set si [lindex $found 0]
                 set ::dinah::db($d) [lreplace $::dinah::db($d) $si $si]
             }
         }
-        ::dinah::remfrag $::dinah::dimFragments $id
+        ::dinah::remfrag $::dinah::dimFragments $tagDBId
     }
 
     method removeTag {tagName insideIndex} {
+        foreach {tagToBeRemovedStart tagToBeRemovedStop} [$txtWindow tag ranges $tagName] {
+            if {[inRange $insideIndex $tagToBeRemovedStart $tagToBeRemovedStop]} {
+                break
+            }
+        }
         foreach tagName [$txtWindow tag names $insideIndex] {
-            foreach tagRange [$txtWindow tag ranges $tagName] {
-                if {[inRange $insideIndex {*}$tagRange]} {
-                    $txtWindow tag remove $tagName {*}$tagRange
+            foreach {start stop} [$txtWindow tag ranges $tagName] {
+                if {($start eq $tagToBeRemovedStart) && ($stop eq $tagToBeRemovedStop)} {
+                    $txtWindow tag remove $tagName $start $stop
                     set tagDBId [dbIdFromTagName $tagName]
                     if {$tagDBId ne ""} {
                         removeTagFromDB $tagDBId
@@ -172,19 +155,39 @@ itcl::class Txt {
         destroy $t
     }
 
+    method selToDBId {} {
+        foreach {selStart selStop} [$txtWindow tag ranges sel] {}
+        foreach tagName [$txtWindow tag names] {
+            set selDBId [dbIdFromTagName $tagName]
+            if {$selDBId ne ""} {
+                puts "tagName: $tagName"
+                foreach {start stop} [$txtWindow tag ranges $tagName] {
+                    if {($start eq $selStart) && ($stop eq $selStop)} {
+                        return $selDBId
+                    }
+                }
+            }
+        }
+        return ""
+    }
+
     method newInterval {{tagName ""}} {
         variable ::dinah::db
-        set intervalId [::dinah::db'new [list isa Txt txt [$txtWindow dump -all {*}[$txtWindow tag ranges sel]] label [$txtWindow get {*}[$txtWindow tag ranges sel]]]]
-        ::dinah::copy $intervalId "after" $::dinah::dimFragments $dbid
-        set intervalName "interval$intervalId"
-        set intervalRange [$txtWindow tag ranges sel]
-        eval $txtWindow tag add interval {*}$intervalRange
-        eval $txtWindow tag add  $intervalName {*}$intervalRange
-        if {$tagName ne ""} {$txtWindow tag add $tagName {*}$intervalRange}
-        set noteId [::dinah::emptyNode Txt "note ($intervalId)"]
-        lappend ::dinah::db($::dinah::dimNote) [list $intervalId $noteId]
-        save
-        return $intervalId
+        if {[selToDBId] eq ""} { 
+            set intervalId [::dinah::db'new [list isa Txt txt [$txtWindow dump -all {*}[$txtWindow tag ranges sel]] label [$txtWindow get {*}[$txtWindow tag ranges sel]]]]
+            ::dinah::copy $intervalId "after" $::dinah::dimFragments $dbid
+            set intervalName "interval$intervalId"
+            set intervalRange [$txtWindow tag ranges sel]
+            eval $txtWindow tag add interval {*}$intervalRange
+            eval $txtWindow tag add  $intervalName {*}$intervalRange
+            if {$tagName ne ""} {$txtWindow tag add $tagName {*}$intervalRange}
+            set noteId [::dinah::emptyNode Txt "note ($intervalId)"]
+            lappend ::dinah::db($::dinah::dimNote) [list $intervalId $noteId]
+            save
+            return $intervalId
+        } else {
+            return ""
+        }
     }
 
     method newStone {tagName} {

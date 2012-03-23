@@ -35,7 +35,7 @@ itcl::class Dim {
         set modes(nil) {{1 1 {d.nil d.nil}}}
         set modes(navigation) {{4 4 {d.insert d.sameLevel} {hookNbArchivePages} {hookInitNavigation}} {1 4 {d.archive d.sameLevel}}}
         set modes(transcription) {{1 2 {d.transcription d.archive}}}
-        set modes(notice) {{1 1 {d.nil d.nil} {} {hookInitNotice}} {4 4 {d.noticeLevel d.noticeElement}}}
+        set modes(notice) {{1 1 {d.archive d.nil} {} {hookInitNotice}} {4 4 {d.noticeLevel d.noticeElement}}}
     }
 
 
@@ -157,10 +157,11 @@ itcl::class Dim {
         $dimMenu add command -label "delete segment" -command [list $this deleteRow]
         $dimMenu add cascade -label "mode" -menu $modeMenu
         $modeMenu add command -label "nil" -command [list $this setMode 0]
-        $modeMenu add command -label "navigation" -command [list $this setMode 1]
+        #$modeMenu add command -label "navigation" -command [list $this setMode 1]
         $modeMenu add command -label "transcription" -command [list $this setMode 2]
         $modeMenu add command -label "notice" -command [list $this setMode 3]
         $dimMenu add command -label "exit" -command {exit}
+        $dimMenu add command -label "nouvelle fenetre avec navigation" -command { ::dinah::desanti_navigation_win }
         $dimMenu add command -label "nouvelle fenetre" -command {
             set c0 [::dinah::Container #auto]
             focus [$c0 mkWindow]
@@ -194,7 +195,7 @@ itcl::class Dim {
     method openTreeItem {item} { buildAndGrid [$tree itemId $item] }
 
     method hookInitNotice {} {
-        if {$::dinah::db([scId],isa) eq "Page"} {
+        if {([scId] ne "") && ($::dinah::db([scId],isa) eq "Page")} {
             set found [::dinah::findInDim $::dinah::dimNoticeLevel [scId]]
             if {[llength $found] == 0} {
                 set fragment {}
@@ -204,17 +205,17 @@ itcl::class Dim {
                 lappend ::dinah::db($::dinah::dimNoticeLevel) $fragment
                 set fragment {}
                 lappend fragment $titrePropre
-                lappend fragment [::dinah::emptyNode Txt "titre forgé"]
+                lappend fragment [::dinah::emptyNode Txt "titre forge"]
                 lappend fragment [::dinah::emptyNode Date "date"]
                 lappend fragment [::dinah::emptyNode Txt "notes datation"]
                 lappend fragment [::dinah::emptyNode Txt "description intellectuelle"]
                 lappend fragment [::dinah::emptyNode Txt "sommaire"]
                 lappend fragment [::dinah::emptyNode Txt "notes scientifiques publiques"]
-                lappend fragment [::dinah::emptyNode Txt "notes scientifiques privées"]
+                lappend fragment [::dinah::emptyNode Txt "notes scientifiques privees"]
                 lappend fragment [::dinah::emptyNode Txt "notes archivistiques publiques"]
-                lappend fragment [::dinah::emptyNode Txt "notes archivistiques privées"]
+                lappend fragment [::dinah::emptyNode Txt "notes archivistiques privees"]
                 lappend fragment [::dinah::emptyNode Txt "autres notes publiques"]
-                lappend fragment [::dinah::emptyNode Txt "autres notes privées"]
+                lappend fragment [::dinah::emptyNode Txt "autres notes privees"]
                 lappend ::dinah::db($::dinah::dimNoticeElement) $fragment
             }
             [[$tree setRoot [scId]] setDim $::dinah::dimNoticeLevel $::dinah::dimNoticeElement] load

@@ -56,9 +56,9 @@ proc specific_init_preamble {} {
     ::dinah::addToTxtMenu sup -offset 6
 }
 
-proc specific_init_postamble {} {
+proc desanti_navigation_win {{parentWin ""}} {
     set c0 [::dinah::Container #auto]
-    focus [$c0 mkWindow .]
+    focus [$c0 mkWindow $parentWin]
     $c0 initTopLeftVisible
     set win [$c0 quart 1]
     $win setX $::dinah::dimInsert
@@ -71,6 +71,10 @@ proc specific_init_postamble {} {
     $win setY $::dinah::dimNil
     $win updateEntries
     $win query
+}
+
+proc specific_init_postamble {} {
+    ::dinah::desanti_navigation_win "."
     set ::dinah::db(d.temp) {}
 }
 
