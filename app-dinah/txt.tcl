@@ -160,7 +160,6 @@ itcl::class Txt {
         foreach tagName [$txtWindow tag names] {
             set selDBId [dbIdFromTagName $tagName]
             if {$selDBId ne ""} {
-                puts "tagName: $tagName"
                 foreach {start stop} [$txtWindow tag ranges $tagName] {
                     if {($start eq $selStart) && ($stop eq $selStop)} {
                         return $selDBId
@@ -275,6 +274,7 @@ itcl::class Txt {
         }
         set db($dbid,txt) $dump
         $txtWindow edit modified 0
+        ::dinah::db'save $::dinah::dbFile
     }
 
     method newBindings {} {

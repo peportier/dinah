@@ -217,6 +217,7 @@ itcl::class Dim {
         $modeMenu add command -label "transcription" -command [list $this setMode 2]
         $modeMenu add command -label "notice" -command [list $this setMode 3]
         $dimMenu add command -label "exit" -command {exit}
+        $dimMenu add command -label "save" -command {::dinah::db'save $::dinah::dbFile}
         $dimMenu add command -label "nouvelle fenetre avec navigation" -command { ::dinah::desanti_navigation_win }
         $dimMenu add command -label "nouvelle fenetre" -command {
             set c0 [::dinah::Container #auto]
