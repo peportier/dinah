@@ -27,6 +27,8 @@ itcl::class Dim {
     private variable numModifier ""
     private variable container ""
     private variable onMoveCursor ""
+    private variable history {}
+    private variable historyIndex 0
 
     constructor {} {
         set modes(names) {nil navigation transcription notice}
@@ -38,6 +40,41 @@ itcl::class Dim {
         set modes(notice) {{1 1 {d.archive d.nil} {} {hookInitNotice}} {4 4 {d.noticeLevel d.noticeElement}}}
     }
 
+
+    method addToHistory {} {
+        if {([llength $history] > 0) && ($historyIndex != [expr {[llength $history] - 1}])} {
+            set history [lrange $history 0 $historyIndex]
+            set historyIndex [expr {[llength $history] - 1}]
+        } 
+        set lastStep [lindex $history end]
+        if { ([lindex $lastStep 0] ne [scId]) ||
+             ([lindex $lastStep 1] ne [getX]) ||
+             ([lindex $lastStep 2] ne [getY]) } {
+            lappend history [list [scId] [getX] [getY]]
+            incr historyIndex
+        }
+    }
+
+    method prevHistory {} {
+        if {$historyIndex != 0} {
+            incr historyIndex -1
+            gotoHistory $historyIndex
+        }
+    }
+
+    method nextHistory {} {
+        if {$historyIndex != [expr {[llength $history] - 1}]} {
+            incr historyIndex
+            gotoHistory $historyIndex
+        }
+    }
+
+    method gotoHistory {index} {
+        setX [lindex [lindex $history $index] 1]
+        setY [lindex [lindex $history $index] 2]
+        updateEntries
+        buildAndGrid [lindex [lindex $history $index] 0]
+    }
 
     method getTopFrame {} { 
         return $t
@@ -87,6 +124,21 @@ itcl::class Dim {
         set numModifier [join [list $numModifier $k] ""] 
     }
 
+    method clickBtnX {} {
+        switchScDimsX
+        addToHistory
+    }
+
+    method clickBtnY {} {
+        switchScDimsY
+        addToHistory
+    }
+
+    method clickBtnOK {} {
+        query
+        addToHistory
+    }
+
     method mkWindow {{parent {}}} {
         variable ::dinah::db
         if {$parent == {}} {
@@ -108,11 +160,13 @@ itcl::class Dim {
         set btnReduceX [button $f.menu.btnReduceX -text "-X" -command [list $this incrWWidth -1]]
         set btnExtendY [button $f.menu.btnExtendY -text "+Y" -command [list $this incrWHeight 1]]
         set btnReduceY [button $f.menu.btnReduceY -text "-Y" -command [list $this incrWHeight -1]]
-        set btnX [button $f.menu.btnX -text "X:" -command [list $this switchScDimsX]]
+        set btnX [button $f.menu.btnX -text "X:" -command [list $this clickBtnX]]
         set x_entry [::dinah::Autocomplete x_entry#auto $f.menu.x_entry $db(dimensions)]
-        set btnY [button $f.menu.btnY -text "Y:" -command [list $this switchScDimsY]]
+        set btnY [button $f.menu.btnY -text "Y:" -command [list $this clickBtnY]]
         set y_entry [::dinah::Autocomplete y_entry#auto $f.menu.y_entry $db(dimensions)]
-        button $f.menu.ok -text "OK" -command [list $this query]
+        button $f.menu.ok -text "OK" -command [list $this clickBtnOK]
+        button $f.menu.prevHistory -text "<-" -command [list $this prevHistory]
+        button $f.menu.nextHistory -text "->" -command [list $this nextHistory]
         entry $f.menu.label
         bindtags $f.menu.label [list $f.menu.label [winfo class $f.menu.label] all]
         bind $f.menu.label <Key-Escape> [list focus $t]
@@ -134,6 +188,8 @@ itcl::class Dim {
         pack $btnY -side left -padx 4 -pady 4
         pack $f.menu.y_entry -side left -padx 4 -pady 4
         pack $f.menu.ok -side left -padx 4 -pady 4
+        pack $f.menu.prevHistory -side left -padx 4 -pady 4
+        pack $f.menu.nextHistory -side left -padx 4 -pady 4
         pack $f.menu.label -side left -padx 4 -pady 4
         pack $resolutionLabel -side left -padx 4 -pady 4
         pack $f.menu -side top -fill x
