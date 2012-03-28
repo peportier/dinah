@@ -435,9 +435,14 @@ itcl::class Dim {
     }
 
     method query {} {
-        variable ::dinah::db
-        setX [[$x_entry w] get]
-        setY [[$y_entry w] get]
+        set xEntryValue [[$x_entry w] get]
+        set yEntryValue [[$y_entry w] get]
+        if {[regexp {^q\..*} $xEntryValue] || [regexp {^q\..*} $yEntryValue]} {
+            blank
+        }
+        setX $xEntryValue
+        setY $yEntryValue
+        updateEntries
         ::dinah::newDim? $x
         ::dinah::newDim? $y
         buildAndGrid [scId]
