@@ -56,9 +56,9 @@ itcl::class Obj {
         $genericMenu add command -label fold -command [list $this fold]
         bind $center.menu $::dinah::mouse(B3) [list tk_popup $genericMenu %X %Y]
         bind $center.menu <Double-1> [list $this select]
-        bind $center.menu <1> [list $this menu1 %x %y]
-        bind $center.menu <2> [list $this menu2 %x %y]
-        bind $center.menu <B2-Motion> [list $this menu2motion %x %y]
+        bind $center.menu <1> [list $this menu1 %X %Y]
+        bind $center.menu.notification <1> [list $this menu1 %X %Y]
+        bind $center.menu.notification <B1-Motion> [list $this menu1motion %X %Y]
         bind $center.foldedEntry <Double-1> [list $this unfold]
 
         set rightMenu [menu $frame.rightMenu]
@@ -75,31 +75,24 @@ itcl::class Obj {
         dragAndDrop
     }
 
-    method menu1 {x y} {
+    method menu1 {X Y} {
         if {! [catch {$container isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} {
+            $container getFocus
             $container setCursorOnId $dbid
-            set ::dinah::memx $x
-            set ::dinah::memy $y
+            set ::dinah::memx [[$container getCanvas] canvasx $X]
+            set ::dinah::memy [[$container getCanvas] canvasx $Y]
         }}
     }
 
-    method menu2 {x y} {
+    method menu1motion {X Y} {
         if {! [catch {$container isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} {
-            $container setCursorOnId $dbid
-            set ::dinah::memx [[$container getCanvas] canvasx $x]
-            set ::dinah::memy [[$container getCanvas] canvasy $y]
-        }}
-    }
-
-    method menu2motion {x y} {
-        if {! [catch {$container isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} {
-            set x [[$container getCanvas] canvasx $x]
-            set y [[$container getCanvas] canvasy $y]
-            set dx [expr {$x - $::dinah::memx}]
-            set dy [expr {$y - $::dinah::memy}]
+            set x [[$container getCanvas] canvasx $X]
+            set y [[$container getCanvas] canvasy $Y]
+            set dx [expr {$X - $::dinah::memx}]
+            set dy [expr {$Y - $::dinah::memy}]
             $container moveItem [$container getItemFromId $dbid] $dx $dy 
-            set ::dinah::memx $x
-            set ::dinah::memy $y
+            set ::dinah::memx $X
+            set ::dinah::memy $Y
         }}
     }
 

@@ -70,6 +70,11 @@ itcl::class Whiteboard {
     public method newNode {type x y}
     public method newNodeAtClick {type}
     public method backgroundMenu {x y}
+    public method getFocus {}
+}
+
+itcl::body Whiteboard::getFocus {} {
+    focus $t
 }
 
 itcl::body Whiteboard::getCanvas {} {
