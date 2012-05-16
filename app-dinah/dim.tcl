@@ -63,7 +63,8 @@ itcl::class Dim {
     }
 
     method nextHistory {} {
-        if {$historyIndex != [expr {[llength $history] - 1}]} {
+        if {  ([llength $history] > 0) &&
+              ($historyIndex != [expr {[llength $history] - 1}])  } {
             incr historyIndex
             gotoHistory $historyIndex
         }
@@ -650,17 +651,24 @@ itcl::class Dim {
                 [$objects($sc) cget -frame] configure -borderwidth $::dinah::fragmentBorderWidth -bg red
             }
             updateInfo
+            addToHistory
             set scDimXCursor 0
             set scDimYCursor 0
         }
     }
 
     method scRight {} {
-        if {! $busy} { scHoriz [getNumModifier] ; initNumModifier }
+        if {! $busy} { 
+            scHoriz [getNumModifier] 
+            initNumModifier 
+        }
     }
 
     method scLeft {} {
-        if {! $busy} { scHoriz -[getNumModifier] ; initNumModifier }
+        if {! $busy} { 
+            scHoriz -[getNumModifier] 
+            initNumModifier 
+        }
     }
 
     method scVertic {i} {
@@ -670,17 +678,24 @@ itcl::class Dim {
         if {$exist && !( $grid($newScRow,[scColumnIndex]) eq {} )} {
             buildAndGrid [id [cell [list $newScRow [scColumnIndex]]]]
             mkGrid
+            addToHistory
             set scDimXCursor 0
             set scDimYCursor 0
         }
     }
 
     method scDown {} {
-        if {! $busy} { scVertic [getNumModifier] ; initNumModifier }
+        if {! $busy} { 
+            scVertic [getNumModifier] 
+            initNumModifier 
+        }
     }
 
     method scUp {} {
-        if {! $busy} { scVertic -[getNumModifier] ; initNumModifier }
+        if {! $busy} { 
+            scVertic -[getNumModifier] 
+            initNumModifier 
+        }
     }
 
     method buildBoard {{center {}}} {
