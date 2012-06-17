@@ -213,10 +213,10 @@ itcl::class Dim {
         $dimMenu add command -label "new Txt" -command [list $this new Txt]
         $dimMenu add command -label "delete segment" -command [list $this deleteRow]
         $dimMenu add cascade -label "mode" -menu $modeMenu
-        $modeMenu add command -label "nil" -command [list $this setMode 0]
+        $modeMenu add command -label "nil" -command [list $this setModeNil]
         #$modeMenu add command -label "navigation" -command [list $this setMode 1]
-        $modeMenu add command -label "transcription" -command [list $this setMode 2]
-        $modeMenu add command -label "notice" -command [list $this setMode 3]
+        $modeMenu add command -label "transcription" -command [list $this setModeTranscription]
+        $modeMenu add command -label "notice" -command [list $this setModeNotice]
         $dimMenu add command -label "exit" -command {exit}
         $dimMenu add command -label "save" -command {::dinah::db'save $::dinah::dbFile}
         $dimMenu add command -label "nouvelle fenetre avec navigation" -command { ::dinah::desanti_navigation_win }
@@ -259,21 +259,42 @@ itcl::class Dim {
                 set fragment {}
                 lappend fragment [scId] 
                 set titrePropre [::dinah::emptyNode Txt "titre propre"]
+                set ::dinah::db($titrePropre,txt) "text {titre propre :\n} 1.0"
                 lappend fragment $titrePropre
                 lappend ::dinah::db($::dinah::dimNoticeLevel) $fragment
                 set fragment {}
                 lappend fragment $titrePropre
-                lappend fragment [::dinah::emptyNode Txt "titre forge"]
+                set titreForge [::dinah::emptyNode Txt "titre forg\u00E9"]
+                set ::dinah::db($titreForge,txt) "text {titre forg\u00E9 :\n} 1.0"
+                lappend fragment $titreForge
                 lappend fragment [::dinah::emptyNode Date "date"]
-                lappend fragment [::dinah::emptyNode Txt "notes datation"]
-                lappend fragment [::dinah::emptyNode Txt "description intellectuelle"]
-                lappend fragment [::dinah::emptyNode Txt "sommaire"]
-                lappend fragment [::dinah::emptyNode Txt "notes scientifiques publiques"]
-                lappend fragment [::dinah::emptyNode Txt "notes scientifiques privees"]
-                lappend fragment [::dinah::emptyNode Txt "notes archivistiques publiques"]
-                lappend fragment [::dinah::emptyNode Txt "notes archivistiques privees"]
-                lappend fragment [::dinah::emptyNode Txt "autres notes publiques"]
-                lappend fragment [::dinah::emptyNode Txt "autres notes privees"]
+                set notesDatation [::dinah::emptyNode Txt "notes datation"]
+                set ::dinah::db($notesDatation,txt) "text {notes datation :\n} 1.0"
+                lappend fragment $notesDatation
+                set descriptionIntellectuelle [::dinah::emptyNode Txt "description intellectuelle"]
+                set ::dinah::db($descriptionIntellectuelle,txt) "text {description intellectuelle :\n} 1.0"
+                lappend fragment $descriptionIntellectuelle
+                set sommaire [::dinah::emptyNode Txt "sommaire"]
+                set ::dinah::db($sommaire,txt) "text {sommaire :\n} 1.0"
+                lappend fragment $sommaire
+                set notesSciPub [::dinah::emptyNode Txt "notes scientifiques publiques"]
+                set ::dinah::db($notesSciPub,txt) "text {notes scientifiques publiques :\n} 1.0"
+                lappend fragment $notesSciPub
+                set notesSciPriv [::dinah::emptyNode Txt "notes scientifiques priv\u00E9es"]
+                set ::dinah::db($notesSciPriv,txt) "text {notes scientifiques priv\u00E9es :\n} 1.0"
+                lappend fragment $notesSciPriv
+                set notesArchPub [::dinah::emptyNode Txt "notes archivistiques publiques"]
+                set ::dinah::db($notesArchPub,txt) "text {notes archivistiques publiques :\n} 1.0"
+                lappend fragment $notesArchPub
+                set notesArchPriv [::dinah::emptyNode Txt "notes archivistiques priv\u00E9es"]
+                set ::dinah::db($notesArchPriv,txt) "text {notes archivistiques priv\u00E9es :\n} 1.0"
+                lappend fragment $notesArchPriv
+                set autresNotesPub [::dinah::emptyNode Txt "autres notes publiques"]
+                set ::dinah::db($autresNotesPub,txt) "text {autres notes publiques :\n} 1.0"
+                lappend fragment $autresNotesPub
+                set autresNotesPriv [::dinah::emptyNode Txt "autres notes priv\u00E9es"]
+                set ::dinah::db($autresNotesPriv,txt) "text {autres notes priv\u00E9es :\n} 1.0"
+                lappend fragment $autresNotesPriv
                 lappend ::dinah::db($::dinah::dimNoticeElement) $fragment
             }
             [[$tree setRoot [scId]] setDim $::dinah::dimNoticeLevel $::dinah::dimNoticeElement] load
@@ -559,6 +580,10 @@ itcl::class Dim {
         setModeDim
         applyInitHooks
     }
+
+    method setModeNil {} { setMode 0}
+    method setModeNotice {} { setMode 3}
+    method setModeTranscription {} { setMode 2}
 
     method nextMode {} {
         if {$modes(current) + 1 == [llength $modes(names)]} {

@@ -58,7 +58,7 @@ itcl::class Page {
 
     method mkImage {} {
         if { [catch {image create photo -file [path]} original] } {
-    	puts stderr "Could not open image"
+    	    puts stderr "Could not open image"
         }
         set copy [image create photo]
         $copy copy $original
@@ -83,9 +83,11 @@ itcl::class Page {
             -scrollregion [list 0 0 [currentResolutionMaxWidth] [currentResolutionMaxHeight]]]
         set zPlus [button $center.menu.zPlus -text "+" -command [list $this zoom 1]]
         set zMinus [button $center.menu.zMinus -text "-" -command [list $this zoom -1]]
+        set rotate90 [button $center.menu.rotate90 -text "r" -command [list $this rotate90]]
         set quickZoom [button $center.menu.quickZoom -text "z" -command [list $this quickZoom]]
         pack $zPlus -side left -padx 4 -pady 4
         pack $zMinus -side left -padx 4 -pady 4
+        pack $rotate90 -side left -padx 4 -pady 4
         pack $quickZoom -side left -padx 4 -pady 4
     }
 
@@ -189,5 +191,13 @@ itcl::class Page {
             return 1
         }
         return 0
+    }
+
+    method rotate90 {} {
+        foreach suffix $::dinah::resolutions_suffix  {
+            set filepath $::dinah::db(base)[::dinah::db'get $dbid path]$suffix$::dinah::db(imgExtension)
+            exec -ignorestderr $::dinah::zonemaker::convert $filepath -rotate 90 $filepath
+        }
+        reloadImage
     }
 }

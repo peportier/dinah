@@ -56,7 +56,7 @@ proc specific_init_preamble {} {
     ::dinah::addToTxtMenu sup -offset 6
 }
 
-proc desanti_navigation_win {{parentWin ""}} {
+proc desanti_navigation_win {{parentWin ""} {noticeWin 0}} {
     set c0 [::dinah::Container #auto]
     focus [$c0 mkWindow $parentWin]
     $c0 initTopLeftVisible
@@ -71,10 +71,31 @@ proc desanti_navigation_win {{parentWin ""}} {
     $win setY $::dinah::dimNil
     $win updateEntries
     $win query
+    if {$noticeWin} {
+        $win setOnMoveCursor [list ::dinah::navWinOnMoveCursor $c0]
+    }
+}
+
+proc navWinOnMoveCursor {container} {
+    set quart1 [$container quart 1]
+    set quart3 [$container quart 3]
+    if {[$quart1 getX] eq $::dinah::dimArchive} {
+        set found [::dinah::findInDim $::dinah::dimArchive [$quart1 scId]]
+        if { ($found != {}) && ([lindex $found 1] == 0) } {
+            $quart3 setX $::dinah::dimArchive
+            $quart3 setY $::dinah::dimNil
+            $quart3 updateEntries
+            $quart3 setWWidth 1
+            $quart3 setWHeight 1
+            $quart3 buildAndGrid [$quart1 scId]
+            $quart3 setModeNotice
+            $quart1 getFocus
+        }
+    }
 }
 
 proc specific_init_postamble {} {
-    ::dinah::desanti_navigation_win "."
+    ::dinah::desanti_navigation_win "." 1
     set ::dinah::db(d.temp) {}
 }
 
