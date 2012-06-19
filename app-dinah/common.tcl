@@ -304,6 +304,19 @@ proc remfrag {d f} {
     }
 }
 
+proc getSegIndex {d dbid} {
+    set found [::dinah::findInDim $d $dbid]
+    if {$found != {}} {
+        return [lindex $found 0]
+    } else {
+        return ""
+    }
+}
+
+proc remSeg {d segIndex} {
+    set ::dinah::db($d) [lreplace $::dinah::db($d) $segIndex $segIndex]
+}
+
 proc order {dimIndex dimLinear newDim} {
     if  { (! [info exists ::dinah::db($dimIndex)]) || (! [info exists ::dinah::db($dimLinear)]) || \
           (! [::dinah::editable $newDim]) } {

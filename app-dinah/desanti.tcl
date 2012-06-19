@@ -12,12 +12,14 @@ set ::dinah::dimNil "d.nil"
 set ::dinah::dimClipboard "d.clipboard"
 set ::dinah::dimChrono "d.chrono"
 set ::dinah::dimInfo "d.info"
+set ::dinah::dimTranscription "d.transcription"
 set ::dinah::separatorSize 5
 set ::dinah::fragmentBorderWidth 2
 set ::dinah::backgroundColor antiqueWhite
 set ::dinah::closeColor blue
 set ::dinah::openColor black
 set ::dinah::font helvetica
+set ::dinah::fontsize 10
 
 set ::dinah::resolutions_suffix {"_low" "_high"}
 
@@ -36,6 +38,12 @@ proc specific_init_preamble {} {
     ::dinah::newDim? $::dinah::dimClipboard
     ::dinah::newDim? $::dinah::dimChrono
     ::dinah::newDim? $::dinah::dimInfo
+    ::dinah::addToTxtMenu "gras" "-font" "$::dinah::font $::dinah::fontsize bold"
+    ::dinah::addToTxtMenu "italique" "-font" "$::dinah::font $::dinah::fontsize italic"
+    ::dinah::addToTxtMenu "exposant" "-offset" "6"
+    ::dinah::addToTxtMenu "indice" "-offset" "-6"
+    ::dinah::addToTxtMenu "soulign\u00E9" "-underline" "1"
+    ::dinah::addToTxtMenu "ray\u00E9" "-overstrike" "1"
     ::dinah::addToTxtMenu "auteur" "-background" "orange" "-foreground" "black"
     ::dinah::addToTxtMenu "concept" "-background" "forest green" "-foreground" "black"
     ::dinah::addToTxtMenu "cb" "-background" "yellow" "-foreground" "black"
@@ -49,11 +57,8 @@ proc specific_init_preamble {} {
     ::dinah::addToTxtMenu "del" "-overstrike" "1"
     ::dinah::addToTxtMenu "foreign" "-background" "cyan" "-foreground" "black"
     ::dinah::addToTxtMenu "head" "-font" "$::dinah::font 13 underline"
-    ::dinah::addToTxtMenu "underline" "-underline" "1"
     ::dinah::addToTxtMenu "mentioned" "-background" "blue" "-foreground" "black"
     ::dinah::addToTxtMenu "quote" "-background" "azure" "-foreground" "black" "-underline" "1"
-    ::dinah::addToTxtMenu sub -offset -6
-    ::dinah::addToTxtMenu sup -offset 6
 }
 
 proc desanti_navigation_win {{parentWin ""} {noticeWin 0}} {
@@ -78,20 +83,29 @@ proc desanti_navigation_win {{parentWin ""} {noticeWin 0}} {
 
 proc navWinOnMoveCursor {container} {
     set quart1 [$container quart 1]
+    set quart2 [$container quart 2]
     set quart3 [$container quart 3]
+    set quart1ScId [$quart1 scId]
     if {[$quart1 getX] eq $::dinah::dimArchive} {
-        set found [::dinah::findInDim $::dinah::dimArchive [$quart1 scId]]
+        set found [::dinah::findInDim $::dinah::dimArchive $quart1ScId]
         if { ($found != {}) && ([lindex $found 1] == 0) } {
             $quart3 setX $::dinah::dimArchive
             $quart3 setY $::dinah::dimNil
             $quart3 updateEntries
             $quart3 setWWidth 1
             $quart3 setWHeight 1
-            $quart3 buildAndGrid [$quart1 scId]
+            $quart3 buildAndGrid $quart1ScId
             $quart3 setModeNotice
-            $quart1 getFocus
         }
     }
+    set found [::dinah::findInDim $::dinah::dimTranscription $quart1ScId]
+    if {$found == {}} {
+        set transcriptionId [::dinah::emptyNode Txt "transcription ($quart1ScId)"]
+        lappend ::dinah::db($::dinah::dimTranscription) [list $quart1ScId $transcriptionId]
+    }
+    $quart2 buildAndGrid $quart1ScId
+    $quart2 setModeTranscription
+    $quart1 getFocus
 }
 
 proc specific_init_postamble {} {

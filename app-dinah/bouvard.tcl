@@ -16,6 +16,7 @@ set ::dinah::backgroundColor antiqueWhite
 set ::dinah::closeColor blue
 set ::dinah::openColor black
 set ::dinah::font helvetica
+set ::dinah::fontsize 10
 
 set ::dinah::resolutions_suffix {""}
 

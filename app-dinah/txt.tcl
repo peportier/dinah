@@ -2,7 +2,6 @@ itcl::class Txt {
     inherit Obj
 
     public variable txtWindow
-    private variable fontsize "10"
     private variable saveStateLabel ""
     private variable tagNameLabel ""
     private variable deleteMenu ""
@@ -20,8 +19,8 @@ itcl::class Txt {
     }
 
     method zoom {{delta 1}} {
-        incr fontsize $delta
-        $txtWindow configure -font [list -size $fontsize]
+        incr ::dinah::fontsize $delta
+        $txtWindow configure -font [list -size $::dinah::fontsize]
     }
 
     method inRange {index start end} {
@@ -38,10 +37,9 @@ itcl::class Txt {
 
     method removeTagFromDB {tagDBId} {
         foreach d [list $::dinah::dimNote] {
-            set found [::dinah::findInDim $d $tagDBId]
-            if {$found != {}} {
-                set si [lindex $found 0]
-                set ::dinah::db($d) [lreplace $::dinah::db($d) $si $si]
+            set segIndex [::dinah::getSegIndex $d $tagDBId]
+            if {$segIndex ne ""} {
+                ::dinah::remSeg $d $segIndex
             }
         }
         ::dinah::remfrag $::dinah::dimFragments $tagDBId
@@ -67,7 +65,6 @@ itcl::class Txt {
     }
 
     method click {w x y} {
-        puts $txtWindow
         $tagNameLabel configure -text "" 
         $deleteMenu delete 0 end
         foreach t [$txtWindow tag names @$x,$y] {
@@ -80,17 +77,19 @@ itcl::class Txt {
             if {$id ne "" && $container ne ""} {
                 set t [$container getTopFrame]
                 set c [$container getContainer]
-                if {[$c frameOfQuart 1] eq $t} {
-                    foreach {quartIndex dim} [list 3 $::dinah::dimNote] {
-                        set quart [$c quart $quartIndex]
-                        $quart setX $dim
-                        $quart setY $::dinah::dimNil
-                        $quart updateEntries
-                        $quart setWWidth 1
-                        $quart buildAndGrid $id
-                        $quart scRight
+                foreach quartPair {{1 3} {2 4}} {
+                    if {[$c frameOfQuart [lindex $quartPair 0]] eq $t} {
+                        foreach {quartIndex dim} [list [lindex $quartPair 1] $::dinah::dimNote] {
+                            set quart [$c quart $quartIndex]
+                            $quart setX $dim
+                            $quart setY $::dinah::dimNil
+                            $quart updateEntries
+                            $quart setWWidth 1
+                            $quart buildAndGrid $id
+                            $quart scRight
+                        }
+                        $container getFocus
                     }
-                    $container getFocus
                 }
             }
         }
@@ -226,7 +225,7 @@ itcl::class Txt {
           -yscrollcommand [list $center.main.yscroll set] \
           -highlightthickness 0 -borderwidth 0\
           -width 50 -height 20 -wrap word -undo 1\
-          -font "$::dinah::font $fontsize normal"
+          -font "$::dinah::font $::dinah::fontsize normal"
         scrollbar $center.main.yscroll -orient vertical \
           -command [list $center.main.text yview]
         pack $center.main.yscroll -side right -fill y
@@ -321,16 +320,16 @@ itcl::class Txt {
     }
 
     method defaultTags {} {
-        $txtWindow tag configure P -font "$::dinah::font $fontsize normal" -lmargin1 30 -spacing3 30
-        $txtWindow tag configure STRONG -font "$::dinah::font $fontsize bold" 
-        $txtWindow tag configure EM -font "$::dinah::font $fontsize italic" 
-        $txtWindow tag configure UNDERLINE -font "$::dinah::font $fontsize underline" 
-        $txtWindow tag configure OVERSTRIKE -font "$::dinah::font $fontsize overstrike" 
-        $txtWindow tag configure SUB -font "$::dinah::font $fontsize normal" -offset -6
-        $txtWindow tag configure SUP -font "$::dinah::font $fontsize normal" -offset 6
-        $txtWindow tag configure TITLE1 -font [list $::dinah::font [expr {$fontsize + 6}] underline]
-        $txtWindow tag configure TITLE2 -font [list $::dinah::font [expr {$fontsize + 4}] underline]
-        $txtWindow tag configure TITLE3 -font [list $::dinah::font [expr {$fontsize + 2}] underline italic]
+        $txtWindow tag configure P -font "$::dinah::font $::dinah::fontsize normal" -lmargin1 30 -spacing3 30
+        $txtWindow tag configure STRONG -font "$::dinah::font $::dinah::fontsize bold" 
+        $txtWindow tag configure EM -font "$::dinah::font $::dinah::fontsize italic" 
+        $txtWindow tag configure UNDERLINE -font "$::dinah::font $::dinah::fontsize underline" 
+        $txtWindow tag configure OVERSTRIKE -font "$::dinah::font $::dinah::fontsize overstrike" 
+        $txtWindow tag configure SUB -font "$::dinah::font $::dinah::fontsize normal" -offset -6
+        $txtWindow tag configure SUP -font "$::dinah::font $::dinah::fontsize normal" -offset 6
+        $txtWindow tag configure TITLE1 -font [list $::dinah::font [expr {$::dinah::fontsize + 6}] underline]
+        $txtWindow tag configure TITLE2 -font [list $::dinah::font [expr {$::dinah::fontsize + 4}] underline]
+        $txtWindow tag configure TITLE3 -font [list $::dinah::font [expr {$::dinah::fontsize + 2}] underline italic]
         foreach {k pairs} [array get ::dinah::txtClick *,option] {
             regexp {(.*),option} $k -> name
             foreach {optionName optionValue} $pairs {
