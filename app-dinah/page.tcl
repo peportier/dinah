@@ -44,12 +44,16 @@ itcl::class Page {
         set fn $::dinah::db(base)[::dinah::db'get $dbid path]$highres$::dinah::db(imgExtension)
         set img [image create photo -file $fn]
         $c configure -scrollregion [list 0 0 [image width $img] [image height $img]]
-        $c create image 0 0 -image $img -tag "img" -anchor nw
+        $c create image 0 0 -image $img -tag "img$dbid" -anchor nw
         bind $t <Key-Escape> [list ::dinah::destroyToplevel $t]
         bind $c <ButtonPress-1> {%W scan mark %x %y}
         bind $c <B1-Motion> {%W scan dragto %x %y 1}
         wm attributes $t -fullscreen 1
         focus -force $t
+    }
+
+    method quickZoomMove {c direction} {
+
     }
 
     method editZones {} {
