@@ -9,6 +9,10 @@ set ::dinah::keyboard(under7) "egrave"
 set ::dinah::keyboard(under8) "underscore"
 set ::dinah::keyboard(under9) "ccedilla"
 set ::dinah::keyboard(under0) "agrave"
+set ::dinah::writePermission 1
+if {![info exists ::dinah::db(notAlone)]} {
+    set ::dinah::db(notAlone) 0
+}
 
 # 'ladd' adds 'what' to '_list' if 'what' isn't an element
 # of '_list'
@@ -108,6 +112,18 @@ proc load_conf {} {
     }
 }
 
+proc setBase {path} {
+    if {[file isdirectory $path]} {
+        set ::dinah::db(base) $path
+    }
+}
+
+proc setConvert {path} {
+    if {[file exists $path]} {
+        set ::dinah::zonemaker::convert $path
+    }
+}
+
 proc newDim? {dim} {
     variable ::dinah::db
     if {![info exists db($dim)] && [regexp {^d\..*} $dim]} {
@@ -159,9 +175,25 @@ proc keyword {q {ids all}} {
     return $r
 }
 
+proc userConnect {} {
+    if {$::dinah::db(notAlone)} {
+        set ::dinah::writePermission 0
+        tk_messageBox -message "Mode lecture seule..."
+    } else {
+        set ::dinah::writePermission 1
+        set ::dinah::db(notAlone) 1
+        ::dinah::db'save $::dinah::dbFile
+    }
+}
+
+proc userDisconnect {} {
+    set ::dinah::db(notAlone) 0
+}
+
 proc init {} {
     variable ::dinah::db
     set ::dinah::toplevels {}
+    ::dinah::userConnect
     ::dinah::initMouseBindings
     ::dinah::specific_init_preamble
     foreach s $db($::dinah::dimInit) {

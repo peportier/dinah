@@ -20,7 +20,6 @@ set ::dinah::closeColor blue
 set ::dinah::openColor black
 set ::dinah::font helvetica
 set ::dinah::fontsize 10
-
 set ::dinah::resolutions_suffix {"_low" "_high"}
 
 proc specific_init_preamble {} {

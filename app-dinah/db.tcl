@@ -1,9 +1,11 @@
 namespace eval ::dinah {
     proc db'save {fn} {
         variable db
-        set fp [open $fn w]
-        puts $fp [list array set db [array get db]]
-        close $fp
+        if {$::dinah::writePermission} {
+            set fp [open $fn w]
+            puts $fp [list array set db [array get db]]
+            close $fp
+        }
     }
 
     proc db'fields {} {
