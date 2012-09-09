@@ -28,13 +28,13 @@ namespace eval ::dinah::zonemaker {
           foreach {x0 y0} [$w coords $item] break
           if {hypot($x-$x0,$y-$y0) < 5} {
               set coo [lrange [$w coords $item] 2 end]
-	      if {[llength $coo] > 4} {
-		  $w delete $item
-		  unset polydraw(item$w)
-		  set new [$w create poly $coo -fill {} -tag poly -outline red -width 2]
-		  polydraw'markNodes $w $new
-		  set polydraw(modified) 1
-	      }
+              if {[llength $coo] > 4} {
+                  $w delete $item
+                  unset polydraw(item$w)
+                  set new [$w create poly $coo -fill {} -tag poly -outline red -width 2]
+                  polydraw'markNodes $w $new
+                  set polydraw(modified) 1
+              }
           } else {
               $w coords $item [concat [$w coords $item] $x $y]
           }
@@ -305,12 +305,12 @@ namespace eval ::dinah::zonemaker {
         grid rowconfigure $t.f 0 -weight 1
         grid columnconfigure $t.f 0 -weight 1
         pack $t.f -fill both -expand 1
-        
+
         set polydraw(modified) 0
         polydraw $c
-        
+
         #catch {console show}
-        
+
         bind $t <Key-Escape> [list ::dinah::zonemaker::wq $t $container]
 
         loadImage 
