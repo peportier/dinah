@@ -13,6 +13,7 @@ set ::dinah::dimClipboard "d.clipboard"
 set ::dinah::dimChrono "d.chrono"
 set ::dinah::dimInfo "d.info"
 set ::dinah::dimTranscription "d.transcription"
+set ::dinah::dimClone "d.clone"
 set ::dinah::separatorSize 5
 set ::dinah::fragmentBorderWidth 2
 set ::dinah::backgroundColor antiqueWhite
@@ -37,6 +38,8 @@ proc specific_init_preamble {} {
     ::dinah::newDim? $::dinah::dimClipboard
     ::dinah::newDim? $::dinah::dimChrono
     ::dinah::newDim? $::dinah::dimInfo
+    ::dinah::newDim? $::dinah::dimTranscription
+    ::dinah::newDim? $::dinah::dimClone
     ::dinah::addToTxtMenu "gras" "-font" "$::dinah::font $::dinah::fontsize bold"
     ::dinah::addToTxtMenu "italique" "-font" "$::dinah::font $::dinah::fontsize italic"
     ::dinah::addToTxtMenu "exposant" "-offset" "6"

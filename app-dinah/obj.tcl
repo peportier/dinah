@@ -54,6 +54,7 @@ itcl::class Obj {
         set genericMenu [menu $frame.genericMenu]
         $genericMenu add command -label del -command [list $this delete]
         $genericMenu add command -label fold -command [list $this fold]
+        $genericMenu add command -label clone -command [list $this makeClone]
         bind $center.menu $::dinah::mouse(B3) [list tk_popup $genericMenu %X %Y]
         bind $center.menu <Double-1> [list $this select]
         bind $center.menu <1> [list $this menu1 %X %Y]
@@ -247,6 +248,11 @@ itcl::class Obj {
             ::dinah::remfrag [$container getCurrentDim] $dbid
             $container reload
         }}
+    }
+
+    method makeClone {} {
+        ::dinah::clone $dbid
+        $container reload
     }
 
 }

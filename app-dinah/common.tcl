@@ -311,10 +311,25 @@ proc copy {srcId direction trgDim trgId} {
     }
 }
 
+proc clone {id} {
+    set attributes {}
+    foreach {k v} [array get ::dinah::db $id,*] {
+        regexp {^.*,(.*)} $k -> attName
+        lappend attributes $attName $v
+    }
+    set clone [::dinah::db'new $attributes]
+    set found [::dinah::findInDim $::dinah::dimClone $id]
+    if {$found != {}} {
+        set si [lindex $found 0]
+        lset ::dinah::db($::dinah::dimClone) $si [lappend [lindex $::dinah::db($::dinah::dimClone) $si] $clone]
+    } else {
+        lappend ::dinah::db($::dinah::dimClone) [list $id $clone]
+    }
+}
+
 proc move {srcDim srcId direction trgDim trgId} {
     if {! [::dinah::editable $srcDim]} {return 0}
     if {$srcDim eq $trgDim} {
-        puts "ok"
         ::dinah::remfrag $srcDim $srcId
         puts [::dinah::copy $srcId $direction $trgDim $trgId]
     } elseif {[::dinah::copy $srcId $direction $trgDim $trgId ]} {

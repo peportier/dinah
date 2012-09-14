@@ -23,6 +23,7 @@ namespace eval ::dinah {
     source $starkit::topdir/lib/app-dinah/txt.tcl
     source $starkit::topdir/lib/app-dinah/date.tcl
     source $starkit::topdir/lib/app-dinah/dim.tcl
+    source $starkit::topdir/lib/app-dinah/edges.tcl
     source $starkit::topdir/lib/app-dinah/whiteboard.tcl
     source $starkit::topdir/lib/app-dinah/tree.tcl
     source $starkit::topdir/lib/app-dinah/debug.tcl
