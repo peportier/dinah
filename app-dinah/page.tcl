@@ -41,7 +41,7 @@ itcl::class Page {
         grid columnconfigure $t.f 0 -weight 1
         pack $t.f -fill both -expand 1
         set highres [lindex $::dinah::resolutions_suffix end]
-        set fn $::dinah::db(base)[::dinah::db'get $dbid path]$highres$::dinah::db(imgExtension)
+        set fn [::dinah::dbGet base][::dinah::dbGet $dbid,path]$highres[::dinah::dbGet imgExtension]
         set img [image create photo -file $fn]
         $c configure -scrollregion [list 0 0 [image width $img] [image height $img]]
         $c create image 0 0 -image $img -tag "img$dbid" -anchor nw
@@ -144,7 +144,7 @@ itcl::class Page {
 
     # returns the file path of the image
     method path {} {
-        return $::dinah::db(base)[::dinah::db'get $dbid path][currentResolutionSuffix]$::dinah::db(imgExtension)
+        return [::dinah::dbGet base][::dinah::dbGet $dbid,path][currentResolutionSuffix][::dinah::dbGet imgExtension]
     }
 
     method currentResolutionIndex {} {
@@ -199,7 +199,7 @@ itcl::class Page {
 
     method rotate90 {} {
         foreach suffix $::dinah::resolutions_suffix  {
-            set filepath $::dinah::db(base)[::dinah::db'get $dbid path]$suffix$::dinah::db(imgExtension)
+            set filepath [::dinah::dbGet base][::dinah::dbGet $dbid,path]$suffix[::dinah::dbGet imgExtension]
             exec -ignorestderr $::dinah::zonemaker::convert $filepath -rotate 90 $filepath
         }
         reloadImage

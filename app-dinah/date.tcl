@@ -54,59 +54,57 @@ itcl::body Date::afterLayout {} {
 }
 
 itcl::body Date::load {} {
-    variable ::dinah::db
     $d delete 0 end
-    $d insert 0 $db($dbid,day)
+    $d insert 0 [::dinah::dbGet $dbid,day]
     $m delete 0 end
-    $m insert 0 $db($dbid,month)
+    $m insert 0 [::dinah::dbGet $dbid,month]
     $y delete 0 end
-    $y insert 0 $db($dbid,year)
+    $y insert 0 [::dinah::dbGet $dbid,year]
     $h delete 0 end
-    $h insert 0 $db($dbid,hour)
+    $h insert 0 [::dinah::dbGet $dbid,hour]
     $min delete 0 end
-    $min insert 0 $db($dbid,minute)
+    $min insert 0 [::dinah::dbGet $dbid,minute]
     $certain configure -variable ::dinah::db($dbid,certain)
-    if {$db($dbid,certain)} {$certain select} else {$certain deselect}
+    if {[::dinah::dbGet $dbid,certain]} {$certain select} else {$certain deselect}
 }
 
 itcl::body Date::save {} {
-    variable ::dinah::db
     set valid [valid? [$y get] [$m get] [$d get] [$h get] [$min get]]
     set color "white"
-    if {$db($dbid,certain)} {
+    if {[::dinah::dbGet $dbid,certain]} {
         if {! $valid} { set color "red" }
     }
     foreach e [list $d $m $y $h $min] {$e configure -bg $color}
-    if {! $db($dbid,certain) || $valid} {
-        set db($dbid,day) [$d get]
-        set db($dbid,month) [$m get]
-        set db($dbid,year) [$y get]
-        set db($dbid,hour) [$h get]
-        set db($dbid,minute) [$min get]
+    if {! [::dinah::dbGet $dbid,certain] || $valid} {
+        ::dinah::dbSet $dbid,day [$d get]
+        ::dinah::dbSet $dbid,month [$m get]
+        ::dinah::dbSet $dbid,year [$y get]
+        ::dinah::dbSet $dbid,hour [$h get]
+        ::dinah::dbSet $dbid,minute [$min get]
         if {$valid} {
-            set db($dbid,seconds) [clock scan $db($dbid,day)/$db($dbid,month)/$db($dbid,year)/$db($dbid,hour)/$db($dbid,minute) -format %d/%m/%Y/%k/%M]
-        } elseif {[hour? $db($dbid,hour)] && [day? $db($dbid,year) $db($dbid,month) $db($dbid,day)] && [month? $db($dbid,month)] && [year? $db($dbid,year)]} {
-            set db($dbid,seconds) [clock scan $db($dbid,day)/$db($dbid,month)/$db($dbid,year)/$db($dbid,hour)/00 -format %d/%m/%Y/%k/%M]
-        } elseif {[day? $db($dbid,year) $db($dbid,month) $db($dbid,day)] && [month? $db($dbid,month)] && [year? $db($dbid,year)]} {
-            set db($dbid,seconds) [clock scan $db($dbid,day)/$db($dbid,month)/$db($dbid,year)/00/00 -format %d/%m/%Y/%k/%M]
-        } elseif {[month? $db($dbid,month)] && [year? $db($dbid,year)]} {
-            set db($dbid,seconds) [clock scan 01/$db($dbid,month)/$db($dbid,year)/00/00 -format %d/%m/%Y/%k/%M]
-        } elseif {[year? $db($dbid,year)]} {
-            set db($dbid,seconds) [clock scan 01/01/$db($dbid,year)/00/00 -format %d/%m/%Y/%k/%M]
+            ::dinah::dbSet $dbid,seconds [clock scan [::dinah::dbGet $dbid,day]/[::dinah::dbGet $dbid,month]/[::dinah::dbGet $dbid,year]/[::dinah::dbGet $dbid,hour]/[::dinah::dbGet $dbid,minute] -format %d/%m/%Y/%k/%M]
+        } elseif {[hour? [::dinah::dbGet $dbid,hour]] && [day? [::dinah::dbGet $dbid,year] [::dinah::dbGet $dbid,month] [::dinah::dbGet $dbid,day]] && [month? [::dinah::dbGet $dbid,month]] && [year? [::dinah::dbGet $dbid,year]]} {
+            ::dinah::dbSet $dbid,seconds [clock scan [::dinah::dbGet $dbid,day]/[::dinah::dbGet $dbid,month]/[::dinah::dbGet $dbid,year]/[::dinah::dbGet $dbid,hour]/00 -format %d/%m/%Y/%k/%M]
+        } elseif {[day? [::dinah::dbGet $dbid,year] [::dinah::dbGet $dbid,month] [::dinah::dbGet $dbid,day]] && [month? [::dinah::dbGet $dbid,month]] && [year? [::dinah::dbGet $dbid,year]]} {
+            ::dinah::dbSet $dbid,seconds [clock scan [::dinah::dbGet $dbid,day]/[::dinah::dbGet $dbid,month]/[::dinah::dbGet $dbid,year]/00/00 -format %d/%m/%Y/%k/%M]
+        } elseif {[month? [::dinah::dbGet $dbid,month]] && [year? [::dinah::dbGet $dbid,year]]} {
+            ::dinah::dbSet $dbid,seconds [clock scan 01/[::dinah::dbGet $dbid,month]/[::dinah::dbGet $dbid,year]/00/00 -format %d/%m/%Y/%k/%M]
+        } elseif {[year? [::dinah::dbGet $dbid,year]]} {
+            ::dinah::dbSet $dbid,seconds [clock scan 01/01/[::dinah::dbGet $dbid,year]/00/00 -format %d/%m/%Y/%k/%M]
         }
-        if {[info exists db($dbid,seconds)]} {
+        if {[::dinah::dbExists $dbid,seconds]} {
             set dates {}
-            foreach dateId [lindex $db(d.chrono) 0] {
+            foreach dateId [::dinah::dbLGet $::dinah::dimChrono 0] {
                 if {$dateId != $dbid} {
-                    lappend dates [list $dateId $db($dateId,seconds)] 
+                    lappend dates [list $dateId [::dinah::dbGet $dateId,seconds]] 
                 }
             }
-            lappend dates [list $dbid $db($dbid,seconds)]
+            lappend dates [list $dbid [::dinah::dbGet $dbid,seconds]]
             set chronology {}
             foreach pair [lsort -real -index 1 $dates] {
                 lappend chronology [lindex $pair 0]
             }
-            set db(d.chrono) [list $chronology]
+            ::dinah::dbSet $::dinah::dimChrono [list $chronology]
         }
     } 
 }

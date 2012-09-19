@@ -50,7 +50,7 @@ proc specific_init_postamble {} {
     $quart1 setX $::dinah::dimContains
     $quart1 setY $::dinah::dimSameLevel
     $quart1 updateEntries
-    $quart1 buildAndGrid $::dinah::db(root)
+    $quart1 buildAndGrid [::dinah::dbGet root]
     $quart1 newTreeOnCursor
     $quart1 scRight
     $quart1 setX $::dinah::dimArchive
@@ -79,7 +79,7 @@ proc bouvard:newNote {id} {
     set found [::dinah::findInDim $::dinah::dimNote $id]
     if {$found == {}} {
         set note [::dinah::emptyNode Txt]
-        lappend ::dinah::db($::dinah::dimNote) [list $id $note]
+        ::dinah::dbAppend $::dinah::dimNote [list $id $note]
     }
 }
 
@@ -106,4 +106,4 @@ proc editable {d} {
     return [expr {$d ni {"" "d.nil" "d.archive" "d.sameLevel" "d.chrono"}}]
 }
 
-set db(imgExtension) {.jpg}
+::dinah::dbSet imgExtension {.jpg}

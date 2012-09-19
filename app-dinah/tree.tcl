@@ -40,7 +40,6 @@ itcl::body Tree::load {} {
 }
 
 itcl::body Tree::mkWindow {{parentw ""}} {
-    variable ::dinah::db
     if {$parentw == ""} { 
         set parentw [::dinah::newToplevel .t[::dinah::objname $this]] 
     }
@@ -65,12 +64,11 @@ itcl::body Tree::itemIsVirgin {item} {
 }
 
 itcl::body Tree::loadTree {item} {
-    variable ::dinah::db
     if {! [itemIsVirgin $item]} { return }
     $tree itemconfigure $item -data [lreplace [$tree itemcget $item -data] 1 1 0] -fill black
     set found [::dinah::findInDim $hierarchyDim [itemId $item]]
     if {$found != {}} {
-        set sonId [lindex $::dinah::db($hierarchyDim) [lindex $found 0] [expr {[lindex $found 1] + 1}]]
+        set sonId [::dinah::dbLGet $hierarchyDim [list [lindex $found 0] [expr {[lindex $found 1] + 1}]]]
         if {$sonId != {}} {
             set son [insert $item $sonId]
             loadSiblings $item $son
@@ -79,10 +77,9 @@ itcl::body Tree::loadTree {item} {
 }
 
 itcl::body Tree::loadSiblings {father item} {
-    variable ::dinah::db
     set found [::dinah::findInDim $siblingDim [itemId $item]]
     if {$found != {}} {
-        set siblings [lrange [lindex $::dinah::db($siblingDim) [lindex $found 0]] [expr {[lindex $found 1] + 1}] end]
+        set siblings [lrange [::dinah::dbLGet $siblingDim [lindex $found 0]] [expr {[lindex $found 1] + 1}] end]
         if {$siblings != {}} {
             foreach siblingId $siblings {
                 insert $father $siblingId
@@ -92,14 +89,13 @@ itcl::body Tree::loadSiblings {father item} {
 }
 
 itcl::body Tree::insert {item id} {
-    variable ::dinah::db
     set r [$tree insert end $item n#auto -data [list $id 1] -fill blue]
-    if {$::dinah::db($id,label) ne ""} {
+    if {[::dinah::dbGet $id,label] ne ""} {
         #$tree itemconfigure $r -text [string range $::dinah::db($id,label) end-10 end]
-        $tree itemconfigure $r -text $::dinah::db($id,label)
+        $tree itemconfigure $r -text [::dinah::dbGet $id,label]
     } else {
-        $tree itemconfigure $r -text $::dinah::db($id,isa)
-    } 
+        $tree itemconfigure $r -text [::dinah::dbGet $id,isa]
+    }
     return $r
 }
 

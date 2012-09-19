@@ -1,3 +1,4 @@
+set ::dinah::dimTemp "d.temp"
 set ::dinah::dimAlternative "d.alternative"
 set ::dinah::dimAttribute "d.attribute"
 set ::dinah::dimArchive "d.archive"
@@ -40,6 +41,7 @@ proc specific_init_preamble {} {
     ::dinah::newDim? $::dinah::dimInfo
     ::dinah::newDim? $::dinah::dimTranscription
     ::dinah::newDim? $::dinah::dimClone
+    ::dinah::newDim? $::dinah::dimTemp
     ::dinah::addToTxtMenu "gras" "-font" "$::dinah::font $::dinah::fontsize bold"
     ::dinah::addToTxtMenu "italique" "-font" "$::dinah::font $::dinah::fontsize italic"
     ::dinah::addToTxtMenu "exposant" "-offset" "6"
@@ -71,7 +73,7 @@ proc desanti_navigation_win {{parentWin ""} {noticeWin 0}} {
     $win setX $::dinah::dimInsert
     $win setY $::dinah::dimSameLevel
     $win updateEntries
-    $win buildAndGrid $::dinah::db(archiveId)
+    $win buildAndGrid [::dinah::dbGet archiveId]
     $win newTreeOnCursor
     $win scRight
     $win setX $::dinah::dimArchive
@@ -103,7 +105,7 @@ proc navWinOnMoveCursor {container} {
     set found [::dinah::findInDim $::dinah::dimTranscription $quart1ScId]
     if {$found == {}} {
         set transcriptionId [::dinah::emptyNode Txt "transcription ($quart1ScId)"]
-        lappend ::dinah::db($::dinah::dimTranscription) [list $quart1ScId $transcriptionId]
+        ::dinah::dbAppend $::dinah::dimTranscription [list $quart1ScId $transcriptionId]
     }
     $quart2 buildAndGrid $quart1ScId
     $quart2 setModeTranscription
@@ -112,11 +114,11 @@ proc navWinOnMoveCursor {container} {
 
 proc specific_init_postamble {} {
     ::dinah::desanti_navigation_win "." 1
-    set ::dinah::db(d.temp) {}
+    ::dinah::dbSet $::dinah::dimTemp {}
 }
 
 proc editable {d} {
     return [expr {$d ni {"" "d.nil" "d.archive" "d.sibling" "d.sameLevel" "d.insert" "d.chrono"}}]
 }
 
-set db(imgExtension) {.jpeg}
+::dinah::dbSet imgExtension {.jpeg}

@@ -125,7 +125,7 @@ itcl::class Txt {
 
     method initNewInterval {name fragId} {
         set noteId [::dinah::emptyNode Txt "note ($fragId)"]
-        lappend ::dinah::db($::dinah::dimNote) [list $fragId $noteId]
+        ::dinah::dbAppend $::dinah::dimNote [list $fragId $noteId]
     }
 
     method setStyle {style} {
@@ -170,9 +170,8 @@ itcl::class Txt {
     }
 
     method newInterval {{tagName ""}} {
-        variable ::dinah::db
         if {[selToDBId] eq ""} { 
-            set intervalId [::dinah::db'new [list isa Txt txt [$txtWindow dump -all {*}[$txtWindow tag ranges sel]] label [$txtWindow get {*}[$txtWindow tag ranges sel]]]]
+            set intervalId [::dinah::dbNew [list isa Txt txt [$txtWindow dump -all {*}[$txtWindow tag ranges sel]] label [$txtWindow get {*}[$txtWindow tag ranges sel]]]]
             ::dinah::copy $intervalId "after" $::dinah::dimFragments $dbid
             set intervalName "interval$intervalId"
             set intervalRange [$txtWindow tag ranges sel]
@@ -180,7 +179,7 @@ itcl::class Txt {
             eval $txtWindow tag add  $intervalName {*}$intervalRange
             if {$tagName ne ""} {$txtWindow tag add $tagName {*}$intervalRange}
             set noteId [::dinah::emptyNode Txt "note ($intervalId)"]
-            lappend ::dinah::db($::dinah::dimNote) [list $intervalId $noteId]
+            ::dinah::dbAppend $::dinah::dimNote [list $intervalId $noteId]
             save
             return $intervalId
         } else {
@@ -207,8 +206,6 @@ itcl::class Txt {
     }
 
     method specificLayout {} {
-        variable ::dinah::db
-
         set btnSave [button $center.menu.btnSave -text "save" -command [list $this save]]
         set saveStateLabel [label $center.menu.saveState -text ""]
         pack $saveStateLabel -side left -padx 4 -pady 4
@@ -246,11 +243,10 @@ itcl::class Txt {
     }
 
     method load {w} {
-        variable ::dinah::db
         set current 1.0
         array set tag {}
         $w delete 1.0 end
-        foreach {key value index} $db($dbid,txt) {
+        foreach {key value index} [::dinah::dbGet $dbid,txt] {
             switch $key {
                 text    { $w insert $index $value }
                 mark    { if {$value == "current"} {set current $index} }
@@ -262,7 +258,6 @@ itcl::class Txt {
     }
 
     method save {} {
-        variable ::dinah::db
         # a bug (or feature?) of the tk text widget when using the dump command adds
         # a newline at the end of the dump text:
         set dump [$txtWindow dump -text -tag 1.0 end]
@@ -271,9 +266,9 @@ itcl::class Txt {
              [regexp {\}.*$} [lindex $splitdump end]] } {
             set dump [join [concat [lrange $splitdump 0 end-2] [list $match]] "\n"]
         }
-        set db($dbid,txt) $dump
+        ::dinah::dbSet $dbid,txt $dump
         $txtWindow edit modified 0
-        ::dinah::db'save $::dinah::dbFile
+        ::dinah::dbSave
     }
 
     method newBindings {} {

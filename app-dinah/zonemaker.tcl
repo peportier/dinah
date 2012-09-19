@@ -134,14 +134,13 @@ namespace eval ::dinah::zonemaker {
     proc int x  { expr int($x) }
     #--------------------------------------- application
     proc getZones {} {
-        variable ::dinah::db
         variable ::dinah::zonemaker::imageId
         variable ::dinah::zonemaker::fs
         set fs {}
         set found [::dinah::findInDim $::dinah::dimFragments $imageId]
         if {$found != {}} {
             if {[lindex $found 1] == 0} {
-                set fs [lrange [lindex $db($::dinah::dimFragments) [lindex $found 0]] 1 end]
+                set fs [lrange [::dinah::dbLGet $::dinah::dimFragments [lindex $found 0]] 1 end]
             } else {
                 error "an image fragment cannot be decomposed in fragments"
             }
@@ -150,46 +149,39 @@ namespace eval ::dinah::zonemaker {
     }
 
     proc loadImage {} {
-        variable ::dinah::db
         variable ::dinah::zonemaker::polydraw
         variable ::dinah::zonemaker::img
         variable ::dinah::zonemaker::imageId
         variable ::dinah::zonemaker::c
         catch {image delete $img}
         set resolution "_high"
-        set fn $db(base)[::dinah::db'get $imageId path]$resolution$db(imgExtension)
+        set fn [::dinah::dbGet base][::dinah::dbGet $imageId,path]$resolution[::dinah::dbGet imgExtension]
         if {! [file exists $fn]} {
-            set fn $db(base)[::dinah::db'get $imageId path]$db(imgExtension)
+            set fn [::dinah::dbGet base][::dinah::dbGet $imageId,path][::dinah::dbGet imgExtension]
         }
         set img [image create photo -file $fn]
         $c configure -scrollregion [list 0 0 [image width $img] [image height $img]]
         $c create image 0 0 -image $img -tag "img" -anchor nw
         $c delete poly0 poly of:*
         foreach f [getZones] {
-            polydraw'markNodes $c [$c create poly $db($f,coords) -fill {} -tag "poly id_$f" -outline red -width 2]
+            polydraw'markNodes $c [$c create poly [::dinah::dbGet $f,coords] -fill {} -tag "poly id_$f" -outline red -width 2]
         }
         set polydraw(modified) 0
     }
 
     proc update_poly {id coords} {
-        variable ::dinah::db
-        variable ::dinah::zonemaker::polydraw
-        variable ::dinah::zonemaker::img
-        variable ::dinah::zonemaker::c
-        set db($id,coords) $coords 
+        ::dinah::dbSet $id,coords $coords
         rebuild_poly_images $id
     }
 
     proc delete_poly_images {id} {
-        variable ::dinah::db
         foreach resolution {high low} {
-            set fn $db(base)[::dinah::db'get $id path]_$resolution$db(imgExtension)
+            set fn [::dinah::dbGet base][::dinah::dbGet $id,path]_$resolution[::dinah::dbGet imgExtension]
             file delete $fn
         }
     }
 
     proc rebuild_poly_images {id} {
-        variable ::dinah::db
         variable ::dinah::zonemaker::polydraw
         variable ::dinah::zonemaker::img
         variable ::dinah::zonemaker::c
@@ -200,9 +192,9 @@ namespace eval ::dinah::zonemaker {
         delete_poly_images $id
         set paths {}
         foreach suffix $::dinah::resolutions_suffix {
-            lappend paths $db(base)[::dinah::db'get $id path]$suffix$db(imgExtension)
+            lappend paths [::dinah::dbGet base][::dinah::dbGet $id,path]$suffix[::dinah::dbGet imgExtension]
         }
-        foreach {x y} $db($id,coords) {
+        foreach {x y} [::dinah::dbGet $id,coords] {
             set x [int $x]; set y [int $y]
             set pts [concat $pts "$x,$y"]
             lappend xs $x
@@ -215,7 +207,8 @@ namespace eval ::dinah::zonemaker {
         set croprect [expr $xmax - $xmin]x[expr $ymax - $ymin]+$xmin+$ymin
         exec $convert -size [image width $img]x[image height $img] xc:white \
             -fill $imgPath -draw "polygon $pts" polygon.jpeg
-        exec $convert polygon.jpeg -crop $croprect +repage [::dinah::lpop paths]
+        set high [::dinah::lpop paths]
+        exec $convert polygon.jpeg -crop $croprect +repage $high
         file delete polygon.jpeg
         while {[llength $paths] != 0} {
             exec -ignorestderr $convert $high -scale [::dinah::lpop scales] [::dinah::lpop paths]
@@ -223,36 +216,33 @@ namespace eval ::dinah::zonemaker {
     }
 
     proc create_poly {coords} {
-        variable ::dinah::db
         variable ::dinah::zonemaker::imageId
-        set id [::dinah::db'new {isa Page label ""}]
-        set db($id,path) $db($imageId,path)_frag$id
-        set db($id,coords) $coords
+        set id [::dinah::dbNew {isa Page label ""}]
+        ::dinah::dbSet $id,path $db($imageId,path)_frag$id
+        ::dinah::dbSet $id,coords $coords
         set found [::dinah::findInDim $::dinah::dimFragments $imageId]
         if {$found == {}} {
-            lappend db($::dinah::dimFragments) [list $imageId $id]
+            ::dinah::dbAppend $::dinah::dimFragments [list $imageId $id]
         } else {
-            set row [lindex $db($::dinah::dimFragments) [lindex $found 0]]
+            set row [::dinah::dbLGet $::dinah::dimFragments [lindex $found 0]]
             lappend row $id
-            lset db($::dinah::dimFragments) [lindex $found 0] $row
+            ::dinah::dbLSet $::dinah::dimFragments [lindex $found 0] $row
         }
         rebuild_poly_images $id
     }
 
     proc delete_poly {id} {
-        variable ::dinah::db
         set found [::dinah::findInDim $::dinah::dimFragments $id]
-        set row [lindex $db($::dinah::dimFragments) [lindex $found 0]]
+        set row [::dinah::dbLGet $::dinah::dimFragments [lindex $found 0]]
         if {[llength $row] == 2} {
-            set db($::dinah::dimFragments) [lreplace $db($::dinah::dimFragments) [lindex $found 0] [lindex $found 0]]
+            ::dinah::dbSet $::dinah::dimFragments [lreplace [::dinah::dbGet $::dinah::dimFragments] [lindex $found 0] [lindex $found 0]]
         } else {
             set row [lreplace $row [lindex $found 1] [lindex $found 1]]
-            lset db($::dinah::dimFragments) [lindex $found 0] $row
+            ::dinah::dbLSet $::dinah::dimFragments [lindex $found 0] $row
         }
     }
 
     proc save {} {
-        variable ::dinah::db
         variable ::dinah::zonemaker::polydraw
         variable ::dinah::zonemaker::img
         variable ::dinah::zonemaker::c
@@ -265,7 +255,7 @@ namespace eval ::dinah::zonemaker {
                 if {$id ne ""} {break}
             }
             if {$id ne ""} {
-                if {$db($id,coords) != [$c coords $p]} {
+                if {[::dinah::dbGet $id,coords] != [$c coords $p]} {
                     update_poly $id [$c coords $p]
                 }
                 lappend seen $id

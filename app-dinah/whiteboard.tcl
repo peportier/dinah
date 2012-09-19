@@ -34,7 +34,7 @@ itcl::class Whiteboard {
         set found [::dinah::findInDim $currentDim $id]
         if {$found ne {}} {
             set si [lindex $found 0]; set fi [lindex $found 1]
-            set otherId [lindex [lindex $::dinah::db($currentDim) $si] [expr {$fi + $offset}]]
+            set otherId [::dinah::dbLGet $currentDim [list $si [expr {$fi + $offset}]]]
             if {$otherId ne "" && [getItemFromId $otherId] eq ""} {
                 set item [getItemFromId $id]
                 set coords [$c coords $item]
@@ -73,7 +73,7 @@ itcl::class Whiteboard {
     }
 
     method saveDim {i} {
-        set ::dinah::db(board$boardNumber,dim$i) [$d($i) get]
+        ::dinah::dbSet board$boardNumber,dim$i [$d($i) get]
     }
 
     method updateEdges {} {
@@ -84,7 +84,7 @@ itcl::class Whiteboard {
                 updateEdgesForId $id $id $color $dim
                 set found [::dinah::findInDim $::dinah::dimClone $id]
                 if {$found ne ""} {
-                    set s [lindex $::dinah::db($::dinah::dimClone) [lindex $found 0]]
+                    set s [::dinah::dbLGet $::dinah::dimClone [lindex $found 0]]
                     foreach clone $s {
                         if {$s ne $id} {
                             updateEdgesForId $id $clone $color $dim
@@ -98,7 +98,7 @@ itcl::class Whiteboard {
     method updateEdgesForId {id cloneId color dim} {
         set found [::dinah::findInDim $dim $cloneId]
         if {$found ne ""} {
-            set s [lindex $::dinah::db($dim) [lindex $found 0]]
+            set s [::dinah::dbLGet $dim [lindex $found 0]]
             set itemIndice [lindex $found 1]
             foreach other $idsOnBoard {
                 if {$other ne $id} {
@@ -200,7 +200,7 @@ itcl::class Whiteboard {
         set f [frame $t.f -borderwidth 1 -bg black]
         set m [frame $t.m -borderwidth 1 -bg black]
         foreach i {1 2 3 4 5} {
-            ::dinah::Autocomplete #auto $m.dim$i $::dinah::db(dimensions)
+            ::dinah::Autocomplete #auto $m.dim$i [::dinah::dbGet dimensions]
             set d($i) $m.dim$i
             pack $m.dim$i -side left -padx 4 -pady 4
             set b($i) [button $m.color$i -text "__?__" -background $colors($i)]
@@ -260,7 +260,6 @@ itcl::class Whiteboard {
     }
 
     method setBindings {} {
-        variable ::dinah::db
         foreach k {0 1 2 3 4 5 6 7 8 9} {
             bind $t {*}<Key-$k> [list $this gotoBoard $k]
         }
@@ -287,7 +286,7 @@ itcl::class Whiteboard {
         bind $t <Key-r> [list $this reload]
 
         foreach k $alphabeta {
-            if {$db(board$boardNumber,$k) != {}} {
+            if {[::dinah::dbGet board$boardNumber,$k] != {}} {
                 bind $t {*}<Key-$k> [list $this setCursor $k]
             }
         }
@@ -312,16 +311,15 @@ itcl::class Whiteboard {
     method storeState {id cmd args} {}
 
     method gotoBoard {k} {
-        variable ::dinah::db
         $c delete all
         $edges deleteAll
         set boardNumber $k
         foreach n {1 2 3 4 5} {
             $d($n) delete 0 end
-            catch {$d($n) insert end $db(board$boardNumber,dim$n)}
+            catch {$d($n) insert end [::dinah::dbGet board$boardNumber,dim$n]}
         }
         foreach x $alphabeta {
-            set i $db(board$boardNumber,$x)
+            set i [::dinah::dbGet board$boardNumber,$x]
             if {$i ne {}} {
                 ::dinah::ladd idsOnBoard [lindex $i 0]
                 pinItem $x [lindex $i 0] [lindex $i 1] [lindex $i 2] [lindex $i 3] [lindex $i 4]
@@ -336,18 +334,17 @@ itcl::class Whiteboard {
 
     method cleanBoard {} {
         foreach x $alphabeta {
-            set ::dinah::db(board$boardNumber,$x) {}
+            ::dinah::dbSet board$boardNumber,$x {}
         }
         foreach n {1 2 3 4 5} {
-            set ::dinah::db(board$boardNumber,dim$n) ""
+            ::dinah::dbSet board$boardNumber,dim$n ""
         }
         reload
     }
 
     method paste {} {
-        variable ::dinah::db
-        if {[llength [lindex $db(d.clipboard) 0]] > 0} {
-            add [lindex $db(d.clipboard) 0 end]
+        if {[llength [::dinah::dbLGet $::dinah::dimClipboard 0]] > 0} {
+            add [::dinah::dbLGet $::dinah::dimClipboard [list 0 end]]
         }
     }
 
@@ -370,51 +367,50 @@ itcl::class Whiteboard {
     method getFreeLetter {} {
         set place ""
         foreach k $alphabeta {
-            if {$::dinah::db(board$boardNumber,$k) == {}} {
-                set place $k 
-                break 
+            if {[::dinah::dbGet board$boardNumber,$k] == {}} {
+                set place $k
+                break
             }
         }
         return $place
     }
 
     method add {id {x 20} {y 20}} {
-        variable ::dinah::db
         set place [getFreeLetter] 
         if {$place ne ""} {
             ::dinah::ladd idsOnBoard $id
             set o [pinItem $place $id $x $y]
-            set db(board$boardNumber,$place) [list $id $x $y "" "" $o]
+            ::dinah::dbSet board$boardNumber,$place [list $id $x $y "" "" $o]
             updateEdges
             drawEdges [getItemFromId $id]
         }
     }
 
     method delete {{id ""}} {
-        variable ::dinah::db
         if {$id eq ""} {
             set found [$c find withtag cursor]
             foreach w $found {
                 ::dinah::lrem idsOnBoard [getIdFromItem $w]
-                set db(board$boardNumber,[getIndiceFromItem $w]) {}
+                ::dinah::dbSet board$boardNumber,[getIndiceFromItem $w] {}
                 reload
             }
         } else {
             set w [getItemFromId $id]
             if {$w ne ""} {
                 ::dinah::lrem idsOnBoard $id
-                set db(board$boardNumber,[getIndiceFromItem $w]) {}
+                ::dinah::dbSet board$boardNumber,[getIndiceFromItem $w] {}
                 reload
             }
         }
     }
 
     method pinItem {k id x y {width ""} {height ""}} {
-        variable ::dinah::db
         set o [::dinah::mkObj $id $c]
-        if {$db(board$boardNumber,$k) != {}} { lset db(board$boardNumber,$k) end $o }
+        if {[::dinah::dbGet board$boardNumber,$k] != {}} { 
+            ::dinah::dbLSet board$boardNumber,$k end $o
+        }
         $o notificate $k
-        $o notificate $::dinah::db($id,label)
+        $o notificate [::dinah::dbGet $id,label]
         $o setContainer $this
         $o openNS; $o openEW
         set w [$c create window $x $y -window [$o cget -frame] -anchor nw -tag [list item$k id$id object]]
@@ -427,8 +423,7 @@ itcl::class Whiteboard {
     }
 
     method itemO {k} {
-        variable ::dinah::db
-        return [lindex $db(board$boardNumber,$k) end]
+        return [::dinah::dbLGet board$boardNumber,$k end]
     }
 
     method getIndiceFromItem {w} {
@@ -552,21 +547,19 @@ itcl::class Whiteboard {
     }
 
     method savePosition {} {
-        variable ::dinah::db
         set found [$c find withtag cursor]
         foreach w $found {
             set bbox [$c bbox $w]
-            lset db(board$boardNumber,[getIndiceFromItem $w]) 1 [lindex $bbox 0]
-            lset db(board$boardNumber,[getIndiceFromItem $w]) 2 [lindex $bbox 1]
+            ::dinah::dbLSet board$boardNumber,[getIndiceFromItem $w] 1 [lindex $bbox 0]
+            ::dinah::dbLSet board$boardNumber,[getIndiceFromItem $w] 2 [lindex $bbox 1]
         }
     }
 
     method saveSize {} {
-        variable ::dinah::db
         set found [$c find withtag cursor]
         foreach w $found {
-            lset db(board$boardNumber,[getIndiceFromItem $w]) 3 [winfo width [$c itemcget $w -window]]
-            lset db(board$boardNumber,[getIndiceFromItem $w]) 4 [winfo height [$c itemcget $w -window]]
+            ::dinah::dbLSet board$boardNumber,[getIndiceFromItem $w] 3 [winfo width [$c itemcget $w -window]]
+            ::dinah::dbLSet board$boardNumber,[getIndiceFromItem $w] 4 [winfo height [$c itemcget $w -window]]
         }
     }
 

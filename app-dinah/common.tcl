@@ -10,8 +10,59 @@ set ::dinah::keyboard(under8) "underscore"
 set ::dinah::keyboard(under9) "ccedilla"
 set ::dinah::keyboard(under0) "agrave"
 set ::dinah::writePermission 1
-if {![info exists ::dinah::db(notAlone)]} {
-    set ::dinah::db(notAlone) 0
+
+proc dbSaveTo {fn} {
+    if {$::dinah::writePermission} {
+        set fp [open $fn w]
+        puts $fp [list array set ::dinah::db [array get ::dinah::db]]
+        close $fp
+    }
+}
+
+proc dbSave {} { ::dinah::dbSaveTo $::dinah::dbFile }
+
+proc dbNew {o} {
+    set id [incr ::dinah::db(lastid)]
+    dbOSet $id $o
+    return $id
+}
+
+proc dbOSet {id o} {
+    foreach {k v} $o {
+        ::dinah::dbSet $id,$k $v
+    }
+}
+
+proc dbSet {key value} {
+    set ::dinah::db($key) $value
+}
+
+proc dbGet {key} {
+    return $::dinah::db($key)
+}
+
+proc dbExists {key} {
+    info exists ::dinah::db($key)
+}
+
+proc dbLSet {key index elem} {
+    lset ::dinah::db($key) $index $elem
+}
+
+proc dbLGet {key index} {
+    lindex $::dinah::db($key) $index
+}
+
+proc dbAppend {key value} {
+    lappend ::dinah::db($key) $value
+}
+
+proc dbAGet {pattern} {
+    array get ::dinah::db $pattern
+}
+
+if {![::dinah::dbExists "notAlone"]} {
+    ::dinah::dbSet "notAlone" 0
 }
 
 # 'ladd' adds 'what' to '_list' if 'what' isn't an element
@@ -44,17 +95,15 @@ proc lpop listVar {
 proc objname {n} { regsub -all {::} $n "" }
 
 proc mkObj {id parentW} {
-    variable ::dinah::db
-    set o [eval {::dinah::$db($id,isa) #auto $id}]
+    set o [eval {::dinah::[::dinah::dbGet $id,isa] #auto $id}]
     $o mkWindow $parentW
     return ::dinah::$o
 }
 
 proc findInDim {dim id} {
-    variable ::dinah::db
-    if {[info exists db($dim)]} {
-        for {set i 0} {$i < [llength $db($dim)]} {incr i} {
-            set j [lsearch [lindex $db($dim) $i] $id]
+    if {[::dinah::dbExists $dim]} {
+        for {set i 0} {$i < [llength [::dinah::dbGet $dim]]} {incr i} {
+            set j [lsearch [::dinah::dbLGet $dim $i] $id]
             if {$j > -1} {
                 return [list $i $j]
             }
@@ -100,11 +149,10 @@ proc switchFocus- {} {
 }
 
 proc load_conf {} {
-    variable ::dinah::db
     if {[file exists dinah.conf]} {
         set fd [open dinah.conf "r"]
         while {[gets $fd line] >= 0} {
-            eval $line       
+            eval $line
         }
         close $fd
     } else {
@@ -114,7 +162,7 @@ proc load_conf {} {
 
 proc setBase {path} {
     if {[file isdirectory $path]} {
-        set ::dinah::db(base) $path
+        ::dinah::dbSet "base" $path
     }
 }
 
@@ -125,17 +173,16 @@ proc setConvert {path} {
 }
 
 proc newDim? {dim} {
-    variable ::dinah::db
-    if {![info exists db($dim)] && [regexp {^d\..*} $dim]} {
-        lappend db(dimensions) $dim
-        set db($dim) {}
+    if {![::dinah::dbExists $dim] && [regexp {^d\..*} $dim]} {
+        ::dinah::dbAppend "dimensions" $dim
+        ::dinah::dbSet $dim {}
     }
     if {[regexp {^q\.(.*)} $dim -> match]} {
         set terms [split $match]
-        if {![info exists db($dim)]} {
-            lappend db(dimensions) $dim
+        if {![::dinah::dbExists $dim]} {
+            ::dinah::dbAppend dimensions $dim
         }
-        set db($dim) [list [::dinah::keywords $terms]]
+        ::dinah::dbSet $dim [list [::dinah::keywords $terms]]
     }
 }
 
@@ -146,12 +193,11 @@ proc keywords {qs} {
 }
 
 proc keyword {q {ids all}} {
-    variable ::dinah::db
     set id ""
     set r {}
     foreach s {label txt} {
         if {$ids eq "all"} {
-            foreach {k v} [array get ::dinah::db *,$s] {
+            foreach {k v} [::dinah::dbAGet *,$s] {
                 if {[string match -nocase *$q* $v]} {
                     regexp {(.*),.*} $k -> id
                     if {$id ni $r} {
@@ -162,7 +208,7 @@ proc keyword {q {ids all}} {
 
         } else {
             foreach id $ids {
-                set v [array get ::dinah::db $id,$s]    
+                set v [::dinah::dbAGet $id,$s]
                 if {[string match -nocase *$q* $v]} {
                     if {$id ni $r} {
                         lappend r $id
@@ -176,29 +222,28 @@ proc keyword {q {ids all}} {
 }
 
 proc userConnect {} {
-    if {$::dinah::db(notAlone)} {
+    if {[::dinah::dbGet "notAlone"]} {
         set ::dinah::writePermission 0
         tk_messageBox -message "Mode lecture seule..."
     } else {
         set ::dinah::writePermission 1
-        set ::dinah::db(notAlone) 1
-        ::dinah::db'save $::dinah::dbFile
+        ::dinah::dbSet "notAlone" 1
+        ::dinah::dbSave
     }
 }
 
 proc userDisconnect {} {
-    set ::dinah::db(notAlone) 0
+    ::dinah::dbSet "notAlone" 0
 }
 
 proc init {} {
-    variable ::dinah::db
     set ::dinah::toplevels {}
     ::dinah::userConnect
     ::dinah::initMouseBindings
     ::dinah::specific_init_preamble
-    foreach s $db($::dinah::dimInit) {
+    foreach s [::dinah::dbGet $::dinah::dimInit] {
         foreach f $s {
-            if {$db($f,isa) eq "Txt"} {
+            if {[::dinah::dbGet $f,isa] eq "Txt"} {
                 set t [Txt #auto $f]
                 $t interpretBuffer
                 $t destructor
@@ -206,9 +251,9 @@ proc init {} {
         }
     }
     foreach x  {0 1 2 3 4 5 6 7 8 9} {
-        if {! [info exists db(board$x,A)]} {
+        if {! [::dinah::dbExists board$x,A] } {
             foreach y {A B C D E F G H I J K L M N O P Q R S T U V W X Y Z} {
-                set db(board$x,$y) {}
+                ::dinah::dbSet board$x,$y {}
             }
         }
     }
@@ -217,19 +262,18 @@ proc init {} {
 }
 
 proc subDim {d ds} {
-    variable ::dinah::db
     ::dinah::newDim? $d
-    set ::dinah::db($d) {}
+    ::dinah::dbSet $d {}
     set X {}
     foreach dimName $ds {
-        if {[info exists db($dimName)]} {
-            lappend X $db($dimName)
+        if {[::dinah::dbExists $dimName]} {
+            lappend X [::dinah::dbGet $dimName]
         } else {
             error "common.tcl: $dimName dimension doesn't exist"
         }
     }
-    set r [::dinah::agreg::run $db($d) $X]
-    set db($d) [lindex $r end]
+    set r [::dinah::agreg::run [::dinah::dbGet $d] $X]
+    ::dinah::dbSet $d [lindex $r end]
     if {![lindex $r 0]} {
         set pbDimName [lindex $ds [lindex $r 2]]
         tk_messageBox -message "Given the following configuration, $pbDimName cannot be a subdim of $d anymore."
@@ -239,16 +283,16 @@ proc subDim {d ds} {
 
 proc emptyNode {type {label ""}} {
     if {$type eq "Txt"} {
-        return [::dinah::db'new [list isa Txt txt {} label $label]]
+        return [::dinah::dbNew [list isa Txt txt {} label $label]]
     }
     if {$type eq "Date"} {
-        return [::dinah::db'new [list isa Date day "" month "" year "" hour "" minute "" certain 0 label $label]]
+        return [::dinah::dbNew [list isa Date day "" month "" year "" hour "" minute "" certain 0 label $label]]
     }
     if {$type eq "Struct"} {
-        return [::dinah::db'new [list isa Struct label $label]]
+        return [::dinah::dbNew [list isa Struct label $label]]
     }
     if {$type eq "Link"} {
-        return [::dinah::db'new [list isa Link label $label]]
+        return [::dinah::dbNew [list isa Link label $label]]
     }
 }
 
@@ -266,11 +310,11 @@ proc activateMouse {w} {
 proc addToTxtMenu {name args} {
     array unset ::dinah::txtClick $name,*
     foreach {key value} $args {
-        if {[info exists ::dinah::db($key)]} {
+        if {[::dinah::dbExists $key]} {
             set id ""
-            foreach s $::dinah::db($key) {
+            foreach s [::dinah::dbGet $key] {
                 foreach f $s {
-                    if {$::dinah::db($f,label) eq $value} {
+                    if {[::dinah::dbGet $f,label] eq $value} {
                         set id $f
                         break
                     }
@@ -294,7 +338,7 @@ proc copy {srcId direction trgDim trgId} {
         set found [::dinah::findInDim $trgDim $srcId]
         if {$found == {}} {
             if {$direction eq "after"} { incr fi }
-            lset ::dinah::db($trgDim) $si [linsert [lindex $::dinah::db($trgDim) $si] $fi $srcId]
+            ::dinah::dbLSet $trgDim $si [linsert [::dinah::dbLGet $trgDim $si] $fi $srcId]
             return 1
         }
         return 0
@@ -302,9 +346,9 @@ proc copy {srcId direction trgDim trgId} {
         set found [::dinah::findInDim $trgDim $srcId]
         if {$found == {}} {
             if {$direction eq "after"} {
-                lappend ::dinah::db($trgDim) [list $trgId $srcId]
+                ::dinah::dbAppend $trgDim [list $trgId $srcId]
             } else {
-                lappend ::dinah::db($trgDim) [list $srcId $trgId]
+                ::dinah::dbAppend $trgDim [list $srcId $trgId]
             }
             return 1
         }
@@ -313,17 +357,17 @@ proc copy {srcId direction trgDim trgId} {
 
 proc clone {id} {
     set attributes {}
-    foreach {k v} [array get ::dinah::db $id,*] {
+    foreach {k v} [::dinah::dbAGet $id,*] {
         regexp {^.*,(.*)} $k -> attName
         lappend attributes $attName $v
     }
-    set clone [::dinah::db'new $attributes]
+    set clone [::dinah::dbNew $attributes]
     set found [::dinah::findInDim $::dinah::dimClone $id]
     if {$found != {}} {
         set si [lindex $found 0]
-        lset ::dinah::db($::dinah::dimClone) $si [lappend [lindex $::dinah::db($::dinah::dimClone) $si] $clone]
+        ::dinah::dbLSet $::dinah::dimClone $si [lappend [::dinah::dbLGet $::dinah::dimClone $si] $clone]
     } else {
-        lappend ::dinah::db($::dinah::dimClone) [list $id $clone]
+        ::dinah::dbAppend $::dinah::dimClone [list $id $clone]
     }
 }
 
@@ -342,11 +386,11 @@ proc remfrag {d f} {
     set found [::dinah::findInDim $d $f]
     if {$found != {}} {
         set si [lindex $found 0]; set fi [lindex $found 1]
-        set newS [lreplace [lindex $::dinah::db($d) $si] $fi $fi]
+        set newS [lreplace [::dinah::dbLGet $d $si] $fi $fi]
         if {[llength $newS] == 0} {
-            set ::dinah::db($d) [lreplace $::dinah::db($d) $si $si]
+            ::dinah::dbSet $d [lreplace [::dinah::dbGet $d] $si $si]
         } else {
-            lset ::dinah::db($d) $si $newS
+            ::dinah::dbLSet $d $si $newS
         }
     }
 }
@@ -361,17 +405,17 @@ proc getSegIndex {d dbid} {
 }
 
 proc remSeg {d segIndex} {
-    set ::dinah::db($d) [lreplace $::dinah::db($d) $segIndex $segIndex]
+    ::dinah::dbSet $d [lreplace [::dinah::dbGet $d] $segIndex $segIndex]
 }
 
 proc order {dimIndex dimLinear newDim} {
-    if  { (! [info exists ::dinah::db($dimIndex)]) || (! [info exists ::dinah::db($dimLinear)]) || \
+    if  { (! [::dinah::dbExists $dimIndex]) || (! [::dinah::dbExists $dimLinear]) || \
           (! [::dinah::editable $newDim]) } {
         return 0
     }
     ::dinah::newDim? $newDim
-    set ::dinah::db($newDim) {}
-    foreach s $::dinah::db($dimLinear) {
+    ::dinah::dbSet $newDim {}
+    foreach s [::dinah::dbGet $dimLinear] {
         set newS {}
         foreach f $s {
             set found [findInDim $dimIndex $f]
@@ -379,19 +423,19 @@ proc order {dimIndex dimLinear newDim} {
                 set segIndex [lindex $found 0]
                 set fragIndex [lindex $found 1]
                 set id ""
-                if {$fragIndex == 0} { set id [lindex $::dinah::db($dimIndex) $segIndex 1] }
-                if {$fragIndex == 1} { set id [lindex $::dinah::db($dimIndex) $segIndex 0] }
+                if {$fragIndex == 0} { set id [::dinah::dbLGet $dimIndex [list $segIndex 1]] }
+                if {$fragIndex == 1} { set id [::dinah::dbLGet $dimIndex [list $segIndex 0]] }
                 if { ($id ne "") && ($id ni $newS) && ([::dinah::findInDim $newDim $id] == {}) } {
                     lappend newS $id
                 } else {
                     tk_messageBox -message "The following fragment is indexed twice by $dimIndex."
-                    set ::dinah::db($newDim) {}
+                    ::dinah::dbSet $newDim {}
                     dimWin $id $dimLinear $dimIndex 
                     return 0
                 }
             }
         }
-        lappend ::dinah::db($newDim) $newS
+        ::dinah::dbAppend $newDim $newS
     }
 }
 
@@ -404,4 +448,3 @@ proc initMouseBindings {} {
         set ::dinah::mouse(Shift-B3) "<Shift-3>"
     }
 }
-
