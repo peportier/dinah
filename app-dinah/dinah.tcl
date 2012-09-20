@@ -9,7 +9,7 @@ namespace eval ::dinah {
 
     set dbFile "db.dinah"
     source -encoding utf-8 $dbFile
-    source $starkit::topdir/lib/app-dinah/db.tcl
+    #source $starkit::topdir/lib/app-dinah/db.tcl
     source $starkit::topdir/lib/app-dinah/algo_dim_agreg.tcl
     source $starkit::topdir/lib/app-dinah/zonemaker.tcl
     source $starkit::topdir/lib/app-dinah/common.tcl
@@ -27,7 +27,7 @@ namespace eval ::dinah {
     source $starkit::topdir/lib/app-dinah/whiteboard.tcl
     source $starkit::topdir/lib/app-dinah/tree.tcl
     source $starkit::topdir/lib/app-dinah/debug.tcl
-    source $starkit::topdir/lib/app-dinah/struct.tcl
+    #source $starkit::topdir/lib/app-dinah/struct.tcl
     source $starkit::topdir/lib/app-dinah/link.tcl
     source $starkit::topdir/lib/app-dinah/container.tcl
     source $starkit::topdir/lib/app-dinah/scripts/scripts.tcl

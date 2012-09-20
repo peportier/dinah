@@ -25,7 +25,7 @@ itcl::class Page {
     destructor {
         destroy $frame
         deleteImage
-	destroy $standalone
+        destroy $standalone
     }
 
     method quickZoom {} {
@@ -62,7 +62,7 @@ itcl::class Page {
 
     method mkImage {} {
         if { [catch {image create photo -file [path]} original] } {
-    	    puts stderr "Could not open image"
+            puts stderr "Could not open image"
         }
         set copy [image create photo]
         $copy copy $original
@@ -85,8 +85,8 @@ itcl::class Page {
     method specificLayout {} {
         set canvas [::dinah::canvas'new $center.main -width 300 -height 300 \
             -scrollregion [list 0 0 [currentResolutionMaxWidth] [currentResolutionMaxHeight]]]
-        set zPlus [button $center.menu.zPlus -text "+" -command [list $this zoom 1]]
-        set zMinus [button $center.menu.zMinus -text "-" -command [list $this zoom -1]]
+        set zPlus [button $center.menu.zPlus -text "+" -command [list $this zoomOnClick 1]]
+        set zMinus [button $center.menu.zMinus -text "-" -command [list $this zoomOnClick -1]]
         set rotate90 [button $center.menu.rotate90 -text "r" -command [list $this rotate90]]
         set quickZoom [button $center.menu.quickZoom -text "z" -command [list $this quickZoom]]
         pack $zPlus -side left -padx 4 -pady 4
@@ -97,10 +97,8 @@ itcl::class Page {
 
     method afterLayout {} {
         $canvas create image 0 0 -image $copy -anchor nw
-    
         bind $canvas <ButtonPress-1> {%W scan mark %x %y}
         bind $canvas <B1-Motion> {%W scan dragto %x %y 1}
-    
         $genericMenu add command -label zones -command [list $this editZones]
     }
 
@@ -138,6 +136,14 @@ itcl::class Page {
         }
     }
 
+    method zoomOnClick {k} {
+        if {! [catch {$container isa Dim} isaDim]} {if {$isaDim} {
+            $container forEachObject [list zoom $k]
+        }} else {
+            zoom $k
+        }
+    }
+
     method zoom {k} {
         sample [expr {$factor - $k}]
     }
@@ -150,11 +156,11 @@ itcl::class Page {
     method currentResolutionIndex {} {
         lindex $resolutions($dbid) 0
     }
-    
+
     method currentResolutionSuffix {} {
         lindex $resolutions($dbid) [currentResolutionIndex] 0
     }
-    
+
     method resolutionMaxWidth {index} {
         lindex $resolutions($dbid) $index 1
     }
@@ -164,7 +170,7 @@ itcl::class Page {
     }
 
     method currentResolutionMaxWidth {} { resolutionMaxWidth [currentResolutionIndex] }
-    
+
     method currentResolutionMaxHeight {} { resolutionMaxHeight [currentResolutionIndex] }
 
     # contract: [currentResolutionIndex] > 1
@@ -172,15 +178,15 @@ itcl::class Page {
 
     # contract: [currentResolutionIndex] > 1
     method prevResolutionMaxHeight {} { resolutionMaxHeight [expr {[currentResolutionIndex] - 1}] }
-    
+
     method setCurrentResolutionMaxWidth {newWidth} {
         lset resolutions($dbid) [currentResolutionIndex] 1 $newWidth
     }
-    
+
     method setCurrentResolutionMaxHeight {newHeight} {
         lset resolutions($dbid) [currentResolutionIndex] 2 $newHeight
     }
-    
+
     method nextResolution {} {
         if {[currentResolutionIndex] < ([llength $resolutions($dbid)] - 1)} {
             lset resolutions($dbid) 0 [expr {[currentResolutionIndex] + 1}]
@@ -188,7 +194,7 @@ itcl::class Page {
         }
         return 0
     }
-    
+
     method prevResolution {} {
         if {[currentResolutionIndex] > 1} {
             lset resolutions($dbid) 0 [expr {[currentResolutionIndex] - 1}]

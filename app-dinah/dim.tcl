@@ -983,6 +983,12 @@ itcl::class Dim {
         set busy 0
     }
 
+    method forEachObject {msg} {
+        foreach {xy o} [array get objects] {
+            catch {$o {*}$msg}
+        }
+    }
+
     method z {} {
         foreach {pos o} [array get objects] {
             $o z
@@ -1071,7 +1077,7 @@ itcl::class Dim {
 
     method scRow {} {
         if {! [scRowEmpty]} {
-            return [::dinah::dbLGet $x [scDimIndex]
+            return [::dinah::dbLGet $x [scDimIndex]]
         } else {
             return {}
         }
