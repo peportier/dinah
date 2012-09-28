@@ -13,8 +13,8 @@ namespace eval ::dinah {
     source $starkit::topdir/lib/app-dinah/algo_dim_agreg.tcl
     source $starkit::topdir/lib/app-dinah/zonemaker.tcl
     source $starkit::topdir/lib/app-dinah/common.tcl
-    #source $starkit::topdir/lib/app-dinah/bouvard.tcl
-    source $starkit::topdir/lib/app-dinah/desanti.tcl
+    source $starkit::topdir/lib/app-dinah/bouvard.tcl
+    #source $starkit::topdir/lib/app-dinah/desanti.tcl
     #load_conf
     source $starkit::topdir/lib/app-dinah/canvas.tcl
     source $starkit::topdir/lib/app-dinah/autocomplete.tcl
@@ -44,5 +44,9 @@ namespace eval ::dinah {
     }
 
     #console show
+    ::dinah::dbSet "notAlone" 0
+    #foreach s [::dinah::dbGet $::dinah::dimFragments] {
+    #    puts [::dinah::dbGet [lindex $s 0],path]
+    #}
     ::dinah::init
 }

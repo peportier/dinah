@@ -1,15 +1,19 @@
 set ::dinah::dimAlternative "d.alternative"
-set ::dinah::dimAttribute "d.attribute"
-set ::dinah::dimNote "d.note"
 set ::dinah::dimArchive "d.archive"
-set ::dinah::dimSameLevel "d.sameLevel"
+set ::dinah::dimAttribute "d.attribute"
+set ::dinah::dimChrono "d.chrono"
+set ::dinah::dimClipboard "d.clipboard"
+set ::dinah::dimClone "d.clone"
+set ::dinah::dimContains "d.contains"
 set ::dinah::dimFragments "d.fragments"
+set ::dinah::dimInfo "d.info"
 set ::dinah::dimInit "d.init"
 set ::dinah::dimNil "d.nil"
-set ::dinah::dimClipboard "d.clipboard"
-set ::dinah::dimChrono "d.chrono"
-set ::dinah::dimInfo "d.info"
-set ::dinah::dimContains "d.contains"
+set ::dinah::dimNote "d.note"
+set ::dinah::dimSameLevel "d.sameLevel"
+set ::dinah::dimTemp "d.temp"
+set ::dinah::dimTranscription "d.transcription"
+
 set ::dinah::separatorSize 5
 set ::dinah::fragmentBorderWidth 2
 set ::dinah::backgroundColor antiqueWhite
@@ -22,17 +26,20 @@ set ::dinah::resolutions_suffix {""}
 
 proc specific_init_preamble {} {
     ::dinah::newDim? $::dinah::dimAlternative
-    ::dinah::newDim? $::dinah::dimAttribute
-    ::dinah::newDim? $::dinah::dimNote
     ::dinah::newDim? $::dinah::dimArchive
-    ::dinah::newDim? $::dinah::dimSameLevel
+    ::dinah::newDim? $::dinah::dimAttribute
+    ::dinah::newDim? $::dinah::dimChrono
+    ::dinah::newDim? $::dinah::dimClipboard
+    ::dinah::newDim? $::dinah::dimClone
+    ::dinah::newDim? $::dinah::dimContains
     ::dinah::newDim? $::dinah::dimFragments
+    ::dinah::newDim? $::dinah::dimInfo
     ::dinah::newDim? $::dinah::dimInit
     ::dinah::newDim? $::dinah::dimNil
-    ::dinah::newDim? $::dinah::dimClipboard
-    ::dinah::newDim? $::dinah::dimChrono
-    ::dinah::newDim? $::dinah::dimInfo
-    ::dinah::newDim? $::dinah::dimContains
+    ::dinah::newDim? $::dinah::dimNote
+    ::dinah::newDim? $::dinah::dimSameLevel
+    ::dinah::newDim? $::dinah::dimTemp
+    ::dinah::newDim? $::dinah::dimTranscription
     ::dinah::addToTxtMenu "auteur" "-background" "orange" "-foreground" "black"
     ::dinah::addToTxtMenu "concept" "-background" "forest green" "-foreground" "black"
     ::dinah::addToTxtMenu titre1 -font "$::dinah::font 15 underline"

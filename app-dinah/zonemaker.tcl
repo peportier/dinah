@@ -218,7 +218,7 @@ namespace eval ::dinah::zonemaker {
     proc create_poly {coords} {
         variable ::dinah::zonemaker::imageId
         set id [::dinah::dbNew {isa Page label ""}]
-        ::dinah::dbSet $id,path $db($imageId,path)_frag$id
+        ::dinah::dbSet $id,path [::dinah::dbGet $imageId,path]_frag$id
         ::dinah::dbSet $id,coords $coords
         set found [::dinah::findInDim $::dinah::dimFragments $imageId]
         if {$found == {}} {

@@ -1,20 +1,21 @@
-set ::dinah::dimTemp "d.temp"
 set ::dinah::dimAlternative "d.alternative"
-set ::dinah::dimAttribute "d.attribute"
 set ::dinah::dimArchive "d.archive"
-set ::dinah::dimInsert "d.insert"
-set ::dinah::dimSameLevel "d.sameLevel"
-set ::dinah::dimNote "d.note"
+set ::dinah::dimAttribute "d.attribute"
+set ::dinah::dimChrono "d.chrono"
+set ::dinah::dimClipboard "d.clipboard"
+set ::dinah::dimClone "d.clone"
 set ::dinah::dimFragments "d.fragments"
+set ::dinah::dimInfo "d.info"
+set ::dinah::dimInit "d.init"
+set ::dinah::dimInsert "d.insert"
+set ::dinah::dimNil "d.nil"
+set ::dinah::dimNote "d.note"
 set ::dinah::dimNoticeElement "d.noticeElement"
 set ::dinah::dimNoticeLevel "d.noticeLevel"
-set ::dinah::dimInit "d.init"
-set ::dinah::dimNil "d.nil"
-set ::dinah::dimClipboard "d.clipboard"
-set ::dinah::dimChrono "d.chrono"
-set ::dinah::dimInfo "d.info"
+set ::dinah::dimSameLevel "d.sameLevel"
+set ::dinah::dimTemp "d.temp"
 set ::dinah::dimTranscription "d.transcription"
-set ::dinah::dimClone "d.clone"
+
 set ::dinah::separatorSize 5
 set ::dinah::fragmentBorderWidth 2
 set ::dinah::backgroundColor antiqueWhite
@@ -26,22 +27,22 @@ set ::dinah::resolutions_suffix {"_low" "_high"}
 
 proc specific_init_preamble {} {
     ::dinah::newDim? $::dinah::dimAlternative
-    ::dinah::newDim? $::dinah::dimAttribute
     ::dinah::newDim? $::dinah::dimArchive
-    ::dinah::newDim? $::dinah::dimInsert
-    ::dinah::newDim? $::dinah::dimSameLevel
-    ::dinah::newDim? $::dinah::dimNote
+    ::dinah::newDim? $::dinah::dimAttribute
+    ::dinah::newDim? $::dinah::dimChrono
+    ::dinah::newDim? $::dinah::dimClipboard
+    ::dinah::newDim? $::dinah::dimClone
     ::dinah::newDim? $::dinah::dimFragments
+    ::dinah::newDim? $::dinah::dimInfo
+    ::dinah::newDim? $::dinah::dimInit
+    ::dinah::newDim? $::dinah::dimInsert
+    ::dinah::newDim? $::dinah::dimNil
+    ::dinah::newDim? $::dinah::dimNote
     ::dinah::newDim? $::dinah::dimNoticeElement
     ::dinah::newDim? $::dinah::dimNoticeLevel
-    ::dinah::newDim? $::dinah::dimInit
-    ::dinah::newDim? $::dinah::dimNil
-    ::dinah::newDim? $::dinah::dimClipboard
-    ::dinah::newDim? $::dinah::dimChrono
-    ::dinah::newDim? $::dinah::dimInfo
-    ::dinah::newDim? $::dinah::dimTranscription
-    ::dinah::newDim? $::dinah::dimClone
+    ::dinah::newDim? $::dinah::dimSameLevel
     ::dinah::newDim? $::dinah::dimTemp
+    ::dinah::newDim? $::dinah::dimTranscription
     ::dinah::addToTxtMenu "gras" "-font" "$::dinah::font $::dinah::fontsize bold"
     ::dinah::addToTxtMenu "italique" "-font" "$::dinah::font $::dinah::fontsize italic"
     ::dinah::addToTxtMenu "exposant" "-offset" "6"
