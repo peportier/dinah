@@ -49,4 +49,5 @@ namespace eval ::dinah {
     #    puts [::dinah::dbGet [lindex $s 0],path]
     #}
     ::dinah::init
+    ::dinah::every 1000 ::dinah::autosave
 }

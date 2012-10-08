@@ -449,6 +449,13 @@ proc initMouseBindings {} {
     }
 }
 
+proc autosave {} {
+    foreach txt [itcl::find object * -class ::dinah::Txt] {
+        $txt save
+    }
+    ::dinah::dbSave
+}
+
 proc every {t body} {
     uplevel #0 $body
     after $t [list ::dinah::every $t $body]

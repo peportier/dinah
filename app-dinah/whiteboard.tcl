@@ -166,7 +166,6 @@ itcl::class Whiteboard {
 
     method updateAndDrawAllEdges {} {
         updateEdges
-        puts "c: $c"
         $c delete edge
         foreach o [$c find withtag object] {
             drawEdges $o

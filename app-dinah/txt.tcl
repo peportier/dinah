@@ -2,7 +2,6 @@ itcl::class Txt {
     inherit Obj
 
     public variable txtWindow
-    private variable saveStateLabel ""
     private variable tagNameLabel ""
     private variable deleteMenu ""
 
@@ -112,7 +111,6 @@ itcl::class Txt {
     }
 
     method execMenuCmd {name} {
-        if {![isSaved]} {save}
         if {[$txtWindow tag ranges sel] != {}} {
             set intervalId [newInterval $name]
         } elseif {[$txtWindow tag ranges sel] == {} && $name in {cb lb gap}} {
@@ -206,10 +204,6 @@ itcl::class Txt {
     }
 
     method specificLayout {} {
-        set btnSave [button $center.menu.btnSave -text "save" -command [list $this save]]
-        set saveStateLabel [label $center.menu.saveState -text ""]
-        pack $saveStateLabel -side left -padx 4 -pady 4
-        pack $btnSave -side left -padx 4 -pady 4
         set zPlus [button $center.menu.zPlus -text "+" -command [list $this zoom 1]]
         set zMinus [button $center.menu.zMinus -text "-" -command [list $this zoom -1]]
         pack $zPlus -side left -padx 4 -pady 4
@@ -236,10 +230,8 @@ itcl::class Txt {
         defaultTags
         newBindings
         load $txtWindow
-        showSavedState
         events
         contextualMenu
-        $txtWindow edit modified 0
     }
 
     method load {w} {
@@ -267,8 +259,6 @@ itcl::class Txt {
             set dump [join [concat [lrange $splitdump 0 end-2] [list $match]] "\n"]
         }
         ::dinah::dbSet $dbid,txt $dump
-        $txtWindow edit modified 0
-        ::dinah::dbSave
     }
 
     method newBindings {} {
@@ -333,20 +323,7 @@ itcl::class Txt {
         }
     }
 
-    method showSavedState {} {
-        if {[isSaved]} {
-            $saveStateLabel configure -text "" 
-        } else {
-            $saveStateLabel configure -text "modified" 
-        }
-    }
-
-    method isSaved {} {
-        return [expr {! [$txtWindow edit modified]}]
-    }
-
     method events {} {
-        bind $txtWindow <<Modified>> [list $this showSavedState]
         $txtWindow tag bind interval <1> [list $this click %w %x %y]
     }
 }

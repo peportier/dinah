@@ -203,20 +203,13 @@ itcl::class Dim {
 
         set dimMenu [menu $f.dimMenu]
         set modeMenu [menu $dimMenu.modeMenu]
-        $dimMenu add command -label "swap dim" -command [list $this swapDim]
-        $dimMenu add command -label "next segment" -command [list $this nextList 1]
-        $dimMenu add command -label "prev segment" -command [list $this nextList -1]
+        $dimMenu add command -label "swap dim (s)" -command [list $this swapDim]
+        $dimMenu add command -label "next segment (o)" -command [list $this nextList 1]
+        $dimMenu add command -label "prev segment (O)" -command [list $this nextList -1]
         $dimMenu add command -label "goto label" -command [list $this msgGoto]
-        $dimMenu add command -label "reload" -command [list $this reload]
-        $dimMenu add command -label "new Txt" -command [list $this new Txt]
+        $dimMenu add command -label "new Txt (n)" -command [list $this new Txt]
         $dimMenu add command -label "delete segment" -command [list $this deleteRow]
-        $dimMenu add cascade -label "mode" -menu $modeMenu
-        $modeMenu add command -label "nil" -command [list $this setModeNil]
-        #$modeMenu add command -label "navigation" -command [list $this setMode 1]
-        $modeMenu add command -label "transcription" -command [list $this setModeTranscription]
-        $modeMenu add command -label "notice" -command [list $this setModeNotice]
         $dimMenu add command -label "exit" -command {exit}
-        $dimMenu add command -label "save" -command {::dinah::dbSave}
         $dimMenu add command -label "nouvelle fenetre avec navigation" -command { ::dinah::desanti_navigation_win }
         $dimMenu add command -label "nouvelle fenetre" -command {
             set c0 [::dinah::Container #auto]
@@ -330,7 +323,6 @@ itcl::class Dim {
         }
 
         bind $t <Key-g> [list $this msgGoto]
-        bind $t <Key-r> [list $this reload]
         bind $t <Control-Key-l> [list $this incrWWidth 1]
         bind $t <Control-Key-Right> [list $this incrWWidth 1]
         bind $t <Control-Key-j> [list $this incrWWidth -1]
@@ -374,7 +366,6 @@ itcl::class Dim {
         bind $t <Key-W> [list $this newWindow]
         bind $t <Key-w> [list $this newWindowOnCursor]
         bind $t <Key-a> [list $this newTreeOnCursor]
-        bind $t <Key-d> [list $this deleteRow]
         bind $t <Key-s> [list $this swapDim]
         bind $t <Control-Key-q> {exit}
         #bind $t <Control-Key-w> [list ::dinah::destroyToplevel $t]
