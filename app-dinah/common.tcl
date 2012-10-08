@@ -246,7 +246,7 @@ proc init {} {
             if {[::dinah::dbGet $f,isa] eq "Txt"} {
                 set t [Txt #auto $f]
                 $t interpretBuffer
-                $t destructor
+                itcl::delete object $t
             }
         }
     }
@@ -447,4 +447,9 @@ proc initMouseBindings {} {
         set ::dinah::mouse(B3) "<3>"
         set ::dinah::mouse(Shift-B3) "<Shift-3>"
     }
+}
+
+proc every {t body} {
+    uplevel #0 $body
+    after $t [list ::dinah::every $t $body]
 }

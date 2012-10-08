@@ -65,7 +65,7 @@ itcl::class Txt {
     }
 
     method click {w x y} {
-        $tagNameLabel configure -text "" 
+        $tagNameLabel configure -text ""
         $deleteMenu delete 0 end
         foreach t [$txtWindow tag names @$x,$y] {
             if {! [regexp {^interval.*} $t]} {
@@ -75,10 +75,10 @@ itcl::class Txt {
             set id ""
             regexp {^interval(.*)} $t -> id
             if {$id ne "" && $container ne ""} {
-                set t [$container getTopFrame]
+                set topFrame [$container getTopFrame]
                 set c [$container getContainer]
                 foreach quartPair {{1 3} {2 4}} {
-                    if {[$c frameOfQuart [lindex $quartPair 0]] eq $t} {
+                    if {[$c frameOfQuart [lindex $quartPair 0]] eq $topFrame} {
                         foreach {quartIndex dim} [list [lindex $quartPair 1] $::dinah::dimNote] {
                             set quart [$c quart $quartIndex]
                             $quart setX $dim

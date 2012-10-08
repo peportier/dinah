@@ -77,6 +77,7 @@ itcl::class Whiteboard {
     }
 
     method updateEdges {} {
+        $edges deleteAll
         foreach {k entry} [array get d] {
             set color $colors($k)
             set dim [$entry get]
@@ -160,6 +161,15 @@ itcl::class Whiteboard {
         }
         foreach e [$edges toId [getIdFromItem $item]] {
             drawEdge $e
+        }
+    }
+
+    method updateAndDrawAllEdges {} {
+        updateEdges
+        puts "c: $c"
+        $c delete edge
+        foreach o [$c find withtag object] {
+            drawEdges $o
         }
     }
 
@@ -310,9 +320,16 @@ itcl::class Whiteboard {
 
     method storeState {id cmd args} {}
 
-    method gotoBoard {k} {
+    method deleteBoard {} {
         $c delete all
+        foreach o [$c find withtag object] {
+            itcl::delete object $o
+        }
         $edges deleteAll
+    }
+
+    method gotoBoard {k} {
+        deleteBoard
         set boardNumber $k
         foreach n {1 2 3 4 5} {
             $d($n) delete 0 end
@@ -326,10 +343,7 @@ itcl::class Whiteboard {
             }
         }
         set currentDim "d.nil"
-        updateEdges
-        foreach o [$c find withtag object] {
-            drawEdges $o
-        }
+        updateAndDrawAllEdges
     }
 
     method cleanBoard {} {
@@ -381,8 +395,7 @@ itcl::class Whiteboard {
             ::dinah::ladd idsOnBoard $id
             set o [pinItem $place $id $x $y]
             ::dinah::dbSet board$boardNumber,$place [list $id $x $y "" "" $o]
-            updateEdges
-            drawEdges [getItemFromId $id]
+            updateAndDrawAllEdges
         }
     }
 

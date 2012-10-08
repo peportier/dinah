@@ -472,7 +472,7 @@ itcl::class Dim {
         grid rowconfigure $g all -uniform {} -weight 0
         grid columnconfigure $g all -uniform {} -weight 0
         foreach slave [grid slaves $g] { grid forget $slave ; destroy $slave }
-        foreach {pos o} [array get objects] { $o destructor }
+        foreach {pos o} [array get objects] { itcl::delete object $o }
     }
 
     method setX {dim} { set x $dim }
