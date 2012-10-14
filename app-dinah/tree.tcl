@@ -5,102 +5,169 @@ itcl::class Tree {
     private variable hierarchyDim ""
     private variable rootId ""
     constructor {} {}
-    public method mkWindow {{parentw ""}}
-    public method loadTree {item}
-    public method loadSiblings {father son}
-    public method insert {item id}
-    public method onSelect {tree node}
-    public method itemId {item}
-    public method itemIsVirgin {item}
-    public method setRoot {id}
-    public method setDim {hierarchyDim siblingDim}
-    public method load {}
-    public method bindDblClick {script}
-}
 
-itcl::body Tree::bindDblClick {script} {
-    $tree bindText <Double-ButtonRelease-1> $script
-}
-
-itcl::body Tree::setRoot {id} { 
-    set rootId $id 
-    return $this
-}
-
-itcl::body Tree::setDim {x y} { 
-    set hierarchyDim $x
-    set siblingDim $y
-    return $this
-}
-
-itcl::body Tree::load {} { 
-    $tree delete [$tree nodes root]
-    loadTree [insert root $rootId]
-    return $this
-}
-
-itcl::body Tree::mkWindow {{parentw ""}} {
-    if {$parentw == ""} { 
-        set parentw [::dinah::newToplevel .t[::dinah::objname $this]] 
+    method bindDblClick {script} {
+        $tree bindText <Double-ButtonRelease-1> $script
     }
-    set f [frame $parentw.f -borderwidth 1 -bg black]
-    set tree [Tree $f.tree -selectcommand [list $this onSelect] -xscrollcommand [list $f.xscroll set] -yscrollcommand [list $f.yscroll set] -width 15 -deltax 10 -deltay 30]
-    set xscroll [scrollbar $f.xscroll -orient horizontal -command [list $tree xview]]
-    set yscroll [scrollbar $f.yscroll -orient vertical -command [list $tree yview]]
-    #pack $f -side top -fill both -expand yes
-    grid $tree $yscroll -sticky news
-    grid $xscroll -sticky news
-    grid rowconfigure $f 0 -weight 1
-    grid columnconfigure $f 0 -weight 1
-    return $f
-}
 
-itcl::body Tree::itemId {item} {
-    return [lindex [$tree itemcget $item -data] 0]
-}
+    method setRoot {id} {
+        set rootId $id
+        return $this
+    }
 
-itcl::body Tree::itemIsVirgin {item} {
-    return [lindex [$tree itemcget $item -data] 1]
-}
+    method setDim {x y} {
+        set hierarchyDim $x
+        set siblingDim $y
+        return $this
+    }
 
-itcl::body Tree::loadTree {item} {
-    if {! [itemIsVirgin $item]} { return }
-    $tree itemconfigure $item -data [lreplace [$tree itemcget $item -data] 1 1 0] -fill black
-    set found [::dinah::findInDim $hierarchyDim [itemId $item]]
-    if {$found != {}} {
-        set sonId [::dinah::dbLGet $hierarchyDim [list [lindex $found 0] [expr {[lindex $found 1] + 1}]]]
-        if {$sonId != {}} {
-            set son [insert $item $sonId]
-            loadSiblings $item $son
+    method load {} {
+        $tree delete [$tree nodes root]
+        loadTree [insert root $rootId]
+        return $this
+    }
+
+    method mkWindow {{parentWindow ""}} {
+        if {$parentWindow eq ""} {
+            set parentw [::dinah::newToplevel .t[::dinah::objname $this]]
+        } else {
+            set parentw $parentWindow
         }
+        set f [frame $parentw.f -borderwidth 1 -bg black]
+        set tree [Tree $f.tree -selectcommand [list $this onSelect] -xscrollcommand [list $f.xscroll set] -yscrollcommand [list $f.yscroll set] -width 15 -deltax 10 -deltay 30]
+        set xscroll [scrollbar $f.xscroll -orient horizontal -command [list $tree xview]]
+        set yscroll [scrollbar $f.yscroll -orient vertical -command [list $tree yview]]
+        #pack $f -side top -fill both -expand yes
+        grid $tree $yscroll -sticky news
+        grid $xscroll -sticky news
+        grid rowconfigure $f 0 -weight 1
+        grid columnconfigure $f 0 -weight 1
+        return $f
     }
-}
 
-itcl::body Tree::loadSiblings {father item} {
-    set found [::dinah::findInDim $siblingDim [itemId $item]]
-    if {$found != {}} {
-        set siblings [lrange [::dinah::dbLGet $siblingDim [lindex $found 0]] [expr {[lindex $found 1] + 1}] end]
-        if {$siblings != {}} {
-            foreach siblingId $siblings {
-                insert $father $siblingId
+    method itemId {item} {
+        return [lindex [$tree itemcget $item -data] 0]
+    }
+
+    method itemIsVirgin {item} {
+        return [lindex [$tree itemcget $item -data] 1]
+    }
+
+    method loadTree {item} {
+        if {! [itemIsVirgin $item]} { return }
+        $tree itemconfigure $item -data [lreplace [$tree itemcget $item -data] 1 1 0] -fill black
+        set found [::dinah::findInDim $hierarchyDim [itemId $item]]
+        if {$found != {}} {
+            set sonId [::dinah::dbLGet $hierarchyDim [list [lindex $found 0] [expr {[lindex $found 1] + 1}]]]
+            if {$sonId != {}} {
+                set son [insert $item $sonId]
+                loadSiblings $item $son
             }
         }
     }
-}
 
-itcl::body Tree::insert {item id} {
-    set r [$tree insert end $item n#auto -data [list $id 1] -fill blue]
-    if {[::dinah::dbGet $id,label] ne ""} {
-        #$tree itemconfigure $r -text [string range $::dinah::db($id,label) end-10 end]
-        $tree itemconfigure $r -text [::dinah::dbGet $id,label]
-    } else {
-        $tree itemconfigure $r -text [::dinah::dbGet $id,isa]
+    method loadSiblings {father item} {
+        set found [::dinah::findInDim $siblingDim [itemId $item]]
+        if {$found != {}} {
+            set siblings [lrange [::dinah::dbLGet $siblingDim [lindex $found 0]] [expr {[lindex $found 1] + 1}] end]
+            if {$siblings != {}} {
+                foreach siblingId $siblings {
+                    insert $father $siblingId
+                }
+            }
+        }
     }
-    return $r
-}
 
-itcl::body Tree::onSelect {tree node} {
-    if {$node != {}} { 
-        loadTree $node 
+    method insert {item id} {
+        set r [$tree insert end $item n#auto -data [list $id 1] -fill blue]
+        if {[::dinah::dbGet $id,label] ne ""} {
+            #$tree itemconfigure $r -text [string range $::dinah::db($id,label) end-10 end]
+            $tree itemconfigure $r -text [::dinah::dbGet $id,label]
+        } else {
+            $tree itemconfigure $r -text [::dinah::dbGet $id,isa]
+        }
+        $tree bindText $::dinah::mouse(B3) [list $this popup %X %Y]
+        return $r
+    }
+
+    method popup {x y nodeId} {
+        destroy $parentw.f.menu
+        set menu [menu $parentw.f.menu]
+        $menu add command -label "rename" -command [list $this updateLabel $nodeId]
+        $menu add command -label "new son" -command [list $this newSon $nodeId]
+        $menu add command -label "new sibling" -command [list $this newSibling $nodeId]
+        tk_popup $menu $x $y
+    }
+
+    method newSon {nodeId} {
+        set newDbId [::dinah::emptyNode Txt "label"]
+        set fatherDbId [itemId $nodeId]
+        set found [::dinah::findInDim $hierarchyDim $fatherDbId]
+        if {$found != {}} {
+            set fatherSegment [lindex $found 0]
+            set fatherPos [lindex $found 1]
+            set lastItem [::dinah::dbLGet $hierarchyDim [list $fatherSegment end]]
+            if {$lastItem eq $fatherDbId} {
+                ::dinah::dbLSet $hierarchyDim [list $fatherSegment end] $newDbId
+            } else {
+                set fatherRightSibling [::dinah::dbLGet $hierarchyDim [list $fatherSegment [expr {$fatherPos + 1}]]]
+                set found [::dinah::findInDim $siblingDim $fatherRightSibling]
+                if {$found != {}} {
+                    set fatherSiblingSegment [lindex $found 0]
+                    ::dinah::dbLSet $siblingDim [list $fatherSiblingSegment end] $newDbId
+                } else {
+                    ::dinah::dbAppend $siblingDim [list $fatherRightSibling $newDbId]
+                }
+            }
+        } else {
+            ::dinah::dbAppend $hierarchyDim [list $fatherDbId $newDbId]
+        }
+        updateLabel [insert $nodeId $newDbId]
+    }
+
+    method newSibling {nodeId} {
+        set newDbId [::dinah::emptyNode Txt "label"]
+        set siblingDbId [itemId $nodeId]
+        set found [::dinah::findInDim $siblingDim $siblingDbId]
+        if {$found != {}} {
+            set siblingSegment [lindex $found 0]
+            set siblingPos [lindex $found 1]
+            ::dinah::dbLSet $siblingDim [list $siblingSegment [expr {$siblingPos + 1}]] $newDbId
+        } else {
+            ::dinah::dbAppend $siblingDim [list $siblingDbId $newDbId]
+        }
+        updateLabel [insert [$tree parent $nodeId] $newDbId]
+    }
+
+    method updateLabel {nodeId} {
+        set r [$tree edit $nodeId [::dinah::dbGet [itemId $nodeId],label]]
+        if {$r ne ""} {
+            ::dinah::dbSet [itemId $nodeId],label $r
+            $tree itemconfigure $nodeId -text $r
+        }
+    }
+
+    #method updateLabelDialog {nodeId} {
+    #    toplevel .editLabel
+    #    button .editLabel.btnClose -command [$this saveLabelAndCloseDialog $nodeId]
+    #    entry .editLabel.entry
+    #    .editLabel.entry insert 0 [::dinah::dbGet [itemId $nodeId],label]
+    #    pack .editLabel.entry .editLabel.btnClose
+    #    grab .editLabel
+    #    wm transient .editLabel .
+    #    wm protocol .editLabel WM_DELETE_WINDOW {grab release .editLabel; destroy .editLabel}
+    #    raise .editLabel
+    #    tkwait window .editLabel
+    #}
+
+    #method saveLabelAndCloseDialog {nodeId} {
+    #    ::dinah::dbSet $[itemId nodeId],label [.editLabel.entry get]
+    #    destroy .editLabel
+    #}
+
+    method onSelect {tree node} {
+        if {$node != {}} { 
+            loadTree $node 
+        }
     }
 }
