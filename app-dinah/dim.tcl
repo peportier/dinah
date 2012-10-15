@@ -213,10 +213,7 @@ itcl::class Dim {
         $dimMenu add command -label "delete segment" -command [list $this deleteRow]
         $dimMenu add command -label "exit (Ctrl-q)" -command {exit}
         $dimMenu add command -label "nouvelle fenetre avec navigation" -command { ::dinah::desanti_navigation_win }
-        $dimMenu add command -label "nouvelle fenetre" -command {
-            set c0 [::dinah::Container #auto]
-            focus [$c0 mkWindow]
-        }
+        $dimMenu add command -label "nouvelle fenetre (Ctrl-n)" -command [list $this newWindow]
         bind $f.menu $::dinah::mouse(B3) [list tk_popup $dimMenu %X %Y]
         bind $f.menu <1> [list focus $t]
         bind $f.menu <1> +[list $this updateInfo]
@@ -364,15 +361,16 @@ itcl::class Dim {
         bind $t <Control-Key-V> [list $this pasteBefore]
         bind $t <Control-Key-v> [list $this pasteAfter]
         bind $t <Control-Key-x> [list $this cut]
+        bind $t <Control-Key-d> [list $this delete]
         #bind $t <Key-t> [list $this newWhiteboard]
-        bind $t <Key-w> [list $this newWindow]
+        bind $t <Control-Key-n> [list $this newWindow]
         #bind $t <Key-W> [list $this newWindowOnCursor]
         bind $t <Key-a> [list $this newTreeOnCursor]
         bind $t <Key-s> [list $this swapDim]
         bind $t <Control-Key-q> {exit}
         #bind $t <Control-Key-w> [list ::dinah::destroyToplevel $t]
-        bind $t <Control-Key-n> {::dinah::switchFocus+} 
-        bind $t <Control-Key-p> {::dinah::switchFocus-} 
+        #bind $t <Control-Key-n> {::dinah::switchFocus+} 
+        #bind $t <Control-Key-p> {::dinah::switchFocus-} 
         #bind $t <Key-m> [list $this nextMode]
         #bind $t <space> [list $this nextModeDim]
         bind $t <Key-o> [list $this nextList 1]
@@ -1227,10 +1225,7 @@ itcl::class Dim {
 
     method cut {} {copycat; delete}
 
-    method newWindow {} {
-        set d [::dinah::Dim dim#auto]
-        focus [$d mkWindow]
-    }
+    method newWindow {} { focus [[::dinah::Container #auto] mkWindow] }
 
     method newWhiteboard {} {
         set d [::dinah::Whiteboard #auto]

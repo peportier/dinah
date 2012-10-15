@@ -52,7 +52,7 @@ itcl::class Obj {
         set notificationLabel [label $center.menu.notification -text ""]
 
         set genericMenu [menu $frame.genericMenu]
-        $genericMenu add command -label del -command [list $this delete]
+        $genericMenu add command -label "delete (Ctrl-d)" -command [list $this delete]
         $genericMenu add command -label fold -command [list $this fold]
         $genericMenu add command -label clone -command [list $this makeClone]
         bind $center.menu $::dinah::mouse(B3) [list tk_popup $genericMenu %X %Y]
@@ -166,7 +166,7 @@ itcl::class Obj {
     method setContainer {c} {
         set container $c
         if {! [catch {$container isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} {
-            $genericMenu add command -label clear -command [list $container delete $dbid]
+            $genericMenu add command -label "remove from board" -command [list $container delete $dbid]
             $genericMenu add command -label next -command [list $container next $dbid]
             $genericMenu add command -label prev -command [list $container prev $dbid]
         }}
@@ -218,7 +218,7 @@ itcl::class Obj {
             }
         }} 
         if {! [catch {$container isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} {
-            ::dinah::copy $data before [$container getCurrentDim] $dbid 
+            ::dinah::copy $data before [$container getCurrentDim] $dbid
         }}
         $target configure -bg $::dinah::targetColor($target)
         return $container
@@ -237,12 +237,7 @@ itcl::class Obj {
 
     method delete {} {
         if {! [catch {$container isa Dim} isaDim]} {if {$isaDim} {
-            if {$dbid in [$container scRow]} {
-                ::dinah::remfrag [$container getX] $dbid
-            } else {
-                ::dinah::remfrag [$container getY] $dbid
-            }
-            $container reload
+            $container delete
         }}
         if {! [catch {$container isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} {
             ::dinah::remfrag [$container getCurrentDim] $dbid

@@ -268,6 +268,7 @@ itcl::class Txt {
         bind modText <Return> +{break}
         #bind modText <Return> {::dinah::Txt::cr %W}
         bindtags $txtWindow [list $txtWindow modText all]
+        bind $txtWindow <Control-Key-E> [list $this interpretLine]
     }
 
     # slightly modified from ::tk::TextInsert

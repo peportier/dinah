@@ -61,9 +61,9 @@ itcl::class Edge {
     method setIndirect {} {set direct 0}
     method getLineOptions {} {
         if {$direct} {
-            return [list -fill $lineColor]
+            return [list -tag edge -arrow last -fill $lineColor -width 3]
         } else {
-            return [list -fill $lineColor -dash -]
+            return [list -tag edge -arrow last -fill $lineColor -width 3 -dash -]
         }
     }
 }

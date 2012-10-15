@@ -12,7 +12,6 @@ itcl::class Whiteboard {
     private variable idsOnBoard {}
     private variable edges
     private variable colors
-    private variable currentDim
     private variable menu ""
 
     constructor {} {
@@ -31,10 +30,10 @@ itcl::class Whiteboard {
     }
 
     method expand {id offset} {
-        set found [::dinah::findInDim $currentDim $id]
+        set found [::dinah::findInDim [getCurrentDim] $id]
         if {$found ne {}} {
             set si [lindex $found 0]; set fi [lindex $found 1]
-            set otherId [::dinah::dbLGet $currentDim [list $si [expr {$fi + $offset}]]]
+            set otherId [::dinah::dbLGet [getCurrentDim] [list $si [expr {$fi + $offset}]]]
             if {$otherId ne "" && [getItemFromId $otherId] eq ""} {
                 set item [getItemFromId $id]
                 set coords [$c coords $item]
@@ -189,16 +188,30 @@ itcl::class Whiteboard {
         if {$y1>$y0 && $y4<$y0} {set y1 $y0}
         if {$y4<$y5 && $y1>$y5} {set y4 $y5}
         set options [$e getLineOptions]
-        $e setLineItem [$c create line $x1 $y1 $x4 $y4 -tag edge -arrow last {*}$options]
+        $e setLineItem [$c create line $x1 $y1 $x4 $y4 {*}$options]
     }
 
     method okDim {i} {
         saveDim $i
         reload
-        set currentDim [$d($i) get]
+        setCurrentDim [$d($i) get]
+        foreach j {1 2 3 4 5} {
+            $b($j) configure -borderwidth 1
+        }
+        $b($i) configure -borderwidth 4
     }
 
-    method getCurrentDim {} { set currentDim }
+    method getCurrentDim {} { 
+        if {[::dinah::dbExists board$boardNumber,currentDim]} {
+            return [::dinah::dbGet board$boardNumber,currentDim]
+        } else {
+            return $::dinah::dimNil
+        }
+    }
+
+    method setCurrentDim {dimName} {
+        ::dinah::dbSet board$boardNumber,currentDim $dimName
+    }
 
     method mkWindow {{parent {}}} {
         if {$parent == {}} {
@@ -207,7 +220,7 @@ itcl::class Whiteboard {
             set t $parent
         }
         set f [frame $t.f -borderwidth 1 -bg black]
-        set m [frame $t.m -borderwidth 1 -bg black]
+        set m [frame $t.m -borderwidth 1]
         foreach i {1 2 3 4 5} {
             ::dinah::Autocomplete #auto $m.dim$i [::dinah::dbGet dimensions]
             set d($i) $m.dim$i
@@ -341,7 +354,6 @@ itcl::class Whiteboard {
                 pinItem $x [lindex $i 0] [lindex $i 1] [lindex $i 2] [lindex $i 3] [lindex $i 4]
             }
         }
-        set currentDim "d.nil"
         updateAndDrawAllEdges
     }
 

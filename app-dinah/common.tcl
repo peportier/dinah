@@ -34,7 +34,12 @@ proc dbOSet {id o} {
 }
 
 proc dbSet {key value} {
-    set ::dinah::db($key) $value
+    if {! [::dinah::editable $key]} {
+        return 0
+    } else {
+        set ::dinah::db($key) $value
+        return 1
+    }
 }
 
 proc dbGet {key} {
@@ -46,7 +51,12 @@ proc dbExists {key} {
 }
 
 proc dbLSet {key index elem} {
-    lset ::dinah::db($key) $index $elem
+    if {! [::dinah::editable $key]} {
+        return 0
+    } else {
+        lset ::dinah::db($key) $index $elem
+        return 1
+    }
 }
 
 proc dbLGet {key index} {
@@ -54,7 +64,12 @@ proc dbLGet {key index} {
 }
 
 proc dbAppend {key value} {
-    lappend ::dinah::db($key) $value
+    if {! [::dinah::editable $key]} {
+        return 0
+    } else {
+        lappend ::dinah::db($key) $value
+        return 1
+    }
 }
 
 proc dbAGet {pattern} {
@@ -269,7 +284,8 @@ proc subDim {d ds} {
         if {[::dinah::dbExists $dimName]} {
             lappend X [::dinah::dbGet $dimName]
         } else {
-            error "common.tcl: $dimName dimension doesn't exist"
+            ::dinah::newDim? $dimName
+            #error "common.tcl: $dimName dimension doesn't exist"
         }
     }
     set r [::dinah::agreg::run [::dinah::dbGet $d] $X]
@@ -277,7 +293,7 @@ proc subDim {d ds} {
     if {![lindex $r 0]} {
         set pbDimName [lindex $ds [lindex $r 2]]
         tk_messageBox -message "Given the following configuration, $pbDimName cannot be a subdim of $d anymore."
-        dimWin [lindex $r 1] $d $pbDimName 
+        dimWin [lindex $r 1] $d $pbDimName
     }
 }
 
@@ -351,6 +367,17 @@ proc copy {srcId direction trgDim trgId} {
                 ::dinah::dbAppend $trgDim [list $srcId $trgId]
             }
             return 1
+        } else {
+            set si [lindex $found 0]; set fi [lindex $found 1]
+            set segment [::dinah::dbLGet $trgDim $si]
+            if {$direction eq "before"} {
+                set newFragmentIndex [expr {$fi + 1}]
+            } else {
+                set newFragmentIndex $fi
+            }
+            set newSegment [linsert $segment $newFragmentIndex $trgId]
+            ::dinah::dbLSet $trgDim $si $newSegment
+            return 1
         }
     }
 }
@@ -365,7 +392,7 @@ proc clone {id} {
     set found [::dinah::findInDim $::dinah::dimClone $id]
     if {$found != {}} {
         set si [lindex $found 0]
-        ::dinah::dbLSet $::dinah::dimClone $si [lappend [::dinah::dbLGet $::dinah::dimClone $si] $clone]
+        ::dinah::dbLSet $::dinah::dimClone $si [linsert [::dinah::dbLGet $::dinah::dimClone $si] end $clone]
     } else {
         ::dinah::dbAppend $::dinah::dimClone [list $id $clone]
     }
