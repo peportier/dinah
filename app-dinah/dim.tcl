@@ -210,10 +210,12 @@ itcl::class Dim {
         $dimMenu add command -label "prev segment (O)" -command [list $this nextList -1]
         $dimMenu add command -label "goto label" -command [list $this msgGoto]
         $dimMenu add command -label "new Txt (n)" -command [list $this new Txt]
+        $dimMenu add command -label "segment -> clipboard" -command [list $this copySegmentToClipboard]
+        $dimMenu add command -label "paste clipboard" -command [list $this pasteClipboard]
         $dimMenu add command -label "delete segment" -command [list $this deleteRow]
-        $dimMenu add command -label "exit (Ctrl-q)" -command {exit}
         $dimMenu add command -label "nouvelle fenetre avec navigation" -command { ::dinah::desanti_navigation_win }
         $dimMenu add command -label "nouvelle fenetre (Ctrl-n)" -command [list $this newWindow]
+        $dimMenu add command -label "exit (Ctrl-q)" -command {exit}
         bind $f.menu $::dinah::mouse(B3) [list tk_popup $dimMenu %X %Y]
         bind $f.menu <1> [list focus $t]
         bind $f.menu <1> +[list $this updateInfo]
@@ -1048,7 +1050,7 @@ itcl::class Dim {
     }
 
     method copy {} {
-        ::dinah::dbSet $::dinah::dimClipboard {}
+        clearClipboard
         ::dinah::dbAppend $::dinah::dimClipboard [list [scId]]
     }
 
@@ -1176,7 +1178,7 @@ itcl::class Dim {
     }
 
     method pasteClipboard {} {
-        if {[::dinah::editable $x] && [newRow?] && ([scId] == {})} {
+        if {[::dinah::editable $x]} {
             set row {}
             foreach frag [::dinah::dbLGet $::dinah::dimClipboard 0] {
                 if {[::dinah::findInDim $x $frag] == {}} {
@@ -1187,9 +1189,18 @@ itcl::class Dim {
             }
             if {$row != {}} {
                 ::dinah::dbAppend $x $row
-                buildAndGrid [::dinah::dbGet $::dinah::dimClipboard {0 0}]
+                buildAndGrid [lindex $row 0]
             }
         }
+    }
+
+    method clearClipboard {} {
+        ::dinah::dbSet $::dinah::dimClipboard {}
+    }
+
+    method copySegmentToClipboard {} {
+        clearClipboard
+        ::dinah::dbAppend $::dinah::dimClipboard [::dinah::dbLGet $x [scDimIndex]]
     }
 
     method pasteBefore {} {

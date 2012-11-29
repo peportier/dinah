@@ -50,4 +50,5 @@ namespace eval ::dinah {
     #}
     ::dinah::init
     ::dinah::every 1000 ::dinah::autosave
+    ::dinah::every 60000 ::dinah::backup
 }

@@ -483,6 +483,10 @@ proc autosave {} {
     ::dinah::dbSave
 }
 
+proc backup {} {
+    ::dinah::dbSaveTo backup/[clock format [clock seconds] -format %y_%m_%d_%H_%M_%S]
+}
+
 proc every {t body} {
     uplevel #0 $body
     after $t [list ::dinah::every $t $body]
