@@ -405,6 +405,12 @@ itcl::class Dim {
         buildAndGrid [scId]
     }
 
+    method setYAndUpdate {yDim} {
+        setY $yDim
+        updateEntries
+        buildAndGrid [scId]
+    }
+
     method scDim {} {
         set scDim {}
         set id [scId]

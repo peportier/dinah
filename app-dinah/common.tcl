@@ -476,10 +476,22 @@ proc initMouseBindings {} {
     }
 }
 
-proc autosave {} {
-    foreach txt [itcl::find object * -class ::dinah::Txt] {
-        $txt save
+proc dimForId {dbid} {
+    set r {}
+    foreach d [::dinah::dbGet dimensions] {
+        if {($d ni {d.clipboard d.archive d.sameLevel d.insert d.noticeLevel}) &&
+            ![string match q* $d] &&
+            [::dinah::findInDim $d $dbid] ne ""} {
+                lappend r $d
+        }
     }
+    return $r
+}
+
+proc autosave {} {
+    #foreach txt [itcl::find object * -class ::dinah::Txt] {
+    #    $txt save
+    #}
     ::dinah::dbSave
 }
 

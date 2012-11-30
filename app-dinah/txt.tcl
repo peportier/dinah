@@ -106,6 +106,7 @@ itcl::class Txt {
         foreach name [lsort -dictionary $names] {
             $menu add command -label $name -command [list $this execMenuCmd $name]
         }
+        $menu add command -label save -command [list $this save]
         bind $txtWindow $::dinah::mouse(B3) [list $this click %w %x %y]
         bind $txtWindow $::dinah::mouse(B3) +[list tk_popup $menu %X %Y]
     }

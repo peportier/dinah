@@ -8,12 +8,14 @@ itcl::class Obj {
     # containing the image ELSE $standalone is ""
     protected variable standalone ""
     protected variable notificationLabel ""
+    protected variable inDim
     protected variable center ""
     protected variable left ""
     protected variable right ""
     protected variable top ""
     protected variable bottom ""
     protected variable genericMenu ""
+    protected variable inDimMenu ""
 
     method select {} {catch {$container buildAndGrid $dbid}}
 
@@ -50,7 +52,9 @@ itcl::class Obj {
         entry $center.foldedEntry -textvariable ::dinah::db($dbid,label) -font "$::dinah::font 15 underline" -justify center
         frame $center.menu
         set notificationLabel [label $center.menu.notification -text ""]
+        set inDim [label $center.menu.inDim -text "?"]
 
+        set inDimMenu [menu $frame.inDimMenu]
         set genericMenu [menu $frame.genericMenu]
         $genericMenu add command -label "delete (Ctrl-d)" -command [list $this delete]
         $genericMenu add command -label fold -command [list $this fold]
@@ -58,6 +62,7 @@ itcl::class Obj {
         bind $center.menu $::dinah::mouse(B3) [list tk_popup $genericMenu %X %Y]
         bind $center.menu <Double-1> [list $this select]
         bind $center.menu <1> [list $this menu1 %X %Y]
+        bind $center.menu.inDim <1> [list $this menuInDim %X %Y]
         bind $center.menu.notification <1> [list $this menu1 %X %Y]
         bind $center.menu.notification <B1-Motion> [list $this menu1motion %X %Y]
         bind $center.foldedEntry <Double-1> [list $this unfold]
@@ -110,7 +115,29 @@ itcl::class Obj {
         pack $center.main -side top -fill both -expand true -padx 4 -pady 4
     }
 
+    method menuInDim {X Y} {
+        if {! [catch {$container isa Dim} isaDim]} {if {$isaDim} {
+            $inDimMenu delete 0 end
+            set dims [::dinah::dimForId $dbid]
+            if {[llength $dims] > 0} {
+                foreach dim $dims {
+                    $inDimMenu add command -label $dim -command [list $this setYDim $dim]
+                }
+                tk_popup $inDimMenu $X $Y
+            }
+        }}
+    }
+
+    method setYDim {dim} {
+        if {! [catch {$container isa Dim} isaDim]} {if {$isaDim} {
+            $container setYAndUpdate $dim
+        }}
+    }
+
     method layout {} {
+        if {[llength [::dinah::dimForId $dbid]] > 0} {
+            pack $inDim -side left -padx 4 -pady 4
+        }
         pack $notificationLabel -side left -padx 4 -pady 4
         pack $center.menu -side top -fill x -padx 4 -pady 4
         pack $center.main -side top -fill both -expand true -padx 4 -pady 4
