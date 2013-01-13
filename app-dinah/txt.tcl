@@ -17,7 +17,7 @@ itcl::class Txt {
         load $txtWindow
     }
 
-    method zoom {{delta 1}} {
+    method zoomFont {{delta 1}} {
         incr ::dinah::fontsize $delta
         $txtWindow configure -font [list -size $::dinah::fontsize]
     }
@@ -58,6 +58,7 @@ itcl::class Txt {
                     if {$tagDBId ne ""} {
                         removeTagFromDB $tagDBId
                     }
+                    $txtWindow edit modified 1
                 }
             }
         }
@@ -119,6 +120,7 @@ itcl::class Txt {
         }
         if {$intervalId ne ""} {
             initNewInterval $name $intervalId
+            $txtWindow edit modified 1
         }
     }
 
@@ -135,6 +137,7 @@ itcl::class Txt {
             } else {
                 $txtWindow tag remove $style {*}$sel
             }
+            $txtWindow edit modified 1
         }
     }
 
@@ -179,7 +182,8 @@ itcl::class Txt {
             if {$tagName ne ""} {$txtWindow tag add $tagName {*}$intervalRange}
             set noteId [::dinah::emptyNode Txt "note ($intervalId)"]
             ::dinah::dbAppend $::dinah::dimNote [list $intervalId $noteId]
-            save
+            $txtWindow edit modified 1
+            #save
             return $intervalId
         } else {
             return ""
@@ -191,6 +195,7 @@ itcl::class Txt {
         ::dinah::copy $intervalId "after" $::dinah::dimFragments $dbid
         set intervalName "interval$intervalId"
         $txtWindow insert insert "$tagName\n" [list interval $intervalName $tagName]
+        $txtWindow edit modified 1
         return $intervalId
     }
 
@@ -205,8 +210,8 @@ itcl::class Txt {
     }
 
     method specificLayout {} {
-        set zPlus [button $center.menu.zPlus -text "+" -command [list $this zoom 1]]
-        set zMinus [button $center.menu.zMinus -text "-" -command [list $this zoom -1]]
+        set zPlus [button $center.menu.zPlus -text "+" -command [list $this zoomFont 1]]
+        set zMinus [button $center.menu.zMinus -text "-" -command [list $this zoomFont -1]]
         pack $zPlus -side left -padx 4 -pady 4
         pack $zMinus -side left -padx 4 -pady 4
         set tagNameLabel [label $center.menu.tagNameLabel -text ""]
@@ -248,6 +253,7 @@ itcl::class Txt {
             }
         }
         $w mark set current $current
+        $w edit modified 0
     }
 
     method save {} {
@@ -260,6 +266,7 @@ itcl::class Txt {
             set dump [join [concat [lrange $splitdump 0 end-2] [list $match]] "\n"]
         }
         ::dinah::dbSet $dbid,txt $dump
+        $txtWindow edit modified 0
     }
 
     method newBindings {} {
@@ -277,7 +284,6 @@ itcl::class Txt {
         if {$s eq "" || [$w cget -state] eq "disabled"} {
             return
         }
-        $w edit modified 1
         set compound 0
         if {[::tk::TextCursorInSelection $w]} {
             set compound [$w cget -autoseparators]
@@ -293,6 +299,7 @@ itcl::class Txt {
             $w edit separator
             $w configure -autoseparators 1
         }
+        $w edit modified 1
     }
 
     proc cr {w} {
@@ -327,5 +334,14 @@ itcl::class Txt {
 
     method events {} {
         $txtWindow tag bind interval <1> [list $this click %w %x %y]
+        bind $txtWindow <<Modified>> [list $this onModified]
+    }
+
+    method isModified {} {
+        $txtWindow edit modified
+    }
+
+    method onModified {} {
+        if {[$this isModified]} { $this save }
     }
 }
