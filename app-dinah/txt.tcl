@@ -20,6 +20,7 @@ itcl::class Txt {
     method zoomFont {{delta 1}} {
         incr ::dinah::fontsize $delta
         $txtWindow configure -font [list -size $::dinah::fontsize]
+        puts $txtWindow
     }
 
     method inRange {index start end} {
@@ -180,10 +181,6 @@ itcl::class Txt {
             eval $txtWindow tag add interval {*}$intervalRange
             eval $txtWindow tag add  $intervalName {*}$intervalRange
             if {$tagName ne ""} {$txtWindow tag add $tagName {*}$intervalRange}
-            set noteId [::dinah::emptyNode Txt "note ($intervalId)"]
-            ::dinah::dbAppend $::dinah::dimNote [list $intervalId $noteId]
-            $txtWindow edit modified 1
-            #save
             return $intervalId
         } else {
             return ""
@@ -195,7 +192,6 @@ itcl::class Txt {
         ::dinah::copy $intervalId "after" $::dinah::dimFragments $dbid
         set intervalName "interval$intervalId"
         $txtWindow insert insert "$tagName\n" [list interval $intervalName $tagName]
-        $txtWindow edit modified 1
         return $intervalId
     }
 
@@ -259,6 +255,7 @@ itcl::class Txt {
     method save {} {
         # a bug (or feature?) of the tk text widget when using the dump command adds
         # a newline at the end of the dump text:
+        syncIntervals
         set dump [$txtWindow dump -text -tag 1.0 end]
         set splitdump [split $dump "\n"]
         if { [regexp {(.*)text \{$} [lindex $splitdump end-1] -> match] && \
@@ -343,5 +340,19 @@ itcl::class Txt {
 
     method onModified {} {
         if {[$this isModified]} { $this save }
+    }
+
+    # delete from the DB intervals no more present in the text
+    # this can happen because a user can erase a portion of text containing intervals
+    # with no explicit call to the 'tag delete' command the name of the tag stays
+    # even if no characters are tagged by it
+    method syncIntervals {} {
+        foreach t [$txtWindow tag names] {
+            set intervalId [dbIdFromTagName $t]
+            if {($intervalId ne "") && ([$txtWindow tag ranges $t] eq "")} {
+                removeTagFromDB $intervalId
+                $txtWindow tag delete $t
+            }
+        }
     }
 }
