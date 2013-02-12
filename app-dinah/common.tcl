@@ -510,7 +510,7 @@ proc newTree {rootName} {
     ::dinah::dbAppend $::dinah::dim0 [list $rootId]
     ::dinah::dbAppend $::dinah::roots $rootId
     ::dinah::newDim? [::dinah::treeDimName $rootId]
-    return rootId
+    return $rootId
 }
 
 proc treeDimName {rootId} { return "d.t.$rootId" }

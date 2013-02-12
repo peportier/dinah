@@ -41,6 +41,8 @@ itcl::class Dim {
     }
 
 
+    method setTreeNavDim {d} { $tree setNavDim $d}
+
     method addToHistory {} {
         if {([llength $history] > 0) && ($historyIndex != [expr {[llength $history] - 1}])} {
             set history [lrange $history 0 $historyIndex]
@@ -242,10 +244,10 @@ itcl::class Dim {
         $listOfTreesMenu add command -label navigation -command [list $this showNavTree]
         set rootDic {}
         foreach rootId [::dinah::dbGet $::dinah::roots] {
-            set rootName [::dinah::dbGet $root,label]
-            lappend rootDic {$rootId $rootName}
+            set rootName [::dinah::dbGet $rootId,label]
+            lappend rootDic [list $rootId $rootName]
         }
-        foreach {rootId rootName} [lsort -dictionary -index 1 $rootDic] {
+        foreach {rootId rootName} [join [lsort -dictionary -index 1 $rootDic]] {
             $listOfTreesMenu add command -label $rootName -command [list $this showTree $rootId]
         }
 

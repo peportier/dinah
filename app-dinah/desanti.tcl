@@ -52,6 +52,9 @@ proc specific_init_preamble {} {
     ::dinah::newDim? $::dinah::dim1
     ::dinah::newDim? $::dinah::dim2
     ::dinah::newDim? $::dinah::dim3
+    if {! [::dinah::dbExists $::dinah::roots]} {
+        ::dinah::dbSet $::dinah::roots ""
+    }
     ::dinah::addToTxtMenu "gras" "-font" "$::dinah::font $::dinah::fontsize bold"
     ::dinah::addToTxtMenu "italique" "-font" "$::dinah::font $::dinah::fontsize italic"
     ::dinah::addToTxtMenu "exposant" "-offset" "6"
@@ -85,6 +88,7 @@ proc desanti_navigation_win {{parentWin ""} {noticeWin 0}} {
     $win updateEntries
     $win buildAndGrid [::dinah::dbGet archiveId]
     $win newTreeOnCursor
+    $win setTreeNavDim $::dinah::dimArchive
     $win scRight
     $win setX $::dinah::dimArchive
     $win setY $::dinah::dimNil
