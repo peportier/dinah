@@ -15,7 +15,12 @@ set ::dinah::dimNoticeLevel "d.noticeLevel"
 set ::dinah::dimSameLevel "d.sameLevel"
 set ::dinah::dimTemp "d.temp"
 set ::dinah::dimTranscription "d.transcription"
+set ::dinah::dim0 "d.0"
+set ::dinah::dim1 "d.1"
+set ::dinah::dim2 "d.2"
+set ::dinah::dim3 "d.3"
 
+set ::dinah::roots "roots"
 set ::dinah::separatorSize 5
 set ::dinah::fragmentBorderWidth 2
 set ::dinah::backgroundColor antiqueWhite
@@ -43,6 +48,10 @@ proc specific_init_preamble {} {
     ::dinah::newDim? $::dinah::dimSameLevel
     ::dinah::newDim? $::dinah::dimTemp
     ::dinah::newDim? $::dinah::dimTranscription
+    ::dinah::newDim? $::dinah::dim0
+    ::dinah::newDim? $::dinah::dim1
+    ::dinah::newDim? $::dinah::dim2
+    ::dinah::newDim? $::dinah::dim3
     ::dinah::addToTxtMenu "gras" "-font" "$::dinah::font $::dinah::fontsize bold"
     ::dinah::addToTxtMenu "italique" "-font" "$::dinah::font $::dinah::fontsize italic"
     ::dinah::addToTxtMenu "exposant" "-offset" "6"

@@ -202,9 +202,14 @@ itcl::class Dim {
         $main add $g
 
         set dimMenu [menu $f.dimMenu]
-        set modeMenu [menu $dimMenu.modeMenu]
+        set treeMenu [menu $dimMenu.treeMenu]
+        set listOfTreesMenu [menu $treeMenu.listOfTreesMenu]
+        foreach root [::dinah::dbGet $::dinah::roots]
+        $treeMenu add command -label "build tree (a)" -command [list $this newTreeOnCursor]
+        $treeMenu add command -label "new tree" -command [list $this newTree]
+        $treeMenu add cascade -label "list of trees" -menu $listOfTreesMenu
+        $dimMenu add cascade -label "trees" -menu $treeMenu
         $dimMenu add command -label "clear view (b)" -command [list $this blank]
-        $dimMenu add command -label "build tree (a)" -command [list $this newTreeOnCursor]
         $dimMenu add command -label "swap dim (s)" -command [list $this swapDim]
         $dimMenu add command -label "next segment (o)" -command [list $this nextList 1]
         $dimMenu add command -label "prev segment (O)" -command [list $this nextList -1]

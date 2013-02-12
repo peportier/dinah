@@ -503,3 +503,9 @@ proc every {t body} {
     uplevel #0 $body
     after $t [list ::dinah::every $t $body]
 }
+
+proc new_tree {root_name} {
+    set newDbId [::dinah::emptyNode Txt $root_name]
+    ::dinah::dbAppend $::dinah::dim0 [list $newDbId]
+    ::dinah::dbAppend $::dinah::roots $newDbId
+}
