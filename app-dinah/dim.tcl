@@ -28,6 +28,7 @@ itcl::class Dim {
     private variable onMoveCursor ""
     private variable history {}
     private variable historyIndex 0
+    private variable listOfTreesMenu ""
 
     constructor {} {
         set modes(names) {nil navigation transcription notice}
@@ -204,8 +205,8 @@ itcl::class Dim {
         set dimMenu [menu $f.dimMenu]
         set treeMenu [menu $dimMenu.treeMenu]
         set listOfTreesMenu [menu $treeMenu.listOfTreesMenu]
-        foreach root [::dinah::dbGet $::dinah::roots]
-        $treeMenu add command -label "build tree (a)" -command [list $this newTreeOnCursor]
+        updateListOfTreesMenu
+        #$treeMenu add command -label "build tree (a)" -command [list $this newTreeOnCursor]
         $treeMenu add command -label "new tree" -command [list $this newTree]
         $treeMenu add cascade -label "list of trees" -menu $listOfTreesMenu
         $dimMenu add cascade -label "trees" -menu $treeMenu
@@ -236,6 +237,43 @@ itcl::class Dim {
         return $t
     }
 
+    method updateListOfTreesMenu {} {
+        $listOfTreesMenu delete 0 end
+        $listOfTreesMenu add command -label navigation -command [list $this showNavTree]
+        set rootDic {}
+        foreach rootId [::dinah::dbGet $::dinah::roots] {
+            set rootName [::dinah::dbGet $root,label]
+            lappend rootDic {$rootId $rootName}
+        }
+        foreach {rootId rootName} [lsort -dictionary -index 1 $rootDic] {
+            $listOfTreesMenu add command -label $rootName -command [list $this showTree $rootId]
+        }
+
+    }
+
+    method newTree {} {
+        set newRootId [::dinah::newTree "tree"]
+        updateListOfTreesMenu
+        showTree $newRootId
+    }
+
+    method showTree {rootId} {
+        $tree writable
+        $tree setNavDim [::dinah::treeDimName $rootId]
+        [[$tree setRoot $rootId] setDim $::dinah::dim0 $::dinah::dim1] load
+        setX [::dinah::treeDimName $rootId]
+        setY $::dinah::dimNil
+        updateEntries
+        buildAndGrid $rootId
+    }
+
+    method showNavTree {} {
+        $tree readOnly
+        $tree setNavDim $::dinah::dimArchive
+        [[$tree setRoot [::dinah::dbGet archiveId]] setDim \
+          $::dinah::dimInsert $::dinah::dimSameLevel] load
+    }
+
     method dropmenu {target src xcoord ycoord op type data} {
         set srcId [lindex $data end]
         set found [::dinah::findInDim $x $srcId]
@@ -247,7 +285,12 @@ itcl::class Dim {
         }
     }
 
-    method openTreeItem {item} { buildAndGrid [$tree itemId $item] }
+    method openTreeItem {item} { 
+        setX [$tree getNavDim]
+        setY $::dinah::dimNil
+        updateEntries
+        buildAndGrid [$tree itemId $item] 
+    }
 
     method hookInitNotice {} {
         if {([scId] ne "") && ([::dinah::dbGet [scId],isa] eq "Page")} {

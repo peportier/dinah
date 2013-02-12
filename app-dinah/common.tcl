@@ -504,8 +504,13 @@ proc every {t body} {
     after $t [list ::dinah::every $t $body]
 }
 
-proc new_tree {root_name} {
-    set newDbId [::dinah::emptyNode Txt $root_name]
-    ::dinah::dbAppend $::dinah::dim0 [list $newDbId]
-    ::dinah::dbAppend $::dinah::roots $newDbId
+proc newTree {rootName} {
+    set rootId [::dinah::emptyNode Txt $rootName]
+    ::dinah::dbSet $rootId,txt "text {$rootName\n} 1.0"
+    ::dinah::dbAppend $::dinah::dim0 [list $rootId]
+    ::dinah::dbAppend $::dinah::roots $rootId
+    ::dinah::newDim? [::dinah::treeDimName $rootId]
+    return rootId
 }
+
+proc treeDimName {rootId} { return "d.t.$rootId" }

@@ -3,6 +3,8 @@ itcl::class Tree {
     private variable tree ""
     private variable siblingDim ""
     private variable hierarchyDim ""
+    private variable navDim ""
+    private variable readOnly 1
     private variable rootId ""
     constructor {} {}
 
@@ -20,6 +22,18 @@ itcl::class Tree {
         set siblingDim $y
         return $this
     }
+
+    method setNavDim {d} {
+        set navDim $d
+        return $this
+    }
+
+    method getNavDim {} {
+        return $navDim
+    }
+
+    method readOnly {} { set readOnly 1; return $this }
+    method writable {} { set readOnly 0; return $this }
 
     method load {} {
         $tree delete [$tree nodes root]
@@ -91,12 +105,14 @@ itcl::class Tree {
     }
 
     method popup {x y nodeId} {
-        destroy $parentw.f.menu
-        set menu [menu $parentw.f.menu]
-        $menu add command -label "rename" -command [list $this updateLabel $nodeId]
-        $menu add command -label "new son" -command [list $this newSon $nodeId]
-        $menu add command -label "new sibling" -command [list $this newSibling $nodeId]
-        tk_popup $menu $x $y
+        if {! $readOnly } {
+            destroy $parentw.f.menu
+            set menu [menu $parentw.f.menu]
+            $menu add command -label "rename" -command [list $this updateLabel $nodeId]
+            $menu add command -label "new son" -command [list $this newSon $nodeId]
+            $menu add command -label "new sibling" -command [list $this newSibling $nodeId]
+            tk_popup $menu $x $y
+        }
     }
 
     method newSon {nodeId} {
