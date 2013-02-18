@@ -29,6 +29,8 @@ itcl::class Dim {
     private variable history {}
     private variable historyIndex 0
     private variable listOfTreesMenu ""
+    private variable dimMenu ""
+    private variable btnMenu ""
 
     constructor {} {
         set modes(names) {nil navigation transcription notice}
@@ -150,6 +152,8 @@ itcl::class Dim {
         }
         set f [frame $t.frame -borderwidth 1 -bg black -highlightcolor green -highlightthickness 1]
         frame $f.menu
+
+        set btnMenu [button $f.menu.btnMenu -text "M" -command [list $this showBtnMenu]]
         set btnBegin [button $f.menu.btnBegin -text "|" -command [list $this gotoRowStart]]
         set btnLeftLeft [button $f.menu.btnLeftLeft -text "<<" -command [list $this wHorizByOneScreen -1]]
         set btnLeft [button $f.menu.btnLeft -text "<" -command [list $this scLeft]]
@@ -173,6 +177,7 @@ itcl::class Dim {
         bindtags $f.menu.label [list $f.menu.label [winfo class $f.menu.label] all]
         bind $f.menu.label <Key-Escape> [list focus $t]
         set resolutionLabel [label $f.menu.resolution -text ""]
+        pack $btnMenu -side left -padx 4 -pady 4
         pack $btnBegin -side left -padx 4 -pady 4
         pack $btnLeftLeft -side left -padx 4 -pady 4
         pack $btnLeft -side left -padx 4 -pady 4
@@ -237,6 +242,10 @@ itcl::class Dim {
         focus $t
         pack $f -side top -fill both -expand yes
         return $t
+    }
+
+    method showBtnMenu {} {
+        tk_popup $dimMenu [winfo rootx $btnMenu] [winfo rooty $btnMenu]
     }
 
     method updateListOfTreesMenu {} {

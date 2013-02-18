@@ -4,6 +4,9 @@ itcl::class Txt {
     public variable txtWindow
     private variable tagNameLabel ""
     private variable deleteMenu ""
+    private variable tagNames ""
+    private variable XML ""
+    private variable textOnly ""
 
     constructor {id} { set dbid $id }
 
@@ -20,7 +23,6 @@ itcl::class Txt {
     method zoomFont {{delta 1}} {
         incr ::dinah::fontsize $delta
         $txtWindow configure -font [list -size $::dinah::fontsize]
-        puts $txtWindow
     }
 
     method inRange {index start end} {
@@ -99,16 +101,17 @@ itcl::class Txt {
     method contextualMenu {} {
         set menu [menu $frame.contextualMenu]
         set deleteMenu [menu $frame.contextualMenu.deleteMenu]
-        set names {}
+        set tagNames {}
         foreach {k pairs} [array get ::dinah::txtClick *,option] {
             regexp {(.*),option} $k -> name
-            lappend names $name
+            lappend tagNames $name
         }
         $menu add cascade -label "delete" -menu $deleteMenu
-        foreach name [lsort -dictionary $names] {
+        foreach name [lsort -dictionary $tagNames] {
             $menu add command -label $name -command [list $this execMenuCmd $name]
         }
         $menu add command -label save -command [list $this save]
+        $menu add command -label XML -command [list $this saveToXML]
         bind $txtWindow $::dinah::mouse(B3) [list $this click %w %x %y]
         bind $txtWindow $::dinah::mouse(B3) +[list tk_popup $menu %X %Y]
     }
@@ -354,5 +357,68 @@ itcl::class Txt {
                 $txtWindow tag delete $t
             }
         }
+    }
+
+    method toXML {} {
+        set XML ""
+        $txtWindow dump -text -tag -command [list $this processTag] 1.0 end
+    }
+
+    method processTag {k v i} {
+        switch $k {
+            text    { append XML $v }
+            tagon   {
+                if {$v in $tagNames} {
+                    append XML "<$v "
+                } else {
+                    set intervalId [dbIdFromTagName $v]
+                    if {$intervalId ne ""} {
+                        append XML "id=\"$intervalId\" "
+                        set found [::dinah::findInDim $::dinah::dimNote $intervalId]
+                        if {$found != {}} {
+                            set si [lindex $found 0]; set fi [lindex $found 1]
+                            set notesId [lindex [::dinah::dbLGet $::dinah::dimNote $si] end]
+                            set t [::dinah::Txt #auto $notesId]
+                            set textContent [$t textOnly]
+                            itcl::delete object $t
+                            foreach l [split $textContent \n] {
+                                if {[regexp {^\*(.*)=(.*)} $l -> k v]} {
+                                    append XML "$k=$v "
+                                }
+                            }
+                        }
+                        append XML ">"
+                    }
+                }
+            }
+            tagoff  {
+                if {$v in $tagNames} {
+                    append XML "</$v>"
+                }
+            }
+        }
+    }
+
+    method textOnly {} {
+        set textOnly ""
+        set t [text .temptext]
+        load $t
+        $t dump -text -tag -command [list $this processTextOnly] 1.0 end
+        destroy $t
+        return $textOnly
+    }
+
+    method processTextOnly {k v i} {
+        if {$k eq "text"} {
+            append textOnly $v
+        }
+    }
+
+    method saveToXML {} {
+        set xmlFile "$dbid.xml"
+        toXML
+        set fp [open $xmlFile w]
+        puts $fp $XML
+        close $fp
     }
 }
