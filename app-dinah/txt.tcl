@@ -38,6 +38,7 @@ itcl::class Txt {
     }
 
     method removeTagFromDB {tagDBId} {
+        set segIndex "" ;# index of segment on which tagDBId may appear
         foreach d [list $::dinah::dimNote] {
             set segIndex [::dinah::getSegIndex $d $tagDBId]
             if {$segIndex ne ""} {
