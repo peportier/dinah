@@ -2,7 +2,8 @@ itcl::class Txt {
     inherit Obj
 
     public variable txtWindow
-    private variable tagNameLabel ""
+    private variable tagNameLabel "" ;#name of one of the tags for
+                                      #the text under the cursor
     private variable deleteMenu ""
     private variable tagNames ""
     private variable XML ""
@@ -49,6 +50,7 @@ itcl::class Txt {
     }
 
     method removeTag {tagName insideIndex} {
+        set tagDBId ""
         foreach {tagToBeRemovedStart tagToBeRemovedStop} [$txtWindow tag ranges $tagName] {
             if {[inRange $insideIndex $tagToBeRemovedStart $tagToBeRemovedStop]} {
                 break
@@ -69,6 +71,7 @@ itcl::class Txt {
     }
 
     method click {w x y} {
+        set id "" ;#DB id of a tagged interval under cursor
         $tagNameLabel configure -text ""
         $deleteMenu delete 0 end
         foreach t [$txtWindow tag names @$x,$y] {
@@ -76,8 +79,7 @@ itcl::class Txt {
                 $tagNameLabel configure -text $t
                 $deleteMenu add command -label "$t" -command [list $this removeTag $t [$txtWindow index @$x,$y]]
             }
-            set id ""
-            regexp {^interval(.*)} $t -> id
+            set id [dbIdFromTagName $t]
             if {$id ne "" && $container ne ""} {
                 set topFrame [$container getTopFrame]
                 set c [$container getContainer]
@@ -257,7 +259,8 @@ itcl::class Txt {
     }
 
     method save {} {
-        # a bug (or feature?) of the tk text widget when using the dump command adds
+        # a bug (or feature?) of the tk text widget when using
+        # the dump command adds
         # a newline at the end of the dump text:
         syncIntervals
         set dump [$txtWindow dump -text -tag 1.0 end]
@@ -347,9 +350,10 @@ itcl::class Txt {
     }
 
     # delete from the DB intervals no more present in the text
-    # this can happen because a user can erase a portion of text containing intervals
-    # with no explicit call to the 'tag delete' command the name of the tag stays
-    # even if no characters are tagged by it
+    # this can happen because a user can erase a portion of text
+    # containing intervals
+    # with no explicit call to the 'tag delete' command the name
+    # of the tag stays even if no characters are tagged by it
     method syncIntervals {} {
         foreach t [$txtWindow tag names] {
             set intervalId [dbIdFromTagName $t]
