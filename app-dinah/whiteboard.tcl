@@ -7,11 +7,11 @@ itcl::class Whiteboard {
     private variable sizeOfCanvas 10000
     private variable alphabeta {A B C D E F G H I J K L M N O P Q R S T U V W X Y Z}
     private variable boardNumber 0
-    private variable b
-    private variable d
+    private variable b ;# array of tk buttond for each entry/dim
+    private variable d ;# array of tk entries for each dim e.g. [$d(0) get] could be "d.archive"
     private variable idsOnBoard {}
     private variable edges
-    private variable colors
+    private variable colors ;# array of colors associated with each entry/dim
     private variable menu ""
 
     constructor {} {
@@ -285,7 +285,6 @@ itcl::class Whiteboard {
         foreach k {0 1 2 3 4 5 6 7 8 9} {
             bind $t {*}<Key-$k> [list $this gotoBoard $k]
         }
-        bind $t <Control-Key-e> [list $this unsetBindings]
         bind $t <Control-Key-q> {exit}
         bind $t <Control-Key-w> [list ::dinah::destroyToplevel $t]
         bind $t <Control-Key-n> {::dinah::switchFocus+} 
@@ -300,7 +299,6 @@ itcl::class Whiteboard {
         bind $t <Control-Key-i> [list $this resize 0 -10]
         bind $t <Escape> [list $this removeCursor]
         bind $t <Control-Key-v> [list $this paste]
-        bind $t <Key-w> [list $this dimWinOnCursor]
         bind $t <Key-d> [list $this delete]
         bind $t <Key-n> [list $this newText]
         bind $t <Key-h> [list $this high]
@@ -316,17 +314,6 @@ itcl::class Whiteboard {
         set found [$c find withtag cursor]
         foreach w $found {
             [$c itemcget $w -window] configure -borderwidth 1 -bg red
-        }
-    }
-
-    method unsetBindings {} {
-        set found [$c find withtag cursor]
-        foreach w $found {
-            [$c itemcget $w -window] configure -borderwidth 1 -bg green
-            [itemO [getIndiceFromItem $w]] setBindings
-            foreach tag [bind $t] {
-                bind $t $tag ""
-            }
         }
     }
 
@@ -370,13 +357,6 @@ itcl::class Whiteboard {
     method paste {} {
         if {[llength [::dinah::dbLGet $::dinah::dimClipboard 0]] > 0} {
             add [::dinah::dbLGet $::dinah::dimClipboard [list 0 end]]
-        }
-    }
-
-    method dimWinOnCursor {} {
-        set found [$c find withtag cursor]
-        foreach w $found {
-            ::dinah::dimWin [[itemO [getIndiceFromItem $w]] cget -dbid]
         }
     }
 

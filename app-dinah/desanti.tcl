@@ -19,6 +19,8 @@ set ::dinah::dim0 "d.0"
 set ::dinah::dim1 "d.1"
 set ::dinah::dim2 "d.2"
 set ::dinah::dim3 "d.3"
+set ::dinah::dimAuteur "d.auteur"
+set ::dinah::dimConcept "d.concept"
 
 set ::dinah::roots "roots"
 set ::dinah::separatorSize 5
@@ -52,6 +54,8 @@ proc specific_init_preamble {} {
     ::dinah::newDim? $::dinah::dim1
     ::dinah::newDim? $::dinah::dim2
     ::dinah::newDim? $::dinah::dim3
+    ::dinah::newDim? $::dinah::dimAuteur
+    ::dinah::newDim? $::dinah::dimConcept
     if {! [::dinah::dbExists $::dinah::roots]} {
         ::dinah::dbSet $::dinah::roots ""
     }

@@ -50,6 +50,8 @@ proc dbExists {key} {
     info exists ::dinah::db($key)
 }
 
+#the element [dbLGet $key $index] must exist or
+#error "list index out of range" will be raised
 proc dbLSet {key index elem} {
     if {! [::dinah::editable $key]} {
         return 0
@@ -85,7 +87,7 @@ if {![::dinah::dbExists "notAlone"]} {
 proc ladd {_list what} {
     upvar $_list list
     if {![info exists list] || [lsearch $list $what] == -1} {
-	lappend list $what
+        lappend list $what
     }
 }
 
@@ -326,19 +328,7 @@ proc activateMouse {w} {
 proc addToTxtMenu {name args} {
     array unset ::dinah::txtClick $name,*
     foreach {key value} $args {
-        if {[::dinah::dbExists $key]} {
-            set id ""
-            foreach s [::dinah::dbGet $key] {
-                foreach f $s {
-                    if {[::dinah::dbGet $f,label] eq $value} {
-                        set id $f
-                        break
-                    }
-                }
-                if {$id ne ""} {break}
-            }
-            lappend ::dinah::txtClick($name,dim) $key $id
-        } elseif {$key in {-background -foreground -overstrike -underline -font -offset}} {
+        if {$key in {-background -foreground -overstrike -underline -font -offset}} {
             lappend ::dinah::txtClick($name,option) $key $value 
         }
     }

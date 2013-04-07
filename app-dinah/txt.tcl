@@ -38,7 +38,7 @@ itcl::class Txt {
         }
     }
 
-    method removeTagFromDB {tagDBId} {
+    method removeTagFromDB {tagDBId tagName} {
         set segIndex "" ;# index of segment on which tagDBId may appear
         foreach d [list $::dinah::dimNote] {
             set segIndex [::dinah::getSegIndex $d $tagDBId]
@@ -47,6 +47,7 @@ itcl::class Txt {
             }
         }
         ::dinah::remfrag $::dinah::dimFragments $tagDBId
+        ::dinah::remfrag "d.$tagName" $tagDBId
     }
 
     method removeTag {tagName insideIndex} {
@@ -62,7 +63,7 @@ itcl::class Txt {
                     $txtWindow tag remove $tagName $start $stop
                     set tagDBId [dbIdFromTagName $tagName]
                     if {$tagDBId ne ""} {
-                        removeTagFromDB $tagDBId
+                        removeTagFromDB $tagDBId $tagName
                     }
                     $txtWindow edit modified 1
                 }
@@ -134,6 +135,28 @@ itcl::class Txt {
     method initNewInterval {name fragId} {
         set noteId [::dinah::emptyNode Txt "note ($fragId)"]
         ::dinah::dbAppend $::dinah::dimNote [list $fragId $noteId]
+        addIntervalToSortedDim $name $fragId
+    }
+
+    method addIntervalToSortedDim {name intervalId} {
+        if {[::dinah::dbExists "d.$name"]} {
+            set temp {} ;# list of {id label} used for alphabetically sorting the intervals
+            set similarIntervals [::dinah::dbLGet "d.$name" 0]
+            lappend similarIntervals $intervalId
+            foreach dbId $similarIntervals {
+                lappend temp [list $dbId [::dinah::dbGet $dbId,label]]
+            }
+            set sortedTemp [lsort -dictionary -index 1 $temp]
+            set sortedIntervals {}
+            foreach pair $sortedTemp {
+                lappend sortedIntervals [lindex $pair 0]
+            }
+            if {[catch {::dinah::dbLSet "d.$name" 0 $sortedIntervals}]} {
+                # [::dinah::dbLGet "d.$name" 0] was empty
+                ::dinah::dbSet "d.$name" [list $sortedIntervals]
+            }
+        }
+
     }
 
     method setStyle {style} {
@@ -358,7 +381,7 @@ itcl::class Txt {
         foreach t [$txtWindow tag names] {
             set intervalId [dbIdFromTagName $t]
             if {($intervalId ne "") && ([$txtWindow tag ranges $t] eq "")} {
-                removeTagFromDB $intervalId
+                removeTagFromDB $intervalId $t
                 $txtWindow tag delete $t
             }
         }
