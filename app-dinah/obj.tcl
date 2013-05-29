@@ -120,7 +120,7 @@ itcl::class Obj {
             $inDimMenu delete 0 end
             set dims [::dinah::dimForId $dbid]
             if {[llength $dims] > 0} {
-                foreach dim $dims {
+                foreach {dim segIndex fragIndex} $dims {
                     $inDimMenu add command -label $dim -command [list $this setYDim $dim]
                 }
                 tk_popup $inDimMenu $X $Y
@@ -267,7 +267,7 @@ itcl::class Obj {
             $container delete
         }}
         if {! [catch {$container isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} {
-            ::dinah::remfrag [$container getCurrentDim] $dbid
+            ::dinah::remFragFromDim [$container getCurrentDim] $dbid
             $container reload
         }}
     }

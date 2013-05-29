@@ -19,7 +19,7 @@ namespace eval ::dinah {
     source ../date/date.tcl
 
     set src $db(base)collections/
-    
+
     set archiveId [::dinah::db'new {isa Txt txt {text ARCHIVE 1.0} label ARCHIVE}]
     set inserts [list $archiveId]
 
@@ -55,9 +55,9 @@ namespace eval ::dinah {
         if {[llength $sameLevel] > 1} { lappend db(d.sameLevel) $sameLevel }
         return $colId
     }
-    
+
     dir $src
-    
+
     ::dinah::db'save $::dinah::dbFile
 
 }

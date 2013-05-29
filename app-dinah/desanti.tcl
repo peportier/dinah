@@ -21,6 +21,7 @@ set ::dinah::dim2 "d.2"
 set ::dinah::dim3 "d.3"
 set ::dinah::dimAuteur "d.auteur"
 set ::dinah::dimConcept "d.concept"
+set ::dinah::dimRotate "d.rotate"
 
 set ::dinah::roots "roots"
 set ::dinah::separatorSize 5
@@ -56,6 +57,7 @@ proc specific_init_preamble {} {
     ::dinah::newDim? $::dinah::dim3
     ::dinah::newDim? $::dinah::dimAuteur
     ::dinah::newDim? $::dinah::dimConcept
+    ::dinah::newDim? $::dinah::dimRotate
     if {! [::dinah::dbExists $::dinah::roots]} {
         ::dinah::dbSet $::dinah::roots ""
     }
@@ -136,7 +138,9 @@ proc specific_init_postamble {} {
 }
 
 proc editable {d} {
-    return [expr {$d ni {"" "d.nil" "d.archive" "d.sibling" "d.sameLevel" "d.insert" "d.chrono"}}]
+    return [expr {( $d ni {"" $::dinah::dimNil $::dinah::dimArchive $::dinah::dimSameLevel\
+                           $::dinah::dimInsert $::dinah::dimChrono} ) &&\
+                  ( $d in $::dinah::db(dimensions) )}]
 }
 
 ::dinah::dbSet imgExtension {.jpeg}

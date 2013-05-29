@@ -2,11 +2,11 @@ itcl::class Page {
     inherit Obj
 
     # name of the window for the original size image
-    private variable original 
+    private variable original
     # name of the window for the displayed image
     private variable copy
     private variable factor 1
-    private variable canvas     
+    private variable canvas
     private variable zonesAreVisible 0
     # $resolutions($dbid) is of the form {2 {"_low" $maxLowWidth $maxLowHeight} {"_high" $maxHighWidth $maxHighHeight}}
     common resolutions
@@ -204,10 +204,28 @@ itcl::class Page {
     }
 
     method rotate90 {} {
-        foreach suffix $::dinah::resolutions_suffix  {
-            set filepath [::dinah::dbGet base][::dinah::dbGet $dbid,path]$suffix[::dinah::dbGet imgExtension]
-            exec -ignorestderr $::dinah::zonemaker::convert $filepath -rotate 90 $filepath
+        set oldpath [::dinah::dbGet $dbid,path]
+        if {[::dinah::inDim $::dinah::dimRotate $dbid]} {
+            set newpath $oldpath
+        } else {
+            set newpath [join [list $oldpath _rot] ""]
+            ::dinah::dbSet $dbid,path $newpath
         }
+        foreach suffix $::dinah::resolutions_suffix  {
+            set oldfilepath [::dinah::dbGet base]$oldpath$suffix[::dinah::dbGet imgExtension]
+            set newfilepath [::dinah::dbGet base]$newpath$suffix[::dinah::dbGet imgExtension]
+            exec -ignorestderr $::dinah::zonemaker::convert $oldfilepath -rotate 90 $newfilepath
+        }
+        updateDimRotate
         reloadImage
+    }
+
+    method updateDimRotate {} {
+        if {[llength [::dinah::dbGet $::dinah::dimRotate]] = 0} {
+            ::dinah::dbAppend $::dinah::dimRotate [list $dbid]
+        } else {
+            ::dinah::remFragFromDim $::dinah::dimRotate $dbid
+            ::dinah::dbLSet $::dinah::dimRotate 0 [linsert [::dinah::dbLGet $::dinah::dimRotate 0] 0 $dbid]
+        }
     }
 }

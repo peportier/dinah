@@ -129,6 +129,12 @@ proc findInDim {dim id} {
     return {}
 }
 
+proc inDim {dim id} {
+    set found [::dinah::findInDim $dim $id]
+    if {$found != {}} { return 1 }
+    return 0
+}
+
 proc dimWin {{id {}} {x "d.nil"} {y "d.nil"} {parent {}}} {
     set d [::dinah::Dim #auto]
     focus [$d mkWindow $parent]
@@ -391,24 +397,43 @@ proc clone {id} {
 proc move {srcDim srcId direction trgDim trgId} {
     if {! [::dinah::editable $srcDim]} {return 0}
     if {$srcDim eq $trgDim} {
-        ::dinah::remfrag $srcDim $srcId
+        ::dinah::remFragFromDim $srcDim $srcId
         puts [::dinah::copy $srcId $direction $trgDim $trgId]
     } elseif {[::dinah::copy $srcId $direction $trgDim $trgId ]} {
-        ::dinah::remfrag $srcDim $srcId
+        ::dinah::remFragFromDim $srcDim $srcId
     }
 }
 
-proc remfrag {d f} {
+proc remFragFromDim {d f} {
     if {! [::dinah::editable $d]} {return 0}
     set found [::dinah::findInDim $d $f]
     if {$found != {}} {
         set si [lindex $found 0]; set fi [lindex $found 1]
-        set newS [lreplace [::dinah::dbLGet $d $si] $fi $fi]
-        if {[llength $newS] == 0} {
-            ::dinah::dbSet $d [lreplace [::dinah::dbGet $d] $si $si]
-        } else {
-            ::dinah::dbLSet $d $si $newS
-        }
+        _remFragFromSeg $d $si $fi
+    } else {
+        return 0
+    }
+}
+
+proc remFragFromSeg {d s dbid} {
+    if {! [::dinah::editable $d]} {return 0}
+    set fragIndex [lsearch [::dinah::dbLGet $d $s] $dbid]
+    if {$fragIndex > -1} {
+        _remFragFromSeg $d $s $fragIndex
+    } else {
+        return 0
+    }
+}
+
+#_remFragFromSeg : d, s, and f must be correct
+# i.e. at index f of segment s of dimension d, there is something
+# and this something will be removed
+proc _remFragFromSeg {d s f} {
+    set newS [lreplace [::dinah::dbLGet $d $s] $f $f]
+    if {[llength $newS] == 0} {
+        ::dinah::dbSet $d [lreplace [::dinah::dbGet $d] $s $s]
+    } else {
+        ::dinah::dbLSet $d $s $newS
     }
 }
 
@@ -469,10 +494,11 @@ proc initMouseBindings {} {
 proc dimForId {dbid} {
     set r {}
     foreach d [::dinah::dbGet dimensions] {
-        if {($d ni {d.clipboard d.archive d.sameLevel d.insert d.noticeLevel}) &&
-            ![string match q* $d] &&
-            [::dinah::findInDim $d $dbid] ne ""} {
-                lappend r $d
+        if {( [::dinah::editable $d]            ) &&
+            ( $d ni {d.clipboard d.noticeLevel} ) &&
+            ( ! [string match q* $d]            ) &&
+            ( [set found [::dinah::findInDim $d $dbid]] != {} )} {
+                lappend r $d [lindex $found 0] [lindex $found 1]
         }
     }
     return $r
@@ -504,3 +530,12 @@ proc newTree {rootName} {
 }
 
 proc treeDimName {rootId} { return "d.t.$rootId" }
+
+proc imageFilepaths {dbid} {
+    set r {}
+    if {!( [::dinah::dbGet $dbid,isa] eq "Page" )} { return {} }
+    foreach suffix $::dinah::resolutions_suffix {
+        lappend r [::dinah::dbGet base][::dinah::dbGet $dbid,path]$suffix[::dinah::dbGet imgExtension]
+    }
+    return r
+}

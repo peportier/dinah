@@ -1090,7 +1090,7 @@ itcl::class Dim {
                         lappend newX [linsert $l [expr {$i + $delta}] $newId]
                         set found 1
                     } else {
-                        lappend newX $l 
+                        lappend newX $l
                     }
                 }
                 if {! $found} {

@@ -46,8 +46,8 @@ itcl::class Txt {
                 ::dinah::remSeg $d $segIndex
             }
         }
-        ::dinah::remfrag $::dinah::dimFragments $tagDBId
-        ::dinah::remfrag "d.$tagName" $tagDBId
+        ::dinah::remFragFromDim $::dinah::dimFragments $tagDBId
+        ::dinah::remFragFromDim "d.$tagName" $tagDBId
     }
 
     method removeTag {tagName insideIndex} {
