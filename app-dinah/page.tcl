@@ -209,23 +209,22 @@ itcl::class Page {
             set newpath $oldpath
         } else {
             set newpath [join [list $oldpath _rot] ""]
-            ::dinah::dbSet $dbid,path $newpath
+            ::dinah::dbSetAttribute $dbid path $newpath
+            updateDimRotate
         }
         foreach suffix $::dinah::resolutions_suffix  {
             set oldfilepath [::dinah::dbGet base]$oldpath$suffix[::dinah::dbGet imgExtension]
             set newfilepath [::dinah::dbGet base]$newpath$suffix[::dinah::dbGet imgExtension]
             exec -ignorestderr $::dinah::zonemaker::convert $oldfilepath -rotate 90 $newfilepath
         }
-        updateDimRotate
         reloadImage
     }
 
     method updateDimRotate {} {
-        if {[llength [::dinah::dbGet $::dinah::dimRotate]] = 0} {
-            ::dinah::dbAppend $::dinah::dimRotate [list $dbid]
+        if {[llength [::dinah::dbGet $::dinah::dimRotate]] == 0} {
+            ::dinah::dbAppendSegmentToDim $::dinah::dimRotate [list $dbid]
         } else {
-            ::dinah::remFragFromDim $::dinah::dimRotate $dbid
-            ::dinah::dbLSet $::dinah::dimRotate 0 [linsert [::dinah::dbLGet $::dinah::dimRotate 0] 0 $dbid]
+            ::dinah::dbAppendToSegment $::dinah::dimRotate 0 $dbid
         }
     }
 }

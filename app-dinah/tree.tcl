@@ -124,17 +124,13 @@ itcl::class Tree {
             set fatherPos [lindex $found 1]
             set lastItem [::dinah::dbLGet $hierarchyDim [list $fatherSegmentIndex end]]
             if {$lastItem eq $fatherDbId} {
-                set fatherSegment [::dinah::dbLGet $hierarchyDim $fatherSegmentIndex]
-                lappend fatherSegment $newDbId
-                ::dinah::dbLSet $hierarchyDim $fatherSegmentIndex $fatherSegment
+                ::dinah::dbAppendToSegment $hierarchyDim $fatherSegmentIndex $newDbId
             } else {
                 set fatherRightSibling [::dinah::dbLGet $hierarchyDim [list $fatherSegmentIndex [expr {$fatherPos + 1}]]]
                 set found [::dinah::findInDim $siblingDim $fatherRightSibling]
                 if {$found != {}} {
                     set fatherSiblingSegmentIndex [lindex $found 0]
-                    set fatherSiblingSegment [::dinah::dbLGet $siblingDim $fatherSiblingSegmentIndex]
-                    lappend fatherSiblingSegment $newDbId
-                    ::dinah::dbLSet $siblingDim $fatherSiblingSegmentIndex $fatherSiblingSegment
+                    ::dinah::dbAppendToSegment $siblingDim $fatherSiblingSegmentIndex $newDbId
                 } else {
                     ::dinah::dbAppend $siblingDim [list $fatherRightSibling $newDbId]
                 }
@@ -151,11 +147,11 @@ itcl::class Tree {
         set found [::dinah::findInDim $siblingDim $siblingDbId]
         if {$found != {}} {
             set siblingSegmentIndex [lindex $found 0]
-            set siblingSegment [::dinah::dbLGet $siblingDim $siblingSegmentIndex]
+            set siblingSegment [::dinah::dbGetSegment $siblingDim $siblingSegmentIndex]
             set siblingPos [lindex $found 1]
             set insertIndex [expr {$siblingPos + 1}]
             set newSiblingSegment [linsert $siblingSegment $insertIndex $newDbId]
-            ::dinah::dbLSet $siblingDim $siblingSegmentIndex $newSiblingSegment
+            ::dinah::dbReplaceSegment $siblingDim $siblingSegmentIndex $newSiblingSegment
         } else {
             set insertIndex end
             ::dinah::dbAppend $siblingDim [list $siblingDbId $newDbId]
@@ -166,28 +162,10 @@ itcl::class Tree {
     method updateLabel {nodeId} {
         set r [$tree edit $nodeId [::dinah::dbGet [itemId $nodeId],label]]
         if {$r ne ""} {
-            ::dinah::dbSet [itemId $nodeId],label $r
+            ::dinah::dbSetAttribute [itemId $nodeId] label $r
             $tree itemconfigure $nodeId -text $r
         }
     }
-
-    #method updateLabelDialog {nodeId} {
-    #    toplevel .editLabel
-    #    button .editLabel.btnClose -command [$this saveLabelAndCloseDialog $nodeId]
-    #    entry .editLabel.entry
-    #    .editLabel.entry insert 0 [::dinah::dbGet [itemId $nodeId],label]
-    #    pack .editLabel.entry .editLabel.btnClose
-    #    grab .editLabel
-    #    wm transient .editLabel .
-    #    wm protocol .editLabel WM_DELETE_WINDOW {grab release .editLabel; destroy .editLabel}
-    #    raise .editLabel
-    #    tkwait window .editLabel
-    #}
-
-    #method saveLabelAndCloseDialog {nodeId} {
-    #    ::dinah::dbSet $[itemId nodeId],label [.editLabel.entry get]
-    #    destroy .editLabel
-    #}
 
     method onSelect {tree node} {
         if {$node != {}} { 

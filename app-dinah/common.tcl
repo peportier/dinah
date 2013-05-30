@@ -34,11 +34,30 @@ proc dbOSet {id o} {
 }
 
 proc dbSet {key value} {
-    if {! [::dinah::editable $key]} {
+    set ::dinah::db($key) $value
+    return 1
+}
+
+proc dbSetDim {dimName dimValue} {
+    if {! [::dinah::editable $dimName]} {
         return 0
     } else {
-        set ::dinah::db($key) $value
+        set ::dinah::db($dimName) $dimValue
         return 1
+    }
+
+}
+
+proc dbRemoveSegment {dimName segIndex} {
+    ::dinah::dbSetDim $dimName [lreplace [::dinah::dbGet $dimName] $segIndex $segIndex]
+}
+
+proc dbSetAttribute {dbid att value} {
+    if {[info exists ::dinah::db($dbid,isa)]} {
+        ::dinah::dbSet $dbid,$att $value
+        return 1
+    } else {
+        return 0
     }
 }
 
@@ -53,23 +72,45 @@ proc dbExists {key} {
 #the element [dbLGet $key $index] must exist or
 #error "list index out of range" will be raised
 proc dbLSet {key index elem} {
-    if {! [::dinah::editable $key]} {
+    lset ::dinah::db($key) $index $elem
+    return 1
+}
+
+proc dbReplaceSegment {dimName segIndex segValue} {
+    if {! [::dinah::editable $dimName]} {
         return 0
     } else {
-        lset ::dinah::db($key) $index $elem
+        ::dinah::dbLSet $dimName $segIndex $segValue
         return 1
     }
+}
+
+proc dbAppendToSegment {dimName segIndex fragId} {
+    ::dinah::dbReplaceSegment $dimName $segIndex [linsert [::dinah::dbGetSegment $dimName $segIndex] end $fragId]
 }
 
 proc dbLGet {key index} {
     lindex $::dinah::db($key) $index
 }
 
+proc dbGetSegment {dimName segIndex} {
+    if {[::dinah::isADim $dimName]} {
+        return [::dinah::dbLGet $dimName $segIndex]
+    } else {
+        error "dbGetSegment: $dimName is not a dimension"
+    }
+}
+
 proc dbAppend {key value} {
-    if {! [::dinah::editable $key]} {
+    lappend ::dinah::db($key) $value
+    return 1
+}
+
+proc dbAppendSegmentToDim {dimName seg} {
+    if {! [::dinah::editable $dimName]} {
         return 0
     } else {
-        lappend ::dinah::db($key) $value
+        ::dinah::dbAppend $dimName $seg
         return 1
     }
 }
@@ -80,6 +121,40 @@ proc dbAGet {pattern} {
 
 if {![::dinah::dbExists "notAlone"]} {
     ::dinah::dbSet "notAlone" 0
+}
+
+proc dbRemFragFromDim {dimName fragId} {
+    if {! [::dinah::editable $dimName]} {return 0}
+    set found [::dinah::findInDim $dimName $fragId]
+    if {$found != {}} {
+        set si [lindex $found 0]; set fi [lindex $found 1]
+        _dbRemFragFromSeg $dimName $si $fi
+    } else {
+        return 0
+    }
+}
+
+proc dbRemFragFromSeg {d s dbid} {
+    if {! [::dinah::editable $d]} {return 0}
+    set fragIndex [lsearch [::dinah::dbLGet $d $s] $dbid]
+    if {$fragIndex > -1} {
+        return [_dbRemFragFromSeg $d $s $fragIndex]
+    } else {
+        return 0
+    }
+}
+
+#_dbRemFragFromSeg : d, s, and f must be correct
+# i.e. at index f of segment s of dimension d, there is something
+# and this something will be removed
+proc _dbRemFragFromSeg {d s f} {
+    set newS [lreplace [::dinah::dbLGet $d $s] $f $f]
+    if {[llength $newS] == 0} {
+        ::dinah::dbRemoveSegment $d $s
+    } else {
+        ::dinah::dbReplaceSegment $d $s $newS
+    }
+    return 1
 }
 
 # 'ladd' adds 'what' to '_list' if 'what' isn't an element
@@ -198,15 +273,18 @@ proc setConvert {path} {
 proc newDim? {dim} {
     if {![::dinah::dbExists $dim] && [regexp {^d\..*} $dim]} {
         ::dinah::dbAppend "dimensions" $dim
-        ::dinah::dbSet $dim {}
+        ::dinah::dbSetDim $dim {}
+        return 1
     }
     if {[regexp {^q\.(.*)} $dim -> match]} {
         set terms [split $match]
         if {![::dinah::dbExists $dim]} {
             ::dinah::dbAppend dimensions $dim
         }
-        ::dinah::dbSet $dim [list [::dinah::keywords $terms]]
+        ::dinah::dbSetDim $dim [list [::dinah::keywords $terms]]
+        return 1
     }
+    return 0
 }
 
 proc keywords {qs} {
@@ -286,7 +364,7 @@ proc init {} {
 
 proc subDim {d ds} {
     ::dinah::newDim? $d
-    ::dinah::dbSet $d {}
+    ::dinah::dbSetDim $d {}
     set X {}
     foreach dimName $ds {
         if {[::dinah::dbExists $dimName]} {
@@ -297,7 +375,7 @@ proc subDim {d ds} {
         }
     }
     set r [::dinah::agreg::run [::dinah::dbGet $d] $X]
-    ::dinah::dbSet $d [lindex $r end]
+    ::dinah::dbSetDim $d [lindex $r end]
     if {![lindex $r 0]} {
         set pbDimName [lindex $ds [lindex $r 2]]
         tk_messageBox -message "Given the following configuration, $pbDimName cannot be a subdim of $d anymore."
@@ -350,7 +428,8 @@ proc copy {srcId direction trgDim trgId} {
         set found [::dinah::findInDim $trgDim $srcId]
         if {$found == {}} {
             if {$direction eq "after"} { incr fi }
-            ::dinah::dbLSet $trgDim $si [linsert [::dinah::dbLGet $trgDim $si] $fi $srcId]
+            set newSegment [linsert [::dinah::dbLGet $trgDim $si] $fi $srcId]
+            ::dinah::dbReplaceSegment $trgDim $si $newSegment
             return 1
         }
         return 0
@@ -372,7 +451,7 @@ proc copy {srcId direction trgDim trgId} {
                 set newFragmentIndex $fi
             }
             set newSegment [linsert $segment $newFragmentIndex $trgId]
-            ::dinah::dbLSet $trgDim $si $newSegment
+            ::dinah::dbReplaceSegment $trgDim $si $newSegment
             return 1
         }
     }
@@ -388,7 +467,7 @@ proc clone {id} {
     set found [::dinah::findInDim $::dinah::dimClone $id]
     if {$found != {}} {
         set si [lindex $found 0]
-        ::dinah::dbLSet $::dinah::dimClone $si [linsert [::dinah::dbLGet $::dinah::dimClone $si] end $clone]
+        ::dinah::dbAppendToSegment $::dinah::dimClone $si $clone
     } else {
         ::dinah::dbAppend $::dinah::dimClone [list $id $clone]
     }
@@ -397,45 +476,13 @@ proc clone {id} {
 proc move {srcDim srcId direction trgDim trgId} {
     if {! [::dinah::editable $srcDim]} {return 0}
     if {$srcDim eq $trgDim} {
-        ::dinah::remFragFromDim $srcDim $srcId
+        ::dinah::dbRemFragFromDim $srcDim $srcId
         puts [::dinah::copy $srcId $direction $trgDim $trgId]
     } elseif {[::dinah::copy $srcId $direction $trgDim $trgId ]} {
-        ::dinah::remFragFromDim $srcDim $srcId
+        ::dinah::dbRemFragFromDim $srcDim $srcId
     }
 }
 
-proc remFragFromDim {d f} {
-    if {! [::dinah::editable $d]} {return 0}
-    set found [::dinah::findInDim $d $f]
-    if {$found != {}} {
-        set si [lindex $found 0]; set fi [lindex $found 1]
-        _remFragFromSeg $d $si $fi
-    } else {
-        return 0
-    }
-}
-
-proc remFragFromSeg {d s dbid} {
-    if {! [::dinah::editable $d]} {return 0}
-    set fragIndex [lsearch [::dinah::dbLGet $d $s] $dbid]
-    if {$fragIndex > -1} {
-        _remFragFromSeg $d $s $fragIndex
-    } else {
-        return 0
-    }
-}
-
-#_remFragFromSeg : d, s, and f must be correct
-# i.e. at index f of segment s of dimension d, there is something
-# and this something will be removed
-proc _remFragFromSeg {d s f} {
-    set newS [lreplace [::dinah::dbLGet $d $s] $f $f]
-    if {[llength $newS] == 0} {
-        ::dinah::dbSet $d [lreplace [::dinah::dbGet $d] $s $s]
-    } else {
-        ::dinah::dbLSet $d $s $newS
-    }
-}
 
 proc getSegIndex {d dbid} {
     set found [::dinah::findInDim $d $dbid]
@@ -446,17 +493,13 @@ proc getSegIndex {d dbid} {
     }
 }
 
-proc remSeg {d segIndex} {
-    ::dinah::dbSet $d [lreplace [::dinah::dbGet $d] $segIndex $segIndex]
-}
-
 proc order {dimIndex dimLinear newDim} {
     if  { (! [::dinah::dbExists $dimIndex]) || (! [::dinah::dbExists $dimLinear]) || \
           (! [::dinah::editable $newDim]) } {
         return 0
     }
     ::dinah::newDim? $newDim
-    ::dinah::dbSet $newDim {}
+    ::dinah::dbSetDim $newDim {}
     foreach s [::dinah::dbGet $dimLinear] {
         set newS {}
         foreach f $s {
@@ -471,7 +514,7 @@ proc order {dimIndex dimLinear newDim} {
                     lappend newS $id
                 } else {
                     tk_messageBox -message "The following fragment is indexed twice by $dimIndex."
-                    ::dinah::dbSet $newDim {}
+                    ::dinah::dbSetDim $newDim {}
                     dimWin $id $dimLinear $dimIndex 
                     return 0
                 }
@@ -522,7 +565,7 @@ proc every {t body} {
 
 proc newTree {rootName} {
     set rootId [::dinah::emptyNode Txt $rootName]
-    ::dinah::dbSet $rootId,txt "text {$rootName\n} 1.0"
+    ::dinah::dbSetAttribute $rootId txt "text {$rootName\n} 1.0"
     ::dinah::dbAppend $::dinah::dim0 [list $rootId]
     ::dinah::dbAppend $::dinah::roots $rootId
     ::dinah::newDim? [::dinah::treeDimName $rootId]

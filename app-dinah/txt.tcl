@@ -43,11 +43,11 @@ itcl::class Txt {
         foreach d [list $::dinah::dimNote] {
             set segIndex [::dinah::getSegIndex $d $tagDBId]
             if {$segIndex ne ""} {
-                ::dinah::remSeg $d $segIndex
+                ::dinah::dbRemoveSegment $d $segIndex
             }
         }
-        ::dinah::remFragFromDim $::dinah::dimFragments $tagDBId
-        ::dinah::remFragFromDim "d.$tagName" $tagDBId
+        ::dinah::dbRemFragFromDim $::dinah::dimFragments $tagDBId
+        ::dinah::dbRemFragFromDim "d.$tagName" $tagDBId
     }
 
     method removeTag {tagName insideIndex} {
@@ -151,10 +151,7 @@ itcl::class Txt {
             foreach pair $sortedTemp {
                 lappend sortedIntervals [lindex $pair 0]
             }
-            if {[catch {::dinah::dbLSet "d.$name" 0 $sortedIntervals}]} {
-                # [::dinah::dbLGet "d.$name" 0] was empty
-                ::dinah::dbSet "d.$name" [list $sortedIntervals]
-            }
+            ::dinah::dbSetDim "d.$name" [list $sortedIntervals]
         }
 
     }
@@ -292,7 +289,7 @@ itcl::class Txt {
              [regexp {\}.*$} [lindex $splitdump end]] } {
             set dump [join [concat [lrange $splitdump 0 end-2] [list $match]] "\n"]
         }
-        ::dinah::dbSet $dbid,txt $dump
+        ::dinah::dbSetAttribute $dbid txt $dump
         $txtWindow edit modified 0
     }
 

@@ -134,7 +134,7 @@ proc navWinOnMoveCursor {container} {
 
 proc specific_init_postamble {} {
     ::dinah::desanti_navigation_win "." 1
-    ::dinah::dbSet $::dinah::dimTemp {}
+    ::dinah::dbSetDim $::dinah::dimTemp {}
 }
 
 proc editable {d} {

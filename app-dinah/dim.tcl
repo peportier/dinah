@@ -310,41 +310,41 @@ itcl::class Dim {
                 set fragment {}
                 lappend fragment [scId] 
                 set titrePropre [::dinah::emptyNode Txt "titre propre"]
-                ::dinah::dbSet $titrePropre,txt "text {titre propre :\n} 1.0"
+                ::dinah::dbSetAttribute $titrePropre txt "text {titre propre :\n} 1.0"
                 lappend fragment $titrePropre
                 ::dinah::dbAppend $::dinah::dimNoticeLevel $fragment
                 set fragment {}
                 lappend fragment $titrePropre
                 set titreForge [::dinah::emptyNode Txt "titre forg\u00E9"]
-                ::dinah::dbSet $titreForge,txt "text {titre forg\u00E9 :\n} 1.0"
+                ::dinah::dbSetAttribute $titreForge txt "text {titre forg\u00E9 :\n} 1.0"
                 lappend fragment $titreForge
                 lappend fragment [::dinah::emptyNode Date "date"]
                 set notesDatation [::dinah::emptyNode Txt "notes datation"]
-                ::dinah::dbSet $notesDatation,txt "text {notes datation :\n} 1.0"
+                ::dinah::dbSetAttribute $notesDatation txt "text {notes datation :\n} 1.0"
                 lappend fragment $notesDatation
                 set descriptionIntellectuelle [::dinah::emptyNode Txt "description intellectuelle"]
-                ::dinah::dbSet $descriptionIntellectuelle,txt "text {description intellectuelle :\n} 1.0"
+                ::dinah::dbSetAttribute $descriptionIntellectuelle txt "text {description intellectuelle :\n} 1.0"
                 lappend fragment $descriptionIntellectuelle
                 set sommaire [::dinah::emptyNode Txt "sommaire"]
-                ::dinah::dbSet $sommaire,txt "text {sommaire :\n} 1.0"
+                ::dinah::dbSetAttribute $sommaire txt "text {sommaire :\n} 1.0"
                 lappend fragment $sommaire
                 set notesSciPub [::dinah::emptyNode Txt "notes scientifiques publiques"]
-                ::dinah::dbSet $notesSciPub,txt "text {notes scientifiques publiques :\n} 1.0"
+                ::dinah::dbSetAttribute $notesSciPub txt "text {notes scientifiques publiques :\n} 1.0"
                 lappend fragment $notesSciPub
                 set notesSciPriv [::dinah::emptyNode Txt "notes scientifiques priv\u00E9es"]
-                ::dinah::dbSet $notesSciPriv,txt "text {notes scientifiques priv\u00E9es :\n} 1.0"
+                ::dinah::dbSetAttribute $notesSciPriv txt "text {notes scientifiques priv\u00E9es :\n} 1.0"
                 lappend fragment $notesSciPriv
                 set notesArchPub [::dinah::emptyNode Txt "notes archivistiques publiques"]
-                ::dinah::dbSet $notesArchPub,txt "text {notes archivistiques publiques :\n} 1.0"
+                ::dinah::dbSetAttribute $notesArchPub txt "text {notes archivistiques publiques :\n} 1.0"
                 lappend fragment $notesArchPub
                 set notesArchPriv [::dinah::emptyNode Txt "notes archivistiques priv\u00E9es"]
-                ::dinah::dbSet $notesArchPriv,txt "text {notes archivistiques priv\u00E9es :\n} 1.0"
+                ::dinah::dbSetAttribute $notesArchPriv txt "text {notes archivistiques priv\u00E9es :\n} 1.0"
                 lappend fragment $notesArchPriv
                 set autresNotesPub [::dinah::emptyNode Txt "autres notes publiques"]
-                ::dinah::dbSet $autresNotesPub,txt "text {autres notes publiques :\n} 1.0"
+                ::dinah::dbSetAttribute $autresNotesPub txt "text {autres notes publiques :\n} 1.0"
                 lappend fragment $autresNotesPub
                 set autresNotesPriv [::dinah::emptyNode Txt "autres notes priv\u00E9es"]
-                ::dinah::dbSet $autresNotesPriv,txt "text {autres notes priv\u00E9es :\n} 1.0"
+                ::dinah::dbSetAttribute $autresNotesPriv txt "text {autres notes priv\u00E9es :\n} 1.0"
                 lappend fragment $autresNotesPriv
                 ::dinah::dbAppend $::dinah::dimNoticeElement $fragment
             }
@@ -1096,7 +1096,7 @@ itcl::class Dim {
                 if {! $found} {
                     lappend newX [linsert [list $dbid] $delta $newId]
                 }
-                ::dinah::dbSet $x $newX
+                ::dinah::dbSetDim $x $newX
             } else {
                 set newId [::dinah::emptyNode $type]
                 ::dinah::dbAppend $x [list $newId]
@@ -1122,7 +1122,7 @@ itcl::class Dim {
     method copycat {} {
         set l [::dinah::dbLGet $::dinah::dimClipboard 0]
         lappend l [scId]
-        ::dinah::dbSet $::dinah::dimClipboard [list $l]
+        ::dinah::dbSetDim $::dinah::dimClipboard [list $l]
     }
 
     method scCell {} { return [cell [list [scRowIndex] [scColumnIndex]]] }
@@ -1148,7 +1148,7 @@ itcl::class Dim {
     method deleteRow {} {
         if {[::dinah::editable $x] && [scRow] != {}} {
             set cursor [scId]
-            ::dinah::dbSet $x [lreplace [::dinah::dbGet $x] [scDimIndex] [scDimIndex]]
+            ::dinah::dbRemoveSegment $x [scDimIndex]
             buildAndGrid $cursor
         }
     }
@@ -1158,7 +1158,7 @@ itcl::class Dim {
         if {[::dinah::editable $x] && [scRow] != {}} {
             if {[llength [scRow]] == 1} {
                 set newScId {}
-                ::dinah::dbSet $x [lreplace [::dinah::dbGet $x] [scDimIndex] [scDimIndex]]
+                ::dinah::dbRemoveSegment $x [scDimIndex]
             } else {
                 if {[scOnLastItem]} {
                     set newScId [lindex [scRow] end-1]
@@ -1166,7 +1166,7 @@ itcl::class Dim {
                     set newScId [lindex [scRow] [expr {[scItemIndex] + 1}]]
                 }
                 set newScRow [lreplace [scRow] [scItemIndex] [scItemIndex]]
-                ::dinah::dbLSet $x [scDimIndex] $newScRow
+                ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
             }
             buildAndGrid $newScId
         }
@@ -1260,7 +1260,7 @@ itcl::class Dim {
     }
 
     method clearClipboard {} {
-        ::dinah::dbSet $::dinah::dimClipboard {}
+        ::dinah::dbSetDim $::dinah::dimClipboard {}
     }
 
     method copySegmentToClipboard {} {
@@ -1275,7 +1275,7 @@ itcl::class Dim {
                 buildAndGrid [scId]
             } elseif {[noCycleOrDuplicate]} {
                 set newScRow [linsert [scRow] [scItemIndex] [clipboardLastItem]]
-                ::dinah::dbLSet $x [scDimIndex] $newScRow
+                ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
                 buildAndGrid [scId]
             }
         }
@@ -1293,7 +1293,7 @@ itcl::class Dim {
                     set newItemIndex [expr {[scItemIndex] + 1}]
                 }
                 set newScRow [linsert [scRow] $newItemIndex [clipboardLastItem]]
-                ::dinah::dbLSet $x [scDimIndex] $newScRow
+                ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
                 buildAndGrid [scId]
             }
         }

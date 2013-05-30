@@ -170,7 +170,7 @@ namespace eval ::dinah::zonemaker {
     }
 
     proc update_poly {id coords} {
-        ::dinah::dbSet $id,coords $coords
+        ::dinah::dbSetAttribute $id coords $coords
         rebuild_poly_images $id
     }
 
@@ -218,27 +218,24 @@ namespace eval ::dinah::zonemaker {
     proc create_poly {coords} {
         variable ::dinah::zonemaker::imageId
         set id [::dinah::dbNew {isa Page label ""}]
-        ::dinah::dbSet $id,path [::dinah::dbGet $imageId,path]_frag$id
-        ::dinah::dbSet $id,coords $coords
+        ::dinah::dbSetAttribute $id path [::dinah::dbGet $imageId,path]_frag$id
+        ::dinah::dbSetAttribute $id coords $coords
         set found [::dinah::findInDim $::dinah::dimFragments $imageId]
         if {$found == {}} {
-            ::dinah::dbAppend $::dinah::dimFragments [list $imageId $id]
+            ::dinah::dbAppendSegmentToDim $::dinah::dimFragments [list $imageId $id]
         } else {
-            set row [::dinah::dbLGet $::dinah::dimFragments [lindex $found 0]]
-            lappend row $id
-            ::dinah::dbLSet $::dinah::dimFragments [lindex $found 0] $row
+            ::dinah::dbAppendToSegment $::dinah::dimFragments [lindex $found 0] $id
         }
         rebuild_poly_images $id
     }
 
     proc delete_poly {id} {
         set found [::dinah::findInDim $::dinah::dimFragments $id]
-        set row [::dinah::dbLGet $::dinah::dimFragments [lindex $found 0]]
-        if {[llength $row] == 2} {
-            ::dinah::dbSet $::dinah::dimFragments [lreplace [::dinah::dbGet $::dinah::dimFragments] [lindex $found 0] [lindex $found 0]]
+        set seg [::dinah::dbGetSegment $::dinah::dimFragments [lindex $found 0]]
+        if {[llength $seg] == 2} {
+            ::dinah::dbRemoveSegment $::dinah::dimFragments [lindex $found 0]
         } else {
-            set row [lreplace $row [lindex $found 1] [lindex $found 1]]
-            ::dinah::dbLSet $::dinah::dimFragments [lindex $found 0] $row
+            ::dinah::dbRemFragFromSeg $::dinah::dimFragments [lindex $found 0] $id
         }
     }
 

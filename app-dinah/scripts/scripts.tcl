@@ -27,8 +27,8 @@ proc cleanImageNodesWithNoExistingAssociatedFile {} {
             }
             if {($isaPage) && (! $aFileExists)} {
                 foreach {dim seg2 frag2} [::dinah::dimForId $frag] {
-                    puts "$dim : $seg2 : $frag2"
-                    ::dinah::remFragFromSeg $dim $frag2
+                    puts "$dim : $seg2 : $frag"
+                    puts [::dinah::remFragFromSeg $dim $seg2 $frag]
                 }
             }
         }

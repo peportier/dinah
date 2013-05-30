@@ -267,7 +267,7 @@ itcl::class Obj {
             $container delete
         }}
         if {! [catch {$container isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} {
-            ::dinah::remFragFromDim [$container getCurrentDim] $dbid
+            ::dinah::dbRemFragFromDim [$container getCurrentDim] $dbid
             $container reload
         }}
     }
