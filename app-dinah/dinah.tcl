@@ -11,6 +11,7 @@ namespace eval ::dinah {
     source -encoding utf-8 $dbFile
     source $starkit::topdir/lib/app-dinah/algo_dim_agreg.tcl
     source $starkit::topdir/lib/app-dinah/zonemaker.tcl
+    source $starkit::topdir/lib/app-dinah/commonDB.tcl
     source $starkit::topdir/lib/app-dinah/common.tcl
     #source $starkit::topdir/lib/app-dinah/bouvard.tcl
     source $starkit::topdir/lib/app-dinah/desanti.tcl
