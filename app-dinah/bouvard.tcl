@@ -85,7 +85,7 @@ proc quart3OnMoveCursor {container} {
 proc bouvard:newNote {id} {
     set found [::dinah::findInDim $::dinah::dimNote $id]
     if {$found == {}} {
-        set note [::dinah::emptyNode Txt]
+        set note [::dinah::dbNewEmptyNode Txt]
         ::dinah::dbAppend $::dinah::dimNote [list $id $note]
     }
 }

@@ -241,21 +241,6 @@ proc subDim {d ds} {
     }
 }
 
-proc emptyNode {type {label ""}} {
-    if {$type eq "Txt"} {
-        return [::dinah::dbNew [list isa Txt txt {} label $label]]
-    }
-    if {$type eq "Date"} {
-        return [::dinah::dbNew [list isa Date day "" month "" year "" hour "" minute "" certain 0 label $label]]
-    }
-    if {$type eq "Struct"} {
-        return [::dinah::dbNew [list isa Struct label $label]]
-    }
-    if {$type eq "Link"} {
-        return [::dinah::dbNew [list isa Link label $label]]
-    }
-}
-
 proc desactivateMouse {w} {
     foreach i {1 2 3} {
         set ::dinah::mouse($w,$i) [bind $w <$i>]
@@ -277,69 +262,6 @@ proc addToTxtMenu {name args} {
 }
 
 proc randomColor {} {format #%06x [expr {int(rand() * 0xFFFFFF)}]}
-
-proc copy {srcId direction trgDim trgId} {
-    if {! [::dinah::editable $trgDim]} {return 0}
-    set found [::dinah::findInDim $trgDim $trgId]
-    if {$found != {}} {
-        set si [lindex $found 0]; set fi [lindex $found 1]
-        set found [::dinah::findInDim $trgDim $srcId]
-        if {$found == {}} {
-            if {$direction eq "after"} { incr fi }
-            set newSegment [linsert [::dinah::dbLGet $trgDim $si] $fi $srcId]
-            ::dinah::dbReplaceSegment $trgDim $si $newSegment
-            return 1
-        }
-        return 0
-    } else {
-        set found [::dinah::findInDim $trgDim $srcId]
-        if {$found == {}} {
-            if {$direction eq "after"} {
-                ::dinah::dbAppend $trgDim [list $trgId $srcId]
-            } else {
-                ::dinah::dbAppend $trgDim [list $srcId $trgId]
-            }
-            return 1
-        } else {
-            set si [lindex $found 0]; set fi [lindex $found 1]
-            set segment [::dinah::dbLGet $trgDim $si]
-            if {$direction eq "before"} {
-                set newFragmentIndex [expr {$fi + 1}]
-            } else {
-                set newFragmentIndex $fi
-            }
-            set newSegment [linsert $segment $newFragmentIndex $trgId]
-            ::dinah::dbReplaceSegment $trgDim $si $newSegment
-            return 1
-        }
-    }
-}
-
-proc clone {id} {
-    set attributes {}
-    foreach {k v} [::dinah::dbAGet $id,*] {
-        regexp {^.*,(.*)} $k -> attName
-        lappend attributes $attName $v
-    }
-    set clone [::dinah::dbNew $attributes]
-    set found [::dinah::findInDim $::dinah::dimClone $id]
-    if {$found != {}} {
-        set si [lindex $found 0]
-        ::dinah::dbAppendToSegment $::dinah::dimClone $si $clone
-    } else {
-        ::dinah::dbAppend $::dinah::dimClone [list $id $clone]
-    }
-}
-
-proc move {srcDim srcId direction trgDim trgId} {
-    if {! [::dinah::editable $srcDim]} {return 0}
-    if {$srcDim eq $trgDim} {
-        ::dinah::dbRemFragFromDim $srcDim $srcId
-        puts [::dinah::copy $srcId $direction $trgDim $trgId]
-    } elseif {[::dinah::copy $srcId $direction $trgDim $trgId ]} {
-        ::dinah::dbRemFragFromDim $srcDim $srcId
-    }
-}
 
 proc order {dimIndex dimLinear newDim} {
     if  { (! [::dinah::dbExists $dimIndex]) || (! [::dinah::dbExists $dimLinear]) || \
@@ -382,19 +304,6 @@ proc initMouseBindings {} {
     }
 }
 
-proc dimForId {dbid} {
-    set r {}
-    foreach d [::dinah::dbGet dimensions] {
-        if {( [::dinah::editable $d]            ) &&
-            ( $d ni {d.clipboard d.noticeLevel} ) &&
-            ( ! [string match q* $d]            ) &&
-            ( [set found [::dinah::findInDim $d $dbid]] != {} )} {
-                lappend r $d [lindex $found 0] [lindex $found 1]
-        }
-    }
-    return $r
-}
-
 proc autosave {} {
     #foreach txt [itcl::find object * -class ::dinah::Txt] {
     #    $txt save
@@ -412,7 +321,7 @@ proc every {t body} {
 }
 
 proc newTree {rootName} {
-    set rootId [::dinah::emptyNode Txt $rootName]
+    set rootId [::dinah::dbNewEmptyNode Txt $rootName]
     ::dinah::dbSetAttribute $rootId txt "text {$rootName\n} 1.0"
     ::dinah::dbAppend $::dinah::dim0 [list $rootId]
     ::dinah::dbAppend $::dinah::roots $rootId

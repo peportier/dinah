@@ -273,7 +273,7 @@ itcl::class Whiteboard {
     }
 
     method newNode {type x y} {
-        set id [::dinah::emptyNode $type]
+        set id [::dinah::dbNewEmptyNode $type]
         add $id [boardx $x] [boardy $y]
     }
 
@@ -568,7 +568,7 @@ itcl::class Whiteboard {
     }
 
     method newText {} {
-        add [::dinah::emptyNode Txt]
+        add [::dinah::dbNewEmptyNode Txt]
     }
 
     method high {} {

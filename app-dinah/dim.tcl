@@ -309,41 +309,41 @@ itcl::class Dim {
             if {[llength $found] == 0} {
                 set fragment {}
                 lappend fragment [scId] 
-                set titrePropre [::dinah::emptyNode Txt "titre propre"]
+                set titrePropre [::dinah::dbNewEmptyNode Txt "titre propre"]
                 ::dinah::dbSetAttribute $titrePropre txt "text {titre propre :\n} 1.0"
                 lappend fragment $titrePropre
                 ::dinah::dbAppend $::dinah::dimNoticeLevel $fragment
                 set fragment {}
                 lappend fragment $titrePropre
-                set titreForge [::dinah::emptyNode Txt "titre forg\u00E9"]
+                set titreForge [::dinah::dbNewEmptyNode Txt "titre forg\u00E9"]
                 ::dinah::dbSetAttribute $titreForge txt "text {titre forg\u00E9 :\n} 1.0"
                 lappend fragment $titreForge
-                lappend fragment [::dinah::emptyNode Date "date"]
-                set notesDatation [::dinah::emptyNode Txt "notes datation"]
+                lappend fragment [::dinah::dbNewEmptyNode Date "date"]
+                set notesDatation [::dinah::dbNewEmptyNode Txt "notes datation"]
                 ::dinah::dbSetAttribute $notesDatation txt "text {notes datation :\n} 1.0"
                 lappend fragment $notesDatation
-                set descriptionIntellectuelle [::dinah::emptyNode Txt "description intellectuelle"]
+                set descriptionIntellectuelle [::dinah::dbNewEmptyNode Txt "description intellectuelle"]
                 ::dinah::dbSetAttribute $descriptionIntellectuelle txt "text {description intellectuelle :\n} 1.0"
                 lappend fragment $descriptionIntellectuelle
-                set sommaire [::dinah::emptyNode Txt "sommaire"]
+                set sommaire [::dinah::dbNewEmptyNode Txt "sommaire"]
                 ::dinah::dbSetAttribute $sommaire txt "text {sommaire :\n} 1.0"
                 lappend fragment $sommaire
-                set notesSciPub [::dinah::emptyNode Txt "notes scientifiques publiques"]
+                set notesSciPub [::dinah::dbNewEmptyNode Txt "notes scientifiques publiques"]
                 ::dinah::dbSetAttribute $notesSciPub txt "text {notes scientifiques publiques :\n} 1.0"
                 lappend fragment $notesSciPub
-                set notesSciPriv [::dinah::emptyNode Txt "notes scientifiques priv\u00E9es"]
+                set notesSciPriv [::dinah::dbNewEmptyNode Txt "notes scientifiques priv\u00E9es"]
                 ::dinah::dbSetAttribute $notesSciPriv txt "text {notes scientifiques priv\u00E9es :\n} 1.0"
                 lappend fragment $notesSciPriv
-                set notesArchPub [::dinah::emptyNode Txt "notes archivistiques publiques"]
+                set notesArchPub [::dinah::dbNewEmptyNode Txt "notes archivistiques publiques"]
                 ::dinah::dbSetAttribute $notesArchPub txt "text {notes archivistiques publiques :\n} 1.0"
                 lappend fragment $notesArchPub
-                set notesArchPriv [::dinah::emptyNode Txt "notes archivistiques priv\u00E9es"]
+                set notesArchPriv [::dinah::dbNewEmptyNode Txt "notes archivistiques priv\u00E9es"]
                 ::dinah::dbSetAttribute $notesArchPriv txt "text {notes archivistiques priv\u00E9es :\n} 1.0"
                 lappend fragment $notesArchPriv
-                set autresNotesPub [::dinah::emptyNode Txt "autres notes publiques"]
+                set autresNotesPub [::dinah::dbNewEmptyNode Txt "autres notes publiques"]
                 ::dinah::dbSetAttribute $autresNotesPub txt "text {autres notes publiques :\n} 1.0"
                 lappend fragment $autresNotesPub
-                set autresNotesPriv [::dinah::emptyNode Txt "autres notes priv\u00E9es"]
+                set autresNotesPriv [::dinah::dbNewEmptyNode Txt "autres notes priv\u00E9es"]
                 ::dinah::dbSetAttribute $autresNotesPriv txt "text {autres notes priv\u00E9es :\n} 1.0"
                 lappend fragment $autresNotesPriv
                 ::dinah::dbAppend $::dinah::dimNoticeElement $fragment
@@ -1082,7 +1082,7 @@ itcl::class Dim {
             if { !( $sc eq {} ) } {
                 set dbid [scId]
                 set newX {}
-                set newId [::dinah::emptyNode $type]
+                set newId [::dinah::dbNewEmptyNode $type]
                 set found 0
                 foreach l [::dinah::dbGet $x] {
                     set i [lsearch $l $dbid]
@@ -1098,7 +1098,7 @@ itcl::class Dim {
                 }
                 ::dinah::dbSetDim $x $newX
             } else {
-                set newId [::dinah::emptyNode $type]
+                set newId [::dinah::dbNewEmptyNode $type]
                 ::dinah::dbAppend $x [list $newId]
             }
             buildAndGrid $newId
@@ -1224,7 +1224,7 @@ itcl::class Dim {
  
     method newListWithTxtNode {} {
         if {! [dimIsNil]} {
-            set txtId [::dinah::emptyNode Txt]
+            set txtId [::dinah::dbNewEmptyNode Txt]
             ::dinah::dbAppend $x [list $txtId]
             buildAndGrid $txtId
         }

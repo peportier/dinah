@@ -124,7 +124,7 @@ proc navWinOnMoveCursor {container} {
     }
     set found [::dinah::findInDim $::dinah::dimTranscription $quart1ScId]
     if {$found == {}} {
-        set transcriptionId [::dinah::emptyNode Txt "transcription ($quart1ScId)"]
+        set transcriptionId [::dinah::dbNewEmptyNode Txt "transcription ($quart1ScId)"]
         ::dinah::dbAppend $::dinah::dimTranscription [list $quart1ScId $transcriptionId]
     }
     $quart2 buildAndGrid $quart1ScId

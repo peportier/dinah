@@ -41,7 +41,7 @@ itcl::class Txt {
     method removeTagFromDB {tagDBId tagName} {
         set segIndex "" ;# index of segment on which tagDBId may appear
         foreach d [list $::dinah::dimNote] {
-            set segIndex [::dinah::getSegIndex $d $tagDBId]
+            set segIndex [::dinah::dbGetSegIndex $d $tagDBId]
             if {$segIndex ne ""} {
                 ::dinah::dbRemoveSegment $d $segIndex
             }
@@ -133,7 +133,7 @@ itcl::class Txt {
     }
 
     method initNewInterval {name fragId} {
-        set noteId [::dinah::emptyNode Txt "note ($fragId)"]
+        set noteId [::dinah::dbNewEmptyNode Txt "note ($fragId)"]
         ::dinah::dbAppend $::dinah::dimNote [list $fragId $noteId]
         addIntervalToSortedDim $name $fragId
     }
@@ -201,7 +201,7 @@ itcl::class Txt {
     method newInterval {{tagName ""}} {
         if {[selToDBId] eq ""} { 
             set intervalId [::dinah::dbNew [list isa Txt txt [$txtWindow dump -all {*}[$txtWindow tag ranges sel]] label [$txtWindow get {*}[$txtWindow tag ranges sel]]]]
-            ::dinah::copy $intervalId "after" $::dinah::dimFragments $dbid
+            ::dinah::dbInsertNodeIntoDim $intervalId "after" $::dinah::dimFragments $dbid
             set intervalName "interval$intervalId"
             set intervalRange [$txtWindow tag ranges sel]
             eval $txtWindow tag add interval {*}$intervalRange
@@ -214,8 +214,8 @@ itcl::class Txt {
     }
 
     method newStone {tagName} {
-        set intervalId [::dinah::emptyNode Txt $tagName]
-        ::dinah::copy $intervalId "after" $::dinah::dimFragments $dbid
+        set intervalId [::dinah::dbNewEmptyNode Txt $tagName]
+        ::dinah::dbInsertNodeIntoDim $intervalId "after" $::dinah::dimFragments $dbid
         set intervalName "interval$intervalId"
         $txtWindow insert insert "$tagName\n" [list interval $intervalName $tagName]
         return $intervalId

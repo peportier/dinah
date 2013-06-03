@@ -118,7 +118,7 @@ itcl::class Obj {
     method menuInDim {X Y} {
         if {! [catch {$container isa Dim} isaDim]} {if {$isaDim} {
             $inDimMenu delete 0 end
-            set dims [::dinah::dimForId $dbid]
+            set dims [::dinah::dbGetDimForId $dbid]
             if {[llength $dims] > 0} {
                 foreach {dim segIndex fragIndex} $dims {
                     $inDimMenu add command -label $dim -command [list $this setYDim $dim]
@@ -135,7 +135,7 @@ itcl::class Obj {
     }
 
     method layout {} {
-        if {[llength [::dinah::dimForId $dbid]] > 0} {
+        if {[llength [::dinah::dbGetDimForId $dbid]] > 0} {
             pack $inDim -side left -padx 4 -pady 4
         }
         pack $notificationLabel -side left -padx 4 -pady 4
@@ -224,28 +224,28 @@ itcl::class Obj {
             set srcId [lindex $data end]
             if {$op eq "move" && [::dinah::editable $srcDim]} {
                 if {$target eq $right && [::dinah::editable [$container getX]]} {
-                    ::dinah::move $srcDim $srcId after [$container getX] $dbid
+                    ::dinah::dbMoveNodeBetweenDims $srcDim $srcId after [$container getX] $dbid
                 } elseif {$target eq $left && [::dinah::editable [$container getX]]} {
-                    ::dinah::move $srcDim $srcId before [$container getX] $dbid
+                    ::dinah::dbMoveNodeBetweenDims $srcDim $srcId before [$container getX] $dbid
                 } elseif {$target eq $bottom && [::dinah::editable [$container getY]]} {
-                    ::dinah::move $srcDim $srcId after [$container getY] $dbid
+                    ::dinah::dbMoveNodeBetweenDims $srcDim $srcId after [$container getY] $dbid
                 } elseif {$target eq $bottom && [::dinah::editable [$container getY]]} {
-                    ::dinah::move $srcDim $srcId before [$container getY] $dbid
+                    ::dinah::dbMoveNodeBetweenDims $srcDim $srcId before [$container getY] $dbid
                 }
             } elseif {$op eq "force"} {
                 if {$target eq $right && [::dinah::editable [$container getX]]} {
-                    ::dinah::copy $srcId after [$container getX] $dbid
+                    ::dinah::dbInsertNodeIntoDim $srcId after [$container getX] $dbid
                 } elseif {$target eq $left && [::dinah::editable [$container getX]]} {
-                    ::dinah::copy $srcId before [$container getX] $dbid
+                    ::dinah::dbInsertNodeIntoDim $srcId before [$container getX] $dbid
                 } elseif {$target eq $bottom && [::dinah::editable [$container getY]]} {
-                    ::dinah::copy $srcId after [$container getY] $dbid
+                    ::dinah::dbInsertNodeIntoDim $srcId after [$container getY] $dbid
                 } elseif {$target eq $bottom && [::dinah::editable [$container getY]]} {
-                    ::dinah::copy $srcId before [$container getY] $dbid
+                    ::dinah::dbInsertNodeIntoDim $srcId before [$container getY] $dbid
                 }
             }
-        }} 
+        }}
         if {! [catch {$container isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} {
-            ::dinah::copy $data before [$container getCurrentDim] $dbid
+            ::dinah::dbInsertNodeIntoDim $data before [$container getCurrentDim] $dbid
         }}
         $target configure -bg $::dinah::targetColor($target)
         return $container
@@ -273,7 +273,7 @@ itcl::class Obj {
     }
 
     method makeClone {} {
-        ::dinah::clone $dbid
+        ::dinah::dbClone $dbid
         $container reload
     }
 

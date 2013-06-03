@@ -149,3 +149,98 @@ proc dbGetSegIndex {d dbid} {
     }
 }
 
+proc dbGetDimForId {dbid} {
+    set r {}
+    foreach d [::dinah::dbGet dimensions] {
+        if {( [::dinah::editable $d]            ) &&
+            ( $d ni {d.clipboard d.noticeLevel} ) &&
+            ( ! [string match q* $d]            ) &&
+            ( [set found [::dinah::findInDim $d $dbid]] != {} )} {
+                lappend r $d [lindex $found 0] [lindex $found 1]
+        }
+    }
+    return $r
+}
+
+# dbInsertNodeIntoDim: insert node srcId into dimension
+# trgDim at the right or at the left of node trgId
+# $direction is either "right" or "left"
+proc dbInsertNodeIntoDim {srcId direction trgDim trgId} {
+    if {! [::dinah::editable $trgDim]} {return 0}
+    set found [::dinah::findInDim $trgDim $trgId]
+    if {$found != {}} {
+        set si [lindex $found 0]; set fi [lindex $found 1]
+        set found [::dinah::findInDim $trgDim $srcId]
+        if {$found == {}} {
+            if {$direction eq "right"} { incr fi }
+            set newSegment [linsert [::dinah::dbGetSegment $trgDim $si] $fi $srcId]
+            ::dinah::dbReplaceSegment $trgDim $si $newSegment
+            return 1
+        } else {
+            return 0
+        }
+    } else {
+        set found [::dinah::findInDim $trgDim $srcId]
+        if {$found == {}} {
+            if {$direction eq "right"} {
+                ::dinah::dbAppend $trgDim [list $trgId $srcId]
+            } else {
+                ::dinah::dbAppend $trgDim [list $srcId $trgId]
+            }
+            return 1
+        } else {
+            set si [lindex $found 0]; set fi [lindex $found 1]
+            set segment [::dinah::dbGetSegment $trgDim $si]
+            if {$direction eq "left"} { incr fi }
+            set newSegment [linsert $segment $fi $trgId]
+            ::dinah::dbReplaceSegment $trgDim $si $newSegment
+            return 1
+        }
+    }
+}
+
+proc dbMoveNodeBetweenDims {srcDim srcId direction trgDim trgId} {
+    if {! [::dinah::editable $srcDim]} {return 0}
+    if {$srcDim eq $trgDim} {
+        ::dinah::dbRemFragFromDim $srcDim $srcId
+        puts [::dinah::dbInsertNodeIntoDim $srcId $direction $trgDim $trgId]
+        return 1
+    } elseif {[::dinah::dbInsertNodeIntoDim $srcId $direction $trgDim $trgId ]} {
+        ::dinah::dbRemFragFromDim $srcDim $srcId
+        return 1
+    } else {
+        return 0
+    }
+}
+
+proc dbClone {id} {
+    set attributes {}
+    foreach {k v} [::dinah::dbAGet $id,*] {
+        regexp {^.*,(.*)} $k -> attName
+        lappend attributes $attName $v
+    }
+    set clone [::dinah::dbNew $attributes]
+    set found [::dinah::findInDim $::dinah::dimClone $id]
+    if {$found != {}} {
+        set si [lindex $found 0]
+        ::dinah::dbAppendToSegment $::dinah::dimClone $si $clone
+    } else {
+        ::dinah::dbAppendSegmentToDim $::dinah::dimClone [list $id $clone]
+    }
+}
+
+proc dbNewEmptyNode {type {label ""}} {
+    if {$type eq "Txt"} {
+        return [::dinah::dbNew [list isa Txt txt {} label $label]]
+    }
+    if {$type eq "Date"} {
+        return [::dinah::dbNew [list isa Date day "" month "" year "" hour "" minute "" certain 0 label $label]]
+    }
+    if {$type eq "Struct"} {
+        return [::dinah::dbNew [list isa Struct label $label]]
+    }
+    if {$type eq "Link"} {
+        return [::dinah::dbNew [list isa Link label $label]]
+    }
+}
+
