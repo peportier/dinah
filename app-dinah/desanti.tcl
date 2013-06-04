@@ -34,30 +34,30 @@ set ::dinah::fontsize 10
 set ::dinah::resolutions_suffix {"_low" "_high"}
 
 proc specific_init_preamble {} {
-    ::dinah::newDim? $::dinah::dimAlternative
-    ::dinah::newDim? $::dinah::dimArchive
-    ::dinah::newDim? $::dinah::dimAttribute
-    ::dinah::newDim? $::dinah::dimChrono
-    ::dinah::newDim? $::dinah::dimClipboard
-    ::dinah::newDim? $::dinah::dimClone
-    ::dinah::newDim? $::dinah::dimFragments
-    ::dinah::newDim? $::dinah::dimInfo
-    ::dinah::newDim? $::dinah::dimInit
-    ::dinah::newDim? $::dinah::dimInsert
-    ::dinah::newDim? $::dinah::dimNil
-    ::dinah::newDim? $::dinah::dimNote
-    ::dinah::newDim? $::dinah::dimNoticeElement
-    ::dinah::newDim? $::dinah::dimNoticeLevel
-    ::dinah::newDim? $::dinah::dimSameLevel
-    ::dinah::newDim? $::dinah::dimTemp
-    ::dinah::newDim? $::dinah::dimTranscription
-    ::dinah::newDim? $::dinah::dim0
-    ::dinah::newDim? $::dinah::dim1
-    ::dinah::newDim? $::dinah::dim2
-    ::dinah::newDim? $::dinah::dim3
-    ::dinah::newDim? $::dinah::dimAuteur
-    ::dinah::newDim? $::dinah::dimConcept
-    ::dinah::newDim? $::dinah::dimRotate
+    ::dinah::dbNewDim $::dinah::dimAlternative
+    ::dinah::dbNewDim $::dinah::dimArchive
+    ::dinah::dbNewDim $::dinah::dimAttribute
+    ::dinah::dbNewDim $::dinah::dimChrono
+    ::dinah::dbNewDim $::dinah::dimClipboard
+    ::dinah::dbNewDim $::dinah::dimClone
+    ::dinah::dbNewDim $::dinah::dimFragments
+    ::dinah::dbNewDim $::dinah::dimInfo
+    ::dinah::dbNewDim $::dinah::dimInit
+    ::dinah::dbNewDim $::dinah::dimInsert
+    ::dinah::dbNewDim $::dinah::dimNil
+    ::dinah::dbNewDim $::dinah::dimNote
+    ::dinah::dbNewDim $::dinah::dimNoticeElement
+    ::dinah::dbNewDim $::dinah::dimNoticeLevel
+    ::dinah::dbNewDim $::dinah::dimSameLevel
+    ::dinah::dbNewDim $::dinah::dimTemp
+    ::dinah::dbNewDim $::dinah::dimTranscription
+    ::dinah::dbNewDim $::dinah::dim0
+    ::dinah::dbNewDim $::dinah::dim1
+    ::dinah::dbNewDim $::dinah::dim2
+    ::dinah::dbNewDim $::dinah::dim3
+    ::dinah::dbNewDim $::dinah::dimAuteur
+    ::dinah::dbNewDim $::dinah::dimConcept
+    ::dinah::dbNewDim $::dinah::dimRotate
     if {! [::dinah::dbExists $::dinah::roots]} {
         ::dinah::dbSet $::dinah::roots ""
     }
@@ -111,7 +111,7 @@ proc navWinOnMoveCursor {container} {
     set quart3 [$container quart 3]
     set quart1ScId [$quart1 scId]
     if {[$quart1 getX] eq $::dinah::dimArchive} {
-        set found [::dinah::findInDim $::dinah::dimArchive $quart1ScId]
+        set found [::dinah::dbFindInDim $::dinah::dimArchive $quart1ScId]
         if { ($found != {}) && ([lindex $found 1] == 0) } {
             $quart3 setX $::dinah::dimArchive
             $quart3 setY $::dinah::dimNil
@@ -122,10 +122,10 @@ proc navWinOnMoveCursor {container} {
             $quart3 setModeNotice
         }
     }
-    set found [::dinah::findInDim $::dinah::dimTranscription $quart1ScId]
-    if {$found == {}} {
+    if {![::dinah::dbNodeBelongsToDim $::dinah::dimTranscription $quart1ScId]} {
         set transcriptionId [::dinah::dbNewEmptyNode Txt "transcription ($quart1ScId)"]
-        ::dinah::dbAppend $::dinah::dimTranscription [list $quart1ScId $transcriptionId]
+        set newSegment [list $quart1ScId $transcriptionId]
+        ::dinah::dbAppendSegmentToDim $::dinah::dimTranscription $newSegment
     }
     $quart2 buildAndGrid $quart1ScId
     $quart2 setModeTranscription

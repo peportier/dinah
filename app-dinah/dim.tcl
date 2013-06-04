@@ -287,32 +287,30 @@ itcl::class Dim {
 
     method dropmenu {target src xcoord ycoord op type data} {
         set srcId [lindex $data end]
-        set found [::dinah::findInDim $x $srcId]
-        if {$found != {}} {
+        set found [::dinah::dbFindInDim $x $srcId]
+        if {[::dinah::dbNodeBelongsToDim $x $srcId]} {
             buildAndGrid $srcId
-        } elseif {[::dinah::editable $x]} {
-            ::dinah::dbAppend $x [list $srcId]
+        } elseif {[::dinah::dbAppendSegmentToDim $x [list $srcId]]} {
             buildAndGrid $srcId
         }
     }
 
-    method openTreeItem {item} { 
+    method openTreeItem {item} {
         setX [$tree getNavDim]
         setY $::dinah::dimNil
         updateEntries
-        buildAndGrid [$tree itemId $item] 
+        buildAndGrid [$tree itemId $item]
     }
 
     method hookInitNotice {} {
         if {([scId] ne "") && ([::dinah::dbGet [scId],isa] eq "Page")} {
-            set found [::dinah::findInDim $::dinah::dimNoticeLevel [scId]]
-            if {[llength $found] == 0} {
+            if {![::dinah::dbNodeBelongsToDim $::dinah::dimNoticeLevel [scId]]} {
                 set fragment {}
-                lappend fragment [scId] 
+                lappend fragment [scId]
                 set titrePropre [::dinah::dbNewEmptyNode Txt "titre propre"]
                 ::dinah::dbSetAttribute $titrePropre txt "text {titre propre :\n} 1.0"
                 lappend fragment $titrePropre
-                ::dinah::dbAppend $::dinah::dimNoticeLevel $fragment
+                ::dinah::dbAppendSegmentToDim $::dinah::dimNoticeLevel $fragment
                 set fragment {}
                 lappend fragment $titrePropre
                 set titreForge [::dinah::dbNewEmptyNode Txt "titre forg\u00E9"]
@@ -346,7 +344,7 @@ itcl::class Dim {
                 set autresNotesPriv [::dinah::dbNewEmptyNode Txt "autres notes priv\u00E9es"]
                 ::dinah::dbSetAttribute $autresNotesPriv txt "text {autres notes priv\u00E9es :\n} 1.0"
                 lappend fragment $autresNotesPriv
-                ::dinah::dbAppend $::dinah::dimNoticeElement $fragment
+                ::dinah::dbAppendSegmentToDim $::dinah::dimNoticeElement $fragment
             }
             [[$tree setRoot [scId]] setDim $::dinah::dimNoticeLevel $::dinah::dimNoticeElement] load
         }
@@ -360,9 +358,11 @@ itcl::class Dim {
 
     method hookNbArchivePages {obj} {
         set dbid [$obj cget -dbid]
-        set found [::dinah::findInDim "d.archive" $dbid]
+        set found [::dinah::dbFindInDim "d.archive" $dbid]
         if {[llength $found] != 0} {
-            set nbPages [llength [::dinah::dbLGet $::dinah::dimArchive [lindex $found 0]]
+            set segIndex [lindex $found 0]
+            set seg [::dinah::dbGetSegment $::dinah::dimArchive $segIndex]
+            set nbPages [llength $seg]
             $obj notificate "$nbPages page(s)"
         }
     }
@@ -378,7 +378,7 @@ itcl::class Dim {
     }
 
     method setBindings {} {
-        if {[info exists objects($sc)]} { 
+        if {[info exists objects($sc)]} {
             [$objects($sc) cget -frame] configure -borderwidth $::dinah::fragmentBorderWidth -bg red
         }
 
@@ -521,8 +521,8 @@ itcl::class Dim {
         setX $xEntryValue
         setY $yEntryValue
         updateEntries
-        ::dinah::newDim? $x
-        ::dinah::newDim? $y
+        ::dinah::dbNewDim $x
+        ::dinah::dbNewDim $y
         buildAndGrid [scId]
     }
 
@@ -772,9 +772,9 @@ itcl::class Dim {
     }
 
     method scUp {} {
-        if {! $busy} { 
-            scVertic -[getNumModifier] 
-            initNumModifier 
+        if {! $busy} {
+            scVertic -[getNumModifier]
+            initNumModifier
         }
     }
 
@@ -793,26 +793,31 @@ itcl::class Dim {
                 return
             }
             # main row:
-            set found [::dinah::findInDim $x $center]
+            set found [::dinah::dbFindInDim $x $center]
             if {[llength $found] != 0} {
-                set mainRowIndex [lindex $found 0]
-                set mainRow [::dinah::dbLGet $x $mainRowIndex]
-                set sc [list [lindex $found 1]]
+                set segIndex [lindex $found 0]
+                set fragIndex [lindex $found 1]
+                set seg [::dinah::dbGetSegment $x $segIndex]
+                set mainRowIndex $segIndex
+                set mainRow $seg
+                set sc [list $fragIndex]
             }
             set gridWidth [llength $mainRow]
             # cols:
             if {[::dinah::dbExists $y]} {
                 if {$mainRow eq {}} {
-                    set found [::dinah::findInDim $y $center]
+                    set found [::dinah::dbFindInDim $y $center]
                     if {[llength $found] != 0} {
-                        set foundRow [lindex $found 0]
-                        set foundRowLength [llength [::dinah::dbLGet $y $foundRow]]
-                        for {set k 0} {$k < $foundRowLength} {incr k} {
-                            set grid($k,0) [list $y $foundRow $k]
+                        set segIndex [lindex $found 0]
+                        set fragIndex [lindex $found 1]
+                        set seg [::dinah::dbGetSegment $y $segIndex]
+                        set segLength [llength $seg]
+                        for {set k 0} {$k < $segLength} {incr k} {
+                            set grid($k,0) [list $y $segIndex $k]
                         }
-                        set sc [list [lindex $found 1] 0]
+                        set sc [list $fragIndex 0]
                         set gridWidth 1
-                        set gridHeight $foundRowLength
+                        set gridHeight $segLength
                         setWRow [lindex $sc 0]
                         setWCol [lindex $sc 1]
                         return
@@ -827,10 +832,12 @@ itcl::class Dim {
                 } else {
                     foreach k $mainRow {
                         set j -1
-                        set found [::dinah::findInDim $y $k]
+                        set found [::dinah::dbFindInDim $y $k]
                         if {[llength $found] != 0} {
-                            set foundRow [lindex $found 0]
-                            lappend cols [list [::dinah::dbLGet $y $foundRow] $foundRow [lindex $found 1]]
+                            set segIndex [lindex $found 0]
+                            set fragIndex [lindex $found 1]
+                            set seg [::dinah::dbGetSegment $y $segIndex]
+                            lappend cols [list $seg $segIndex $fragIndex]
                         } else {
                             lappend cols {}
                         }
@@ -1099,7 +1106,7 @@ itcl::class Dim {
                 ::dinah::dbSetDim $x $newX
             } else {
                 set newId [::dinah::dbNewEmptyNode $type]
-                ::dinah::dbAppend $x [list $newId]
+                ::dinah::dbAppendSegmentToDim $x [list $newId]
             }
             buildAndGrid $newId
         }
@@ -1116,7 +1123,7 @@ itcl::class Dim {
 
     method copy {} {
         clearClipboard
-        ::dinah::dbAppend $::dinah::dimClipboard [list [scId]]
+        ::dinah::dbAppendSegmentToDim $::dinah::dimClipboard [list [scId]]
     }
 
     method copycat {} {
@@ -1217,44 +1224,49 @@ itcl::class Dim {
 
     method pasteIntoNewList {} {
         if {(! [dimIsNil]) && (! [clipboardEmpty])} {
-            ::dinah::dbAppend $x [list [clipboardLastItem]]
+            ::dinah::dbAppendSegmentToDim $x [list [clipboardLastItem]]
             buildAndGrid [clipboardLastItem]
         }
     }
- 
+
     method newListWithTxtNode {} {
         if {! [dimIsNil]} {
             set txtId [::dinah::dbNewEmptyNode Txt]
-            ::dinah::dbAppend $x [list $txtId]
+            ::dinah::dbAppendSegmentToDim $x [list $txtId]
             buildAndGrid $txtId
         }
     }
 
     method newRowFromPasteBefore {} {
-        if {[::dinah::findInDim $x [clipboardLastItem]] == {}} {
-            ::dinah::dbAppend $x [lsearch -not -exact -all -inline [list [clipboardLastItem] [scId]] {}]
+        if {![::dinah::dbNodeBelongsToDim $x [clipboardLastItem]} {
+            set newSegment [::dinah::removeEmptyFromList [list [clipboardLastItem] [scId]]]
+            ::dinah::dbAppendSegmentToDim $x $newSegment
         }
     }
 
     method newRowFromPasteAfter {} {
-        if {[::dinah::findInDim $x [clipboardLastItem]] == {}} {
-            ::dinah::dbAppend $x [lsearch -not -exact -all -inline [list [scId] [clipboardLastItem]] {}]
+        if {![::dinah::dbNodeBelongsToDim $x [clipboardLastItem]} {
+            set newSegment [::dinah::removeEmptyFromList [list [scId] [clipboardLastItem]]]
+            ::dinah::dbAppendSegmentToDim $x $newSegment
         }
     }
 
     method pasteClipboard {} {
         if {[::dinah::editable $x]} {
             set row {}
-            foreach frag [::dinah::dbLGet $::dinah::dimClipboard 0] {
-                if {[::dinah::findInDim $x $frag] == {}} {
+            foreach frag [::dinah::dbGetSegment $::dinah::dimClipboard 0] {
+                if {![::dinah::dbNodeBelongsToDim $x $frag]} {
                     lappend row $frag
                 } else {
-                    return
+                    return 0
                 }
             }
             if {$row != {}} {
-                ::dinah::dbAppend $x $row
+                ::dinah::dbAppendSegmentToDim $x $row
                 buildAndGrid [lindex $row 0]
+                return 1
+            } else {
+                return 0
             }
         }
     }
@@ -1265,7 +1277,7 @@ itcl::class Dim {
 
     method copySegmentToClipboard {} {
         clearClipboard
-        ::dinah::dbAppend $::dinah::dimClipboard [::dinah::dbLGet $x [scDimIndex]]
+        ::dinah::dbAppendSegmentToDim $::dinah::dimClipboard [::dinah::dbLGet $x [scDimIndex]]
     }
 
     method pasteBefore {} {

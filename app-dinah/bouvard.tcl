@@ -25,21 +25,21 @@ set ::dinah::fontsize 10
 set ::dinah::resolutions_suffix {""}
 
 proc specific_init_preamble {} {
-    ::dinah::newDim? $::dinah::dimAlternative
-    ::dinah::newDim? $::dinah::dimArchive
-    ::dinah::newDim? $::dinah::dimAttribute
-    ::dinah::newDim? $::dinah::dimChrono
-    ::dinah::newDim? $::dinah::dimClipboard
-    ::dinah::newDim? $::dinah::dimClone
-    ::dinah::newDim? $::dinah::dimContains
-    ::dinah::newDim? $::dinah::dimFragments
-    ::dinah::newDim? $::dinah::dimInfo
-    ::dinah::newDim? $::dinah::dimInit
-    ::dinah::newDim? $::dinah::dimNil
-    ::dinah::newDim? $::dinah::dimNote
-    ::dinah::newDim? $::dinah::dimSameLevel
-    ::dinah::newDim? $::dinah::dimTemp
-    ::dinah::newDim? $::dinah::dimTranscription
+    ::dinah::dbNewDim $::dinah::dimAlternative
+    ::dinah::dbNewDim $::dinah::dimArchive
+    ::dinah::dbNewDim $::dinah::dimAttribute
+    ::dinah::dbNewDim $::dinah::dimChrono
+    ::dinah::dbNewDim $::dinah::dimClipboard
+    ::dinah::dbNewDim $::dinah::dimClone
+    ::dinah::dbNewDim $::dinah::dimContains
+    ::dinah::dbNewDim $::dinah::dimFragments
+    ::dinah::dbNewDim $::dinah::dimInfo
+    ::dinah::dbNewDim $::dinah::dimInit
+    ::dinah::dbNewDim $::dinah::dimNil
+    ::dinah::dbNewDim $::dinah::dimNote
+    ::dinah::dbNewDim $::dinah::dimSameLevel
+    ::dinah::dbNewDim $::dinah::dimTemp
+    ::dinah::dbNewDim $::dinah::dimTranscription
     ::dinah::addToTxtMenu "auteur" "-background" "orange" "-foreground" "black"
     ::dinah::addToTxtMenu "concept" "-background" "forest green" "-foreground" "black"
     ::dinah::addToTxtMenu titre1 -font "$::dinah::font 15 underline"
@@ -83,10 +83,9 @@ proc quart3OnMoveCursor {container} {
 }
 
 proc bouvard:newNote {id} {
-    set found [::dinah::findInDim $::dinah::dimNote $id]
-    if {$found == {}} {
+    if {![::dinah::dbNodeBelongsToDim $::dinah::dimNote $id]} {
         set note [::dinah::dbNewEmptyNode Txt]
-        ::dinah::dbAppend $::dinah::dimNote [list $id $note]
+        ::dinah::dbAppendSegmentToDim $::dinah::dimNote [list $id $note]
     }
 }
 

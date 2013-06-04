@@ -70,9 +70,12 @@ itcl::class Tree {
     method loadTree {item} {
         if {! [itemIsVirgin $item]} { return }
         $tree itemconfigure $item -data [lreplace [$tree itemcget $item -data] 1 1 0] -fill black
-        set found [::dinah::findInDim $hierarchyDim [itemId $item]]
+        set found [::dinah::dbFindInDim $hierarchyDim [itemId $item]]
         if {$found != {}} {
-            set sonId [::dinah::dbLGet $hierarchyDim [list [lindex $found 0] [expr {[lindex $found 1] + 1}]]]
+            set segIndex [lindex $found 0]
+            set fragIndex [lindex $found 1]
+            set nextFragIndex [expr {$fragIndex + 1}]
+            set sonId [::dinah::dbGetFragment $hierarchyDim $segIndex $nextFragIndex]
             if {$sonId != {}} {
                 set son [insert $item $sonId]
                 loadSiblings $item $son
@@ -81,9 +84,12 @@ itcl::class Tree {
     }
 
     method loadSiblings {father item} {
-        set found [::dinah::findInDim $siblingDim [itemId $item]]
+        set found [::dinah::dbFindInDim $siblingDim [itemId $item]]
         if {$found != {}} {
-            set siblings [lrange [::dinah::dbLGet $siblingDim [lindex $found 0]] [expr {[lindex $found 1] + 1}] end]
+            set segIndex [lindex $found 0]
+            set fragIndex [lindex $found 1]
+            set nextFragIndex [expr {$fragIndex + 1}]
+            set siblings [lrange [::dinah::dbLGet $siblingDim $segIndex] $nextFragIndex end]
             if {$siblings != {}} {
                 foreach siblingId $siblings {
                     insert $father $siblingId
@@ -118,7 +124,7 @@ itcl::class Tree {
     method newSon {nodeId} {
         set newDbId [::dinah::dbNewEmptyNode Txt "label"]
         set fatherDbId [itemId $nodeId]
-        set found [::dinah::findInDim $hierarchyDim $fatherDbId]
+        set found [::dinah::dbFindInDim $hierarchyDim $fatherDbId]
         if {$found != {}} {
             set fatherSegmentIndex [lindex $found 0]
             set fatherPos [lindex $found 1]
@@ -127,16 +133,16 @@ itcl::class Tree {
                 ::dinah::dbAppendToSegment $hierarchyDim $fatherSegmentIndex $newDbId
             } else {
                 set fatherRightSibling [::dinah::dbLGet $hierarchyDim [list $fatherSegmentIndex [expr {$fatherPos + 1}]]]
-                set found [::dinah::findInDim $siblingDim $fatherRightSibling]
+                set found [::dinah::dbFindInDim $siblingDim $fatherRightSibling]
                 if {$found != {}} {
                     set fatherSiblingSegmentIndex [lindex $found 0]
                     ::dinah::dbAppendToSegment $siblingDim $fatherSiblingSegmentIndex $newDbId
                 } else {
-                    ::dinah::dbAppend $siblingDim [list $fatherRightSibling $newDbId]
+                    ::dinah::dbAppendSegmentToDim $siblingDim [list $fatherRightSibling $newDbId]
                 }
             }
         } else {
-            ::dinah::dbAppend $hierarchyDim [list $fatherDbId $newDbId]
+            ::dinah::dbAppendSegmentToDim $hierarchyDim [list $fatherDbId $newDbId]
         }
         updateLabel [insert $nodeId $newDbId]
     }
@@ -144,7 +150,7 @@ itcl::class Tree {
     method newSibling {nodeId} {
         set newDbId [::dinah::dbNewEmptyNode Txt "label"]
         set siblingDbId [itemId $nodeId]
-        set found [::dinah::findInDim $siblingDim $siblingDbId]
+        set found [::dinah::dbFindInDim $siblingDim $siblingDbId]
         if {$found != {}} {
             set siblingSegmentIndex [lindex $found 0]
             set siblingSegment [::dinah::dbGetSegment $siblingDim $siblingSegmentIndex]
@@ -154,7 +160,7 @@ itcl::class Tree {
             ::dinah::dbReplaceSegment $siblingDim $siblingSegmentIndex $newSiblingSegment
         } else {
             set insertIndex end
-            ::dinah::dbAppend $siblingDim [list $siblingDbId $newDbId]
+            ::dinah::dbAppendSegmentToDim $siblingDim [list $siblingDbId $newDbId]
         }
         updateLabel [insert [$tree parent $nodeId] $newDbId $insertIndex]
     }

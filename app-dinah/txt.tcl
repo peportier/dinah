@@ -134,7 +134,7 @@ itcl::class Txt {
 
     method initNewInterval {name fragId} {
         set noteId [::dinah::dbNewEmptyNode Txt "note ($fragId)"]
-        ::dinah::dbAppend $::dinah::dimNote [list $fragId $noteId]
+        ::dinah::dbAppendSegmentToDim $::dinah::dimNote [list $fragId $noteId]
         addIntervalToSortedDim $name $fragId
     }
 
@@ -399,10 +399,12 @@ itcl::class Txt {
                     set intervalId [dbIdFromTagName $v]
                     if {$intervalId ne ""} {
                         append XML "id=\"$intervalId\" "
-                        set found [::dinah::findInDim $::dinah::dimNote $intervalId]
+                        set found [::dinah::dbFindInDim $::dinah::dimNote $intervalId]
                         if {$found != {}} {
-                            set si [lindex $found 0]; set fi [lindex $found 1]
-                            set notesId [lindex [::dinah::dbLGet $::dinah::dimNote $si] end]
+                            set segIndex [lindex $found 0]
+                            set fragIndex [lindex $found 1]
+                            set seg [::dinah::dbGetSegment $::dinah::dimNote $segIndex]
+                            set notesId [lindex $seg end]
                             set t [::dinah::Txt #auto $notesId]
                             set textContent [$t textOnly]
                             itcl::delete object $t

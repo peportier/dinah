@@ -30,10 +30,12 @@ itcl::class Whiteboard {
     }
 
     method expand {id offset} {
-        set found [::dinah::findInDim [getCurrentDim] $id]
-        if {$found ne {}} {
-            set si [lindex $found 0]; set fi [lindex $found 1]
-            set otherId [::dinah::dbLGet [getCurrentDim] [list $si [expr {$fi + $offset}]]]
+        set found [::dinah::dbFindInDim [getCurrentDim] $id]
+        if {$found != {}} {
+            set segIndex [lindex $found 0]
+            set fragIndex [lindex $found 1]
+            set otherIndex [expr {$fragIndex + $offset}]
+            set otherId [::dinah::dbGetFragment [getCurrentDim] $segIndex $otherIndex]
             if {$otherId ne "" && [getItemFromId $otherId] eq ""} {
                 set item [getItemFromId $id]
                 set coords [$c coords $item]
@@ -82,12 +84,13 @@ itcl::class Whiteboard {
             set dim [$entry get]
             foreach id $idsOnBoard {
                 updateEdgesForId $id $id $color $dim
-                set found [::dinah::findInDim $::dinah::dimClone $id]
+                set found [::dinah::dbFindInDim $::dinah::dimClone $id]
                 if {$found ne ""} {
-                    set s [::dinah::dbLGet $::dinah::dimClone [lindex $found 0]]
-                    foreach clone $s {
-                        if {$s ne $id} {
-                            updateEdgesForId $id $clone $color $dim
+                    set segIndex [lindex $found 0]
+                    set seg [::dinah::dbGetSegment $::dinah::dimClone $segIndex]
+                    foreach cloneId $seg {
+                        if {$cloneId ne $id} {
+                            updateEdgesForId $id $cloneId $color $dim
                         }
                     }
                 }
@@ -96,31 +99,32 @@ itcl::class Whiteboard {
     }
 
     method updateEdgesForId {id cloneId color dim} {
-        set found [::dinah::findInDim $dim $cloneId]
-        if {$found ne ""} {
-            set s [::dinah::dbLGet $dim [lindex $found 0]]
-            set itemIndice [lindex $found 1]
+        set found [::dinah::dbFindInDim $dim $cloneId]
+        if {$found != {}} {
+            set segIndex [lindex $found 0]
+            set fragIndex [lindex $found 1]
+            set seg [::dinah::dbGetSegment $dim $segIndex]
             foreach other $idsOnBoard {
                 if {$other ne $id} {
-                    set otherIndice [lsearch $s $other]
-                    if {$otherIndice > -1} {
+                    set otherIndex [lsearch $seg $other]
+                    if {$otherIndex > -1} {
                         set e [::dinah::Edge #auto]
-                        if {$itemIndice == $otherIndice - 1} {
+                        if {$fragIndex == $otherIndex - 1} {
                             $e setFromId $id
                             $e setToId $other
                             $e setLineColor $color
                             $e setDirect
                             $edges add [namespace current]::$e
-                        } elseif {$itemIndice == $otherIndice + 1} {
+                        } elseif {$fragIndex == $otherIndex + 1} {
                             $e setFromId $other
                             $e setToId $id
                             $e setLineColor $color
                             $e setDirect
                             $edges add [namespace current]::$e
-                        } elseif {$itemIndice < $otherIndice} {
+                        } elseif {$fragIndex < $otherIndex} {
                             set interItems 0
-                            for {set i [expr {$itemIndice + 1}]} {$i < $otherIndice} {incr i} {
-                                if {[lindex $s $i] in $idsOnBoard} {
+                            for {set i [expr {$fragIndex + 1}]} {$i < $otherIndex} {incr i} {
+                                if {[lindex $seg $i] in $idsOnBoard} {
                                     set interItems 1
                                     break
                                 }
@@ -132,10 +136,10 @@ itcl::class Whiteboard {
                                 $e setIndirect
                                 $edges add [namespace current]::$e
                             }
-                        } elseif {$itemIndice > $otherIndice} {
+                        } elseif {$fragIndex > $otherIndex} {
                             set interItems 0
-                            for {set i [expr {$otherIndice + 1}]} {$i < $itemIndice} {incr i} {
-                                if {[lindex $s $i] in $idsOnBoard} {
+                            for {set i [expr {$otherIndex + 1}]} {$i < $fragIndex} {incr i} {
+                                if {[lindex $seg $i] in $idsOnBoard} {
                                     set interItems 1
                                     break
                                 }

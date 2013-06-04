@@ -137,10 +137,13 @@ namespace eval ::dinah::zonemaker {
         variable ::dinah::zonemaker::imageId
         variable ::dinah::zonemaker::fs
         set fs {}
-        set found [::dinah::findInDim $::dinah::dimFragments $imageId]
+        set found [::dinah::dbFindInDim $::dinah::dimFragments $imageId]
         if {$found != {}} {
-            if {[lindex $found 1] == 0} {
-                set fs [lrange [::dinah::dbLGet $::dinah::dimFragments [lindex $found 0]] 1 end]
+            set segIndex [lindex $found 0]
+            set fragIndex [lindex $found 1]
+            if {$fragIndex == 0} {
+                set seg [::dinah::dbGetSegment $::dinah::dimFragments $segIndex]
+                set fs [lrange $seg 1 end]
             } else {
                 error "an image fragment cannot be decomposed in fragments"
             }
@@ -220,22 +223,28 @@ namespace eval ::dinah::zonemaker {
         set id [::dinah::dbNew {isa Page label ""}]
         ::dinah::dbSetAttribute $id path [::dinah::dbGet $imageId,path]_frag$id
         ::dinah::dbSetAttribute $id coords $coords
-        set found [::dinah::findInDim $::dinah::dimFragments $imageId]
+        set found [::dinah::dbFindInDim $::dinah::dimFragments $imageId]
         if {$found == {}} {
             ::dinah::dbAppendSegmentToDim $::dinah::dimFragments [list $imageId $id]
         } else {
-            ::dinah::dbAppendToSegment $::dinah::dimFragments [lindex $found 0] $id
+            set segIndex [lindex $found 0]
+            ::dinah::dbAppendToSegment $::dinah::dimFragments $segIndex $id
         }
         rebuild_poly_images $id
     }
 
     proc delete_poly {id} {
-        set found [::dinah::findInDim $::dinah::dimFragments $id]
-        set seg [::dinah::dbGetSegment $::dinah::dimFragments [lindex $found 0]]
-        if {[llength $seg] == 2} {
-            ::dinah::dbRemoveSegment $::dinah::dimFragments [lindex $found 0]
+        set found [::dinah::dbFindInDim $::dinah::dimFragments $id]
+        if {$found == {}} {
+            return 0
         } else {
-            ::dinah::dbRemFragFromSeg $::dinah::dimFragments [lindex $found 0] $id
+            set segIndex [lindex $found 0]
+            set seg [::dinah::dbGetSegment $::dinah::dimFragments $segIndex]
+            if {[llength $seg] == 2} {
+                ::dinah::dbRemoveSegment $::dinah::dimFragments $segIndex
+            } else {
+                ::dinah::dbRemFragFromSeg $::dinah::dimFragments $segIndex $id
+            }
         }
     }
 

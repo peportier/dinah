@@ -50,24 +50,6 @@ proc mkObj {id parentW} {
     return ::dinah::$o
 }
 
-proc findInDim {dim id} {
-    if {[::dinah::dbExists $dim]} {
-        for {set i 0} {$i < [llength [::dinah::dbGet $dim]]} {incr i} {
-            set j [lsearch [::dinah::dbLGet $dim $i] $id]
-            if {$j > -1} {
-                return [list $i $j]
-            }
-        }
-    }
-    return {}
-}
-
-proc inDim {dim id} {
-    set found [::dinah::findInDim $dim $id]
-    if {$found != {}} { return 1 }
-    return 0
-}
-
 proc dimWin {{id {}} {x "d.nil"} {y "d.nil"} {parent {}}} {
     set d [::dinah::Dim #auto]
     focus [$d mkWindow $parent]
@@ -126,23 +108,6 @@ proc setConvert {path} {
     if {[file exists $path]} {
         set ::dinah::zonemaker::convert $path
     }
-}
-
-proc newDim? {dim} {
-    if {![::dinah::dbExists $dim] && [regexp {^d\..*} $dim]} {
-        ::dinah::dbAppend "dimensions" $dim
-        ::dinah::dbSetDim $dim {}
-        return 1
-    }
-    if {[regexp {^q\.(.*)} $dim -> match]} {
-        set terms [split $match]
-        if {![::dinah::dbExists $dim]} {
-            ::dinah::dbAppend dimensions $dim
-        }
-        ::dinah::dbSetDim $dim [list [::dinah::keywords $terms]]
-        return 1
-    }
-    return 0
 }
 
 proc keywords {qs} {
@@ -221,14 +186,14 @@ proc init {} {
 }
 
 proc subDim {d ds} {
-    ::dinah::newDim? $d
+    ::dinah::dbNewDim $d
     ::dinah::dbSetDim $d {}
     set X {}
     foreach dimName $ds {
         if {[::dinah::dbExists $dimName]} {
             lappend X [::dinah::dbGet $dimName]
         } else {
-            ::dinah::newDim? $dimName
+            ::dinah::dbNewDim $dimName
             #error "common.tcl: $dimName dimension doesn't exist"
         }
     }
@@ -268,19 +233,19 @@ proc order {dimIndex dimLinear newDim} {
           (! [::dinah::editable $newDim]) } {
         return 0
     }
-    ::dinah::newDim? $newDim
+    ::dinah::dbNewDim $newDim
     ::dinah::dbSetDim $newDim {}
     foreach s [::dinah::dbGet $dimLinear] {
         set newS {}
         foreach f $s {
-            set found [findInDim $dimIndex $f]
+            set found [dbFindInDim $dimIndex $f]
             if {$found != {}} {
                 set segIndex [lindex $found 0]
                 set fragIndex [lindex $found 1]
                 set id ""
-                if {$fragIndex == 0} { set id [::dinah::dbLGet $dimIndex [list $segIndex 1]] }
-                if {$fragIndex == 1} { set id [::dinah::dbLGet $dimIndex [list $segIndex 0]] }
-                if { ($id ne "") && ($id ni $newS) && ([::dinah::findInDim $newDim $id] == {}) } {
+                if {$fragIndex == 0} { set id [::dinah::dbGetFragment $dimIndex $segIndex 1] }
+                if {$fragIndex == 1} { set id [::dinah::dbGetFragment $dimIndex $segIndex 0] }
+                if { ($id ne "") && ($id ni $newS) && (![::dinah::dbNodeBelongsToDim $newDim $id]) } {
                     lappend newS $id
                 } else {
                     tk_messageBox -message "The following fragment is indexed twice by $dimIndex."
@@ -290,7 +255,7 @@ proc order {dimIndex dimLinear newDim} {
                 }
             }
         }
-        ::dinah::dbAppend $newDim $newS
+        ::dinah::dbAppendSegmentToDim $newDim $newS
     }
 }
 
@@ -323,9 +288,9 @@ proc every {t body} {
 proc newTree {rootName} {
     set rootId [::dinah::dbNewEmptyNode Txt $rootName]
     ::dinah::dbSetAttribute $rootId txt "text {$rootName\n} 1.0"
-    ::dinah::dbAppend $::dinah::dim0 [list $rootId]
-    ::dinah::dbAppend $::dinah::roots $rootId
-    ::dinah::newDim? [::dinah::treeDimName $rootId]
+    ::dinah::dbAppendSegmentToDim $::dinah::dim0 [list $rootId]
+    ::dinah::dbAppendSegmentToDim $::dinah::roots $rootId
+    ::dinah::dbNewDim [::dinah::treeDimName $rootId]
     return $rootId
 }
 
@@ -338,4 +303,8 @@ proc imageFilepaths {dbid} {
         lappend r [::dinah::dbGet base][::dinah::dbGet $dbid,path]$suffix[::dinah::dbGet imgExtension]
     }
     return r
+}
+
+proc removeEmptyFromList {list} {
+    return [lsearch -not -exact -all -inline $list {}]
 }

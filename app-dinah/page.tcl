@@ -205,7 +205,7 @@ itcl::class Page {
 
     method rotate90 {} {
         set oldpath [::dinah::dbGet $dbid,path]
-        if {[::dinah::inDim $::dinah::dimRotate $dbid]} {
+        if {[::dinah::dbNodeBelongsToDim $::dinah::dimRotate $dbid]} {
             set newpath $oldpath
         } else {
             set newpath [join [list $oldpath _rot] ""]
