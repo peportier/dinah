@@ -81,7 +81,7 @@ proc dbLGet {key index} {
 }
 
 proc dbGetSegment {dimName segIndex} {
-    if {[::dinah::isADim $dimName]} {
+    if {[::dinah::dbIsADim $dimName]} {
         return [::dinah::dbLGet $dimName $segIndex]
     } else {
         error "dbGetSegment: $dimName is not a dimension"
@@ -98,7 +98,7 @@ proc dbGetSegIndex {d dbid} {
 }
 
 proc dbGetFragment {dimName segIndex fragIndex} {
-    if {[::dinah::isADim $dimName]} {
+    if {[::dinah::dbIsADim $dimName]} {
         return [::dinah::dbLGet $dimName [list $segIndex $fragIndex]]
     } else {
         error "dbGetSegment: $dimName is not a dimension"
@@ -169,6 +169,10 @@ proc dbGetDimForId {dbid} {
         }
     }
     return $r
+}
+
+proc dbIsADim {dimName} {
+    expr { [lsearch [::dinah::dbGet "dimensions"] $dimName] > -1}
 }
 
 # dbInsertNodeIntoDim: insert node srcId into dimension
