@@ -407,9 +407,9 @@ itcl::class Dim {
         bind $t <Shift-Key-Right> [list $this wHorizByOneScreen 1]
         bind $t <Key-J> [list $this wHorizByOneScreen -1]
         bind $t <Shift-Key-Left> [list $this wHorizByOneScreen -1]
-        bind $t <Key-X> [list focus [$x_entry w]]
+        bind $t <Key-X> [list $x_entry getFocus]
         bind $t <Key-x> [list $this switchScDimsX]
-        bind $t <Key-Y> [list focus [$y_entry w]]
+        bind $t <Key-Y> [list $y_entry getFocus]
         bind $t <Key-y> [list $this switchScDimsY]
         bind $t <Return> [list $this query]
         #bind $t <Key-Z> [list $this z]
@@ -487,8 +487,6 @@ itcl::class Dim {
                     if {$found} {set found 0; break}
                 }
             }
-            $x_entry setSecondaryList $scDim
-            $y_entry setSecondaryList $scDim
         }
     }
 
@@ -513,8 +511,8 @@ itcl::class Dim {
     }
 
     method query {} {
-        set xEntryValue [[$x_entry w] get]
-        set yEntryValue [[$y_entry w] get]
+        set xEntryValue [$x_entry getValue]
+        set yEntryValue [$y_entry getValue]
         if {[regexp {^q\..*} $xEntryValue] || [regexp {^q\..*} $yEntryValue]} {
             blank
         }
@@ -1115,10 +1113,10 @@ itcl::class Dim {
     method reload {} { buildAndGrid [scId] }
 
     method updateEntries {} {
-        [$x_entry w] delete 0 end
-        [$x_entry w] insert end $x
-        [$y_entry w] delete 0 end
-        [$y_entry w] insert end $y
+        $x_entry blank
+        $x_entry pushText $x
+        $y_entry blank
+        $y_entry pushText $y
     }
 
     method copy {} {

@@ -8,7 +8,7 @@ itcl::class Whiteboard {
     private variable alphabeta {A B C D E F G H I J K L M N O P Q R S T U V W X Y Z}
     private variable boardNumber 0
     private variable b ;# array of tk buttond for each entry/dim
-    private variable d ;# array of tk entries for each dim e.g. [$d(0) get] could be "d.archive"
+    private variable d ;# array of Autocomplete objects for each dim e.g. [$d(0) getValue] could be "d.archive"
     private variable idsOnBoard {}
     private variable edges
     private variable colors ;# array of colors associated with each entry/dim
@@ -74,7 +74,7 @@ itcl::class Whiteboard {
     }
 
     method saveDim {i} {
-        ::dinah::dbSet board$boardNumber,dim$i [$d($i) get]
+        ::dinah::dbSet board$boardNumber,dim$i [$d($i) getValue]
     }
 
     method updateEdges {} {
@@ -198,7 +198,7 @@ itcl::class Whiteboard {
     method okDim {i} {
         saveDim $i
         reload
-        setCurrentDim [$d($i) get]
+        setCurrentDim [$d($i) getValue]
         foreach j {1 2 3 4 5} {
             $b($j) configure -borderwidth 1
         }
@@ -226,8 +226,7 @@ itcl::class Whiteboard {
         set f [frame $t.f -borderwidth 1 -bg black]
         set m [frame $t.m -borderwidth 1]
         foreach i {1 2 3 4 5} {
-            ::dinah::Autocomplete #auto $m.dim$i [::dinah::dbGet dimensions]
-            set d($i) $m.dim$i
+            set d($i) [::dinah::Autocomplete #auto $m.dim$i [::dinah::dbGet dimensions]]
             pack $m.dim$i -side left -padx 4 -pady 4
             set b($i) [button $m.color$i -text "__?__" -background $colors($i)]
             $b($i) configure -command [list $this okDim $i]
@@ -335,8 +334,8 @@ itcl::class Whiteboard {
         deleteBoard
         set boardNumber $k
         foreach n {1 2 3 4 5} {
-            $d($n) delete 0 end
-            catch {$d($n) insert end [::dinah::dbGet board$boardNumber,dim$n]}
+            $d($n) blank
+            catch {$d($n) pushText [::dinah::dbGet board$boardNumber,dim$n]}
         }
         foreach x $alphabeta {
             set i [::dinah::dbGet board$boardNumber,$x]
