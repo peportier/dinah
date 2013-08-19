@@ -22,13 +22,11 @@ itcl::class Dim {
     private variable busy 0
     private variable resolutionLabel ""
     public variable states {}; # states of the objects presented on this view (zoom level...)
-    private variable tree ""
     private variable numModifier ""
     private variable container ""
     private variable onMoveCursor ""
     private variable history {}
     private variable historyIndex 0
-    private variable listOfTreesMenu ""
     private variable dimMenu ""
     private variable btnMenu ""
 
@@ -43,7 +41,80 @@ itcl::class Dim {
     }
 
 
-    method setTreeNavDim {d} { $tree setNavDim $d}
+    public method setX {dim} { set x $dim }
+    public method getX {} { set x }
+    public method setY {dim} { set y $dim }
+    public method getY {} { set y }
+
+    public method updateEntries {} {
+        $x_entry blank
+        $x_entry pushText $x
+        $y_entry blank
+        $y_entry pushText $y
+    }
+
+    public method buildAndGrid {id} {
+        buildBoard $id
+        mkGrid
+    }
+
+    public method scRight {} {
+        if {! $busy} {
+            scHoriz [getNumModifier]
+            initNumModifier
+        }
+    }
+
+    public method scLeft {} {
+        if {! $busy} {
+            scHoriz -[getNumModifier]
+            initNumModifier
+        }
+    }
+
+    public method scDown {} {
+        if {! $busy} {
+            scVertic [getNumModifier]
+            initNumModifier
+        }
+    }
+
+    public method scUp {} {
+        if {! $busy} {
+            scVertic -[getNumModifier]
+            initNumModifier
+        }
+    }
+
+    public method query {} {
+        set xEntryValue [$x_entry getValue]
+        set yEntryValue [$y_entry getValue]
+        if {[regexp {^q\..*} $xEntryValue] || [regexp {^q\..*} $yEntryValue]} {
+            blank
+        }
+        setX $xEntryValue
+        setY $yEntryValue
+        updateEntries
+        ::dinah::dbNewDim $x
+        ::dinah::dbNewDim $y
+        buildAndGrid [scId]
+    }
+
+    public method scId {} { return [id [scCell]] }
+
+    public method setWWidth {nbColumns} {
+        if {$nbColumns > 0} {
+            set wWidth $nbColumns
+        }
+    }
+
+    public method setWHeight {nbRows} {
+        if {$nbRows > 0} {
+            set wHeight $nbRows
+        }
+    }
+
+    public method getFocus {} { focus $t }
 
     method addToHistory {} {
         if {([llength $history] > 0) && ($historyIndex != [expr {[llength $history] - 1}])} {
@@ -87,13 +158,6 @@ itcl::class Dim {
 
     method setOnMoveCursor {code} {
         set onMoveCursor $code
-    }
-
-    method getFocus {} { focus $t }
-
-    method buildAndGrid {id} {
-        buildBoard $id
-        mkGrid
     }
 
     method setContainer {c} {
@@ -200,22 +264,10 @@ itcl::class Dim {
         pack $f.menu.label -side left -padx 4 -pady 4
         pack $resolutionLabel -side left -padx 4 -pady 4
         pack $f.menu -side top -fill x
-        set main [panedwindow $f.main -handlesize 10 -showhandle 1]
-        pack $main -side top -fill both -expand yes
-        set tree [::dinah::Tree #auto]
-        set treeFrame [$tree mkWindow $main]
-        $tree bindDblClick [list $this openTreeItem]
-        $main add $treeFrame
-        set g [frame $main.grid -bg $::dinah::backgroundColor]
-        $main add $g
+        set g [frame $f.grid -bg $::dinah::backgroundColor]
+        pack $g -side top -fill both -expand yes
 
         set dimMenu [menu $f.dimMenu]
-        set treeMenu [menu $dimMenu.treeMenu]
-        set listOfTreesMenu [menu $treeMenu.listOfTreesMenu]
-        updateListOfTreesMenu
-        $treeMenu add command -label "new tree" -command [list $this newTree]
-        $treeMenu add cascade -label "list of trees" -menu $listOfTreesMenu
-        $dimMenu add cascade -label "trees" -menu $treeMenu
         $dimMenu add command -label "clear view (b)" -command [list $this blank]
         $dimMenu add command -label "swap dim (s)" -command [list $this swapDim]
         $dimMenu add command -label "next segment (o)" -command [list $this nextList 1]
@@ -225,9 +277,6 @@ itcl::class Dim {
         $dimMenu add command -label "segment -> clipboard" -command [list $this copySegmentToClipboard]
         $dimMenu add command -label "paste clipboard" -command [list $this pasteClipboard]
         $dimMenu add command -label "delete segment" -command [list $this deleteRow]
-        $dimMenu add command -label "nouvelle fenetre avec navigation" -command { ::dinah::desanti_navigation_win }
-        $dimMenu add command -label "nouvelle fenetre (Ctrl-n)" -command [list $this newWindow]
-        $dimMenu add command -label "exit (Ctrl-q)" -command {exit}
         bind $f.menu $::dinah::mouse(B3) [list tk_popup $dimMenu %X %Y]
         bind $f.menu <1> [list focus $t]
         bind $f.menu <1> +[list $this updateInfo]
@@ -509,20 +558,6 @@ itcl::class Dim {
         }
     }
 
-    method query {} {
-        set xEntryValue [$x_entry getValue]
-        set yEntryValue [$y_entry getValue]
-        if {[regexp {^q\..*} $xEntryValue] || [regexp {^q\..*} $yEntryValue]} {
-            blank
-        }
-        setX $xEntryValue
-        setY $yEntryValue
-        updateEntries
-        ::dinah::dbNewDim $x
-        ::dinah::dbNewDim $y
-        buildAndGrid [scId]
-    }
-
     method initGrid {} {
         grid rowconfigure $g all -uniform {} -weight 0
         grid columnconfigure $g all -uniform {} -weight 0
@@ -530,29 +565,9 @@ itcl::class Dim {
         foreach {pos o} [array get objects] { itcl::delete object $o }
     }
 
-    method setX {dim} { set x $dim }
-
-    method getX {} { set x }
-
-    method setY {dim} { set y $dim }
-
-    method getY {} { set y }
-
     method setWRow {i} { set wRow $i }
 
     method setWCol {j} { set wCol $j }
-
-    method setWWidth {nbColumns} {
-        if {$nbColumns > 0} {
-            set wWidth $nbColumns
-        }
-    }
-
-    method setWHeight {nbRows} {
-        if {$nbRows > 0} {
-            set wHeight $nbRows
-        }
-    }
 
     method incrWWidth {i} {
         setWWidth [expr {$wWidth + $i}]
@@ -734,20 +749,6 @@ itcl::class Dim {
         }
     }
 
-    method scRight {} {
-        if {! $busy} { 
-            scHoriz [getNumModifier] 
-            initNumModifier 
-        }
-    }
-
-    method scLeft {} {
-        if {! $busy} { 
-            scHoriz -[getNumModifier] 
-            initNumModifier 
-        }
-    }
-
     method scVertic {i} {
         if {![insideW [scRowIndex] [scColumnIndex]]} {return}
         set newScRow [expr {[scRowIndex] + $i}]
@@ -758,20 +759,6 @@ itcl::class Dim {
             addToHistory
             set scDimXCursor 0
             set scDimYCursor 0
-        }
-    }
-
-    method scDown {} {
-        if {! $busy} { 
-            scVertic [getNumModifier] 
-            initNumModifier 
-        }
-    }
-
-    method scUp {} {
-        if {! $busy} {
-            scVertic -[getNumModifier]
-            initNumModifier
         }
     }
 
@@ -1111,13 +1098,6 @@ itcl::class Dim {
 
     method reload {} { buildAndGrid [scId] }
 
-    method updateEntries {} {
-        $x_entry blank
-        $x_entry pushText $x
-        $y_entry blank
-        $y_entry pushText $y
-    }
-
     method copy {} {
         clearClipboard
         ::dinah::dbAppendSegmentToDim $::dinah::dimClipboard [list [scId]]
@@ -1133,7 +1113,6 @@ itcl::class Dim {
     method scDimName {} { return [lindex [scCell] 0] }
     method scDimIndex {} { return [lindex [scCell] 1] }
     method scItemIndex {} { return [lindex [scCell] 2] }
-    method scId {} { return [id [scCell]] }
 
     method scRowEmpty {} { return [expr {([llength [scCell]] != 3) || ([scDimName] ne $x)}] }
 
