@@ -1,4 +1,4 @@
-set TEST 1
+set TEST 0
 
 ###############
 # FOR TESTING #

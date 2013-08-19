@@ -83,8 +83,25 @@ itcl::class Page {
     }
 
     method specificLayout {} {
-        set canvas [::dinah::canvas'new $center.main -width 300 -height 300 \
-            -scrollregion [list 0 0 [currentResolutionMaxWidth] [currentResolutionMaxHeight]]]
+        set main [frame $center.main]
+        set resize [frame $main.resize -background black]
+        set canvas [canvas $main.canvas \
+          -xscrollcommand [list $c.xscroll set] \
+          -yscrollcommand [list $c.yscroll set] \
+          -highlightthickness 0 \
+          -borderwidth 0 \
+          -width 300 -height 300 \
+          -scrollregion [list 0 0 [currentResolutionMaxWidth] [currentResolutionMaxHeight]]]
+        scrollbar $main.xscroll -orient horizontal \
+          -command [list $canvas xview]
+        scrollbar $main.yscroll -orient vertical \
+          -command [list $canvas yview]
+        grid $canvas $main.yscroll -sticky news
+        grid $main.xscroll $resize -sticky ew
+        grid $resize -sticky news
+        grid rowconfigure $main 0 -weight 1
+        grid columnconfigure $main 0 -weight 1
+
         set zPlus [button $center.menu.zPlus -text "+" -command [list $this zoomOnClick 1]]
         set zMinus [button $center.menu.zMinus -text "-" -command [list $this zoomOnClick -1]]
         set rotate90 [button $center.menu.rotate90 -text "r" -command [list $this rotate90]]
