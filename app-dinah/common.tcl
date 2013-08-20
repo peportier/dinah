@@ -55,8 +55,7 @@ proc dimWin {{id {}} {x "d.nil"} {y "d.nil"} {parent {}}} {
     focus [$d mkWindow $parent]
     $d setX $x; $d setY $y
     $d updateEntries
-    $d buildBoard $id
-    $d mkGrid
+    $d buildAndGrid $id
     return $d
 }
 

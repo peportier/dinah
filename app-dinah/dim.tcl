@@ -18,10 +18,8 @@ itcl::class Dim {
     private variable scDim {}
     private variable scDimXCursor 0
     private variable scDimYCursor 0
-    private variable modes
     private variable busy 0
     private variable resolutionLabel ""
-    public variable states {}; # states of the objects presented on this view (zoom level...)
     private variable numModifier ""
     private variable container ""
     private variable onMoveCursor ""
@@ -30,16 +28,12 @@ itcl::class Dim {
     private variable dimMenu ""
     private variable btnMenu ""
 
-    constructor {} {
-        set modes(names) {nil navigation transcription notice}
-        set modes(current) 0
-        set modes(index) 0
-        set modes(nil) {{1 1 {d.nil d.nil}}}
-        set modes(navigation) {{4 4 {d.insert d.sameLevel} {hookNbArchivePages} {hookInitNavigation}} {1 4 {d.archive d.sameLevel}}}
-        set modes(transcription) {{1 2 {d.transcription d.archive}}}
-        set modes(notice) {{1 1 {d.archive d.nil} {} {hookInitNotice}} {4 4 {d.noticeLevel d.noticeElement}}}
-    }
+    constructor {} {}
 
+
+    ##################
+    # PUBLIC METHODS #
+    ##################
 
     public method setX {dim} { set x $dim }
     public method getX {} { set x }
@@ -116,28 +110,56 @@ itcl::class Dim {
 
     public method getFocus {} { focus $t }
 
-    method addToHistory {} {
-        if {([llength $history] > 0) && ($historyIndex != [expr {[llength $history] - 1}])} {
-            set history [lrange $history 0 $historyIndex]
-            set historyIndex [expr {[llength $history] - 1}]
-        }
-        set lastStep [lindex $history end]
-        if { ([lindex $lastStep 0] ne [scId]) ||
-             ([lindex $lastStep 1] ne [getX]) ||
-             ([lindex $lastStep 2] ne [getY]) } {
-            lappend history [list [scId] [getX] [getY]]
-            incr historyIndex
+    public method showBtnMenu {} {
+        tk_popup $dimMenu [winfo rootx $btnMenu] [winfo rooty $btnMenu]
+    }
+
+    public method gotoRowEnd {} { gotoRowEnds "end" }
+
+    public method gotoRowStart {} { gotoRowEnds 0 }
+
+    public method wHorizByOneScreen {{direction 1}} {
+        if { $busy } { return }
+        if {[wHoriz [expr {$direction * $wWidth}]]} {
+            set sc [list [scRowIndex] $wCol]
+            [$objects($sc) cget -frame] configure -borderwidth $::dinah::fragmentBorderWidth -bg red
+            updateInfo
         }
     }
 
-    method prevHistory {} {
+    public method incrWWidth {i} {
+        setWWidth [expr {$wWidth + $i}]
+        mkGrid
+    }
+
+    public method incrWHeight {i} {
+        setWHeight [expr {$wHeight + $i}]
+        mkGrid
+    }
+
+    public method clickBtnX {} {
+        switchScDimsX
+        addToHistory
+    }
+
+    public method clickBtnY {} {
+        switchScDimsY
+        addToHistory
+    }
+
+    public method clickBtnOK {} {
+        query
+        addToHistory
+    }
+
+    public method prevHistory {} {
         if {$historyIndex != 0} {
             incr historyIndex -1
             gotoHistory $historyIndex
         }
     }
 
-    method nextHistory {} {
+    public method nextHistory {} {
         if {  ([llength $history] > 0) &&
               ($historyIndex != [expr {[llength $history] - 1}])  } {
             incr historyIndex
@@ -145,70 +167,213 @@ itcl::class Dim {
         }
     }
 
-    method gotoHistory {index} {
-        setX [lindex [lindex $history $index] 1]
-        setY [lindex [lindex $history $index] 2]
+    public method blank {} {
+        set sc {}
+        setX "d.nil"
+        setY "d.nil"
         updateEntries
-        buildAndGrid [lindex [lindex $history $index] 0]
+        setWWidth 4
+        setWHeight 4
+        query
     }
 
-    method getTopFrame {} {
-        return $t
+    public method swapDim {} {
+        set oldY $y
+        setY $x
+        setX $oldY
+        updateEntries
+        buildAndGrid [scId]
     }
 
-    method setOnMoveCursor {code} {
-        set onMoveCursor $code
-    }
-
-    method setContainer {c} {
-        set container $c
-    }
-
-    method getContainer {} {
-        return $container
-    }
-
-    method gotoRowEnds {where} {
-        set r [scRow]
-        if {$r != {}} {
-            buildBoard [lindex $r $where]
-            mkGrid
+    public method nextList {{direction 1}} {
+        if {![scRowEmpty]} {
+            buildAndGrid [::dinah::dbLGet $x [list [expr {([scDimIndex] + $direction) % [llength [::dinah::dbGet $x]]}] 0]]
         }
     }
 
-    method gotoRowEnd {} { gotoRowEnds "end" }
-
-    method gotoRowStart {} { gotoRowEnds 0 }
-
-    method initNumModifier {} {
-        set numModifier ""
+    public method msgGoto {} {
+        global gotoEntryValue
+        toplevel .tGoto
+        label .tGoto.msg -text "Rejoindre la page :"
+        entry .tGoto.e -textvariable gotoEntryValue -borderwidth 3 -width 50
+        button .tGoto.ok -text "OK" -command [list $this msgGotoOK]
+        pack .tGoto.msg -expand 1 -fill x
+        pack .tGoto.e -fill x
+        pack .tGoto.ok -fill x
+        focus -force .tGoto.e
     }
 
-    method getNumModifier {} {
-        if {$numModifier eq ""} {return "1"}
-        return $numModifier
+    public method msgGotoOK {} {
+        global gotoEntryValue
+        goto $gotoEntryValue
+        destroy .tGoto
     }
 
-    method updateNumModifier {k} {
-        set numModifier [join [list $numModifier $k] ""] 
+    public method new {type {delta 1}} {
+        if { [::dinah::editable $x] } {
+            if { !( $sc eq {} ) } {
+                set dbid [scId]
+                set newX {}
+                set newId [::dinah::dbNewEmptyNode $type]
+                set found 0
+                foreach l [::dinah::dbGet $x] {
+                    set i [lsearch $l $dbid]
+                    if {$i > -1} {
+                        lappend newX [linsert $l [expr {$i + $delta}] $newId]
+                        set found 1
+                    } else {
+                        lappend newX $l
+                    }
+                }
+                if {! $found} {
+                    lappend newX [linsert [list $dbid] $delta $newId]
+                }
+                ::dinah::dbSetDim $x $newX
+            } else {
+                set newId [::dinah::dbNewEmptyNode $type]
+                ::dinah::dbAppendSegmentToDim $x [list $newId]
+            }
+            buildAndGrid $newId
+        }
     }
 
-    method clickBtnX {} {
-        switchScDimsX
-        addToHistory
+    public method copySegmentToClipboard {} {
+        clearClipboard
+        ::dinah::dbAppendSegmentToDim $::dinah::dimClipboard [::dinah::dbLGet $x [scDimIndex]]
     }
 
-    method clickBtnY {} {
-        switchScDimsY
-        addToHistory
+    public method pasteClipboard {} {
+        if {[::dinah::editable $x]} {
+            set row {}
+            foreach frag [::dinah::dbGetSegment $::dinah::dimClipboard 0] {
+                if {![::dinah::dbNodeBelongsToDim $x $frag]} {
+                    lappend row $frag
+                } else {
+                    return 0
+                }
+            }
+            if {$row != {}} {
+                ::dinah::dbAppendSegmentToDim $x $row
+                buildAndGrid [lindex $row 0]
+                return 1
+            } else {
+                return 0
+            }
+        }
     }
 
-    method clickBtnOK {} {
-        query
-        addToHistory
+    public method deleteRow {} {
+        if {[::dinah::editable $x] && [scRow] != {}} {
+            set cursor [scId]
+            ::dinah::dbRemoveSegment $x [scDimIndex]
+            buildAndGrid $cursor
+        }
     }
 
-    method mkWindow {{parent {}}} {
+    public method updateInfo {} {
+        set path ""
+        if {[::dinah::dbExists [scId],path]} {
+            set path [::dinah::dbGet [scId],path]
+        }
+        $f.menu.label configure -textvariable ::dinah::db([scId],label)
+        set scId [scId]
+        #set modeLabel [lindex $modes(names) $modes(current)]
+        wm title [winfo toplevel $t] "x: $x ; y: $y ; id: $scId ; wWidth: $wWidth ; wHeight: $wHeight ; $path"
+        scDim
+        eval $onMoveCursor
+    }
+
+    public method dropmenu {target src xcoord ycoord op type data} {
+        set srcId [lindex $data end]
+        set found [::dinah::dbFindInDim $x $srcId]
+        if {[::dinah::dbNodeBelongsToDim $x $srcId]} {
+            buildAndGrid $srcId
+        } elseif {[::dinah::dbAppendSegmentToDim $x [list $srcId]]} {
+            buildAndGrid $srcId
+        }
+    }
+
+    public method copy {} {
+        clearClipboard
+        ::dinah::dbAppendSegmentToDim $::dinah::dimClipboard [list [scId]]
+    }
+
+    public method copycat {} {
+        set l [::dinah::dbLGet $::dinah::dimClipboard 0]
+        lappend l [scId]
+        ::dinah::dbSetDim $::dinah::dimClipboard [list $l]
+    }
+
+    public method pasteBefore {} {
+        if {[::dinah::editable $x]} {
+            if {[newRow?]} {
+                newRowFromPasteBefore
+                buildAndGrid [scId]
+            } elseif {[noCycleOrDuplicate]} {
+                set newScRow [linsert [scRow] [scItemIndex] [clipboardLastItem]]
+                ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
+                buildAndGrid [scId]
+            }
+        }
+    }
+
+    public method pasteAfter {} {
+        if {[::dinah::editable $x]} {
+            if {[newRow?]} {
+                newRowFromPasteAfter
+                buildAndGrid [scId]
+            } elseif {[noCycleOrDuplicate]} {
+                if {[scOnLastItem]} {
+                    set newItemIndex end
+                } else {
+                    set newItemIndex [expr {[scItemIndex] + 1}]
+                }
+                set newScRow [linsert [scRow] $newItemIndex [clipboardLastItem]]
+                ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
+                buildAndGrid [scId]
+            }
+        }
+    }
+
+    public method method cut {} {copycat; delete}
+
+    public method delete {} {
+        set scRow [scRow]
+        if {[::dinah::editable $x] && [scRow] != {}} {
+            if {[llength [scRow]] == 1} {
+                set newScId {}
+                ::dinah::dbRemoveSegment $x [scDimIndex]
+            } else {
+                if {[scOnLastItem]} {
+                    set newScId [lindex [scRow] end-1]
+                } else {
+                    set newScId [lindex [scRow] [expr {[scItemIndex] + 1}]]
+                }
+                set newScRow [lreplace [scRow] [scItemIndex] [scItemIndex]]
+                ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
+            }
+            buildAndGrid $newScId
+        }
+    }
+
+    public method updateNumModifier {k} {
+        set numModifier [join [list $numModifier $k] ""]
+    }
+
+    # only used by Txt click method. Should do it another way.
+    public method getTopFrame {} {
+        return $t
+    }
+
+    public method setContainer {c} {
+        set container $c
+    }
+
+    public method getContainer {} {
+        return $container
+    }
+
+    public method mkWindow {{parent {}}} {
         if {$parent == {}} {
             set t [::dinah::newToplevel .t[::dinah::objname $this]]
         } else {
@@ -292,137 +457,66 @@ itcl::class Dim {
         return $t
     }
 
-    method showBtnMenu {} {
-        tk_popup $dimMenu [winfo rootx $btnMenu] [winfo rooty $btnMenu]
-    }
-
-    method updateListOfTreesMenu {} {
-        $listOfTreesMenu delete 0 end
-        $listOfTreesMenu add command -label navigation -command [list $this showNavTree]
-        set rootDic {}
-        foreach rootId [::dinah::dbGet $::dinah::roots] {
-            set rootName [::dinah::dbGet $rootId,label]
-            lappend rootDic [list $rootId $rootName]
-        }
-        foreach {rootId rootName} [join [lsort -dictionary -index 1 $rootDic]] {
-            $listOfTreesMenu add command -label $rootName -command [list $this showTree $rootId]
-        }
-
-    }
-
-    method newTree {} {
-        set newRootId [::dinah::newTree "tree"]
-        updateListOfTreesMenu
-        showTree $newRootId
-    }
-
-    method showTree {rootId} {
-        $tree writable
-        $tree setNavDim [::dinah::treeDimName $rootId]
-        [[$tree setRoot $rootId] setDim $::dinah::dim0 $::dinah::dim1] load
-        setX [::dinah::treeDimName $rootId]
-        setY $::dinah::dimNil
+    # used by Obj for adding a menu to an object when visible in a dim view and
+    # appearing on multiple dims. With this menu, a user selects a dim on which the object appears,
+    # and this dim will be set as the current y-dim for the dim container.
+    public method setYAndUpdate {yDim} {
+        setY $yDim
         updateEntries
-        buildAndGrid $rootId
+        buildAndGrid [scId]
     }
 
-    method showNavTree {} {
-        $tree readOnly
-        $tree setNavDim $::dinah::dimArchive
-        [[$tree setRoot [::dinah::dbGet archiveId]] setDim \
-          $::dinah::dimInsert $::dinah::dimSameLevel] load
-    }
-
-    method dropmenu {target src xcoord ycoord op type data} {
-        set srcId [lindex $data end]
-        set found [::dinah::dbFindInDim $x $srcId]
-        if {[::dinah::dbNodeBelongsToDim $x $srcId]} {
-            buildAndGrid $srcId
-        } elseif {[::dinah::dbAppendSegmentToDim $x [list $srcId]]} {
-            buildAndGrid $srcId
+    public method forEachObject {msg} {
+        foreach {xy o} [array get objects] {
+            catch {$o {*}$msg}
         }
     }
 
-    method openTreeItem {item} {
-        setX [$tree getNavDim]
-        setY $::dinah::dimNil
+    public method reload {} { buildAndGrid [scId] }
+
+    ###################
+    # PRIVATE METHODS #
+    ###################
+
+    method addToHistory {} {
+        if {([llength $history] > 0) && ($historyIndex != [expr {[llength $history] - 1}])} {
+            set history [lrange $history 0 $historyIndex]
+            set historyIndex [expr {[llength $history] - 1}]
+        }
+        set lastStep [lindex $history end]
+        if { ([lindex $lastStep 0] ne [scId]) ||
+             ([lindex $lastStep 1] ne [getX]) ||
+             ([lindex $lastStep 2] ne [getY]) } {
+            lappend history [list [scId] [getX] [getY]]
+            incr historyIndex
+        }
+    }
+
+    method gotoHistory {index} {
+        setX [lindex [lindex $history $index] 1]
+        setY [lindex [lindex $history $index] 2]
         updateEntries
-        buildAndGrid [$tree itemId $item]
+        buildAndGrid [lindex [lindex $history $index] 0]
     }
 
-    method hookInitNotice {} {
-        if {([scId] ne "") && ([::dinah::dbGet [scId],isa] eq "Page")} {
-            if {![::dinah::dbNodeBelongsToDim $::dinah::dimNoticeLevel [scId]]} {
-                set fragment {}
-                lappend fragment [scId]
-                set titrePropre [::dinah::dbNewEmptyNode Txt "titre propre"]
-                ::dinah::dbSetAttribute $titrePropre txt "text {titre propre :\n} 1.0"
-                lappend fragment $titrePropre
-                ::dinah::dbAppendSegmentToDim $::dinah::dimNoticeLevel $fragment
-                set fragment {}
-                lappend fragment $titrePropre
-                set titreForge [::dinah::dbNewEmptyNode Txt "titre forg\u00E9"]
-                ::dinah::dbSetAttribute $titreForge txt "text {titre forg\u00E9 :\n} 1.0"
-                lappend fragment $titreForge
-                lappend fragment [::dinah::dbNewEmptyNode Date "date"]
-                set notesDatation [::dinah::dbNewEmptyNode Txt "notes datation"]
-                ::dinah::dbSetAttribute $notesDatation txt "text {notes datation :\n} 1.0"
-                lappend fragment $notesDatation
-                set descriptionIntellectuelle [::dinah::dbNewEmptyNode Txt "description intellectuelle"]
-                ::dinah::dbSetAttribute $descriptionIntellectuelle txt "text {description intellectuelle :\n} 1.0"
-                lappend fragment $descriptionIntellectuelle
-                set sommaire [::dinah::dbNewEmptyNode Txt "sommaire"]
-                ::dinah::dbSetAttribute $sommaire txt "text {sommaire :\n} 1.0"
-                lappend fragment $sommaire
-                set notesSciPub [::dinah::dbNewEmptyNode Txt "notes scientifiques publiques"]
-                ::dinah::dbSetAttribute $notesSciPub txt "text {notes scientifiques publiques :\n} 1.0"
-                lappend fragment $notesSciPub
-                set notesSciPriv [::dinah::dbNewEmptyNode Txt "notes scientifiques priv\u00E9es"]
-                ::dinah::dbSetAttribute $notesSciPriv txt "text {notes scientifiques priv\u00E9es :\n} 1.0"
-                lappend fragment $notesSciPriv
-                set notesArchPub [::dinah::dbNewEmptyNode Txt "notes archivistiques publiques"]
-                ::dinah::dbSetAttribute $notesArchPub txt "text {notes archivistiques publiques :\n} 1.0"
-                lappend fragment $notesArchPub
-                set notesArchPriv [::dinah::dbNewEmptyNode Txt "notes archivistiques priv\u00E9es"]
-                ::dinah::dbSetAttribute $notesArchPriv txt "text {notes archivistiques priv\u00E9es :\n} 1.0"
-                lappend fragment $notesArchPriv
-                set autresNotesPub [::dinah::dbNewEmptyNode Txt "autres notes publiques"]
-                ::dinah::dbSetAttribute $autresNotesPub txt "text {autres notes publiques :\n} 1.0"
-                lappend fragment $autresNotesPub
-                set autresNotesPriv [::dinah::dbNewEmptyNode Txt "autres notes priv\u00E9es"]
-                ::dinah::dbSetAttribute $autresNotesPriv txt "text {autres notes priv\u00E9es :\n} 1.0"
-                lappend fragment $autresNotesPriv
-                ::dinah::dbAppendSegmentToDim $::dinah::dimNoticeElement $fragment
-            }
-            [[$tree setRoot [scId]] setDim $::dinah::dimNoticeLevel $::dinah::dimNoticeElement] load
+    method setOnMoveCursor {code} {
+        set onMoveCursor $code
+    }
+
+    method gotoRowEnds {where} {
+        set r [scRow]
+        if {$r != {}} {
+            buildAndGrid [lindex $r $where]
         }
     }
 
-    method hookInitNavigation {} {
-        if {[::dinah::dbGet [scId],isa] eq "Page"} {
-            [[$tree setRoot [scId]] setDim "d.insert" "d.sameLevel"] load
-        }
+    method initNumModifier {} {
+        set numModifier ""
     }
 
-    method hookNbArchivePages {obj} {
-        set dbid [$obj cget -dbid]
-        set found [::dinah::dbFindInDim "d.archive" $dbid]
-        if {[llength $found] != 0} {
-            set segIndex [lindex $found 0]
-            set seg [::dinah::dbGetSegment $::dinah::dimArchive $segIndex]
-            set nbPages [llength $seg]
-            $obj notificate "$nbPages page(s)"
-        }
-    }
-
-    method storeState {id cmd args} {
-        lappend states [list $id $cmd $args]
-    }
-
-    method updateState {obj} {
-        foreach {id cmd args} [concat {*}[lsearch -all -inline -exact -index 0 $states [$obj cget -dbid]]] {
-            eval $obj $cmd {*}$args
-        }
+    method getNumModifier {} {
+        if {$numModifier eq ""} {return "1"}
+        return $numModifier
     }
 
     method setBindings {} {
@@ -431,91 +525,27 @@ itcl::class Dim {
         }
 
         bind $t <Key-g> [list $this msgGoto]
-        #bind $t <Control-Key-l> [list $this incrWWidth 1]
-        #bind $t <Control-Key-Right> [list $this incrWWidth 1]
-        #bind $t <Control-Key-j> [list $this incrWWidth -1]
-        #bind $t <Control-Key-Left> [list $this incrWWidth -1]
-        #bind $t <Control-Key-i> [list $this incrWHeight 1]
-        #bind $t <Control-Key-Up> [list $this incrWHeight 1]
-        #bind $t <Control-Key-k> [list $this incrWHeight -1]
-        #bind $t <Control-Key-Down> [list $this incrWHeight -1]
-        bind $t <Key-l> [list $this scRight]
         bind $t <Key-Right> [list $this scRight]
-        bind $t <Key-j> [list $this scLeft]
         bind $t <Key-Left> [list $this scLeft]
-        bind $t <Key-k> [list $this scDown]
         bind $t <Key-Down> [list $this scDown]
-        bind $t <Key-i> [list $this scUp]
         bind $t <Key-Up> [list $this scUp]
-        #bind $t <Control-Key-L> [list $this wRight]
-        #bind $t <Control-Key-J> [list $this wLeft]
-        #bind $t <Control-Key-K> [list $this wDown]
-        #bind $t <Control-Key-I> [list $this wUp]
-        bind $t <Key-L> [list $this wHorizByOneScreen 1]
         bind $t <Shift-Key-Right> [list $this wHorizByOneScreen 1]
-        bind $t <Key-J> [list $this wHorizByOneScreen -1]
         bind $t <Shift-Key-Left> [list $this wHorizByOneScreen -1]
-        bind $t <Key-X> [list $x_entry getFocus]
-        bind $t <Key-x> [list $this switchScDimsX]
-        bind $t <Key-Y> [list $y_entry getFocus]
-        bind $t <Key-y> [list $this switchScDimsY]
         bind $t <Return> [list $this query]
-        #bind $t <Key-Z> [list $this z]
         bind $t <Key-n> [list $this new Txt]
-        #bind $t <Key-N> [list $this new Date]
-        #bind $t <Control-Key-N> [list $this new Struct]
-        #bind $t <Control-Key-r> [list $this new Link]
         bind $t <Control-Key-C> [list $this copy]
         bind $t <Control-Key-c> [list $this copycat]
         bind $t <Control-Key-V> [list $this pasteBefore]
         bind $t <Control-Key-v> [list $this pasteAfter]
         bind $t <Control-Key-x> [list $this cut]
         bind $t <Control-Key-d> [list $this delete]
-        #bind $t <Key-t> [list $this newWhiteboard]
-        bind $t <Control-Key-n> [list $this newWindow]
-        #bind $t <Key-W> [list $this newWindowOnCursor]
-        bind $t <Key-a> [list $this newTreeOnCursor]
         bind $t <Key-s> [list $this swapDim]
-        bind $t <Control-Key-q> {exit}
-        #bind $t <Control-Key-w> [list ::dinah::destroyToplevel $t]
-        #bind $t <Control-Key-n> {::dinah::switchFocus+} 
-        #bind $t <Control-Key-p> {::dinah::switchFocus-} 
-        #bind $t <Key-m> [list $this nextMode]
-        #bind $t <space> [list $this nextModeDim]
         bind $t <Key-o> [list $this nextList 1]
         bind $t <Key-O> [list $this nextList -1]
-        #bind $t <Control-Key-o> [list $this pasteIntoNewList]
-        #bind $t <Control-Key-O> [list $this newListWithTxtNode]
-        #bind $t <Control-Key-a> [list $this pasteClipboard]
         bind $t <Control-Key-b> [list $this blank]
         foreach k {0 1 2 3 4 5 6 7 8 9} {
             bind $t <Key-$k> [list $this updateNumModifier $k]
         }
-        #bind $t <Key-dollar> [list $this gotoRowEnd]
-    }
-
-    method blank {} {
-        set sc {}
-        setX "d.nil"
-        setY "d.nil"
-        updateEntries
-        setWWidth 4
-        setWHeight 4
-        query
-    }
-
-    method swapDim {} {
-        set oldY $y
-        setY $x
-        setX $oldY
-        $this updateEntries
-        buildAndGrid [scId]
-    }
-
-    method setYAndUpdate {yDim} {
-        setY $yDim
-        updateEntries
-        buildAndGrid [scId]
     }
 
     method scDim {} {
@@ -569,25 +599,6 @@ itcl::class Dim {
 
     method setWCol {j} { set wCol $j }
 
-    method incrWWidth {i} {
-        setWWidth [expr {$wWidth + $i}]
-        mkGrid
-    }
-
-    method incrWHeight {i} {
-        setWHeight [expr {$wHeight + $i}]
-        mkGrid
-    }
-
-    method wHorizByOneScreen {{direction 1}} {
-        if { $busy } { return }
-        if {[wHoriz [expr {$direction * $wWidth}]]} {
-            set sc [list [scRowIndex] $wCol]
-            [$objects($sc) cget -frame] configure -borderwidth $::dinah::fragmentBorderWidth -bg red
-            updateInfo
-        }
-    }
-
     method wHoriz {i} {
         if {(($wCol + $i) >= 0) && (($wCol + $i) < $gridWidth)} {
             incr wCol $i
@@ -626,95 +637,6 @@ itcl::class Dim {
         } else {
             return {}
         }
-    }
-
-    method updateInfo {} {
-        set path ""
-        if {[::dinah::dbExists [scId],path]} {
-            set path [::dinah::dbGet [scId],path]
-        }
-        $f.menu.label configure -textvariable ::dinah::db([scId],label)
-        set scId [scId]
-        #set modeLabel [lindex $modes(names) $modes(current)]
-        wm title [winfo toplevel $t] "x: $x ; y: $y ; id: $scId ; wWidth: $wWidth ; wHeight: $wHeight ; $path"
-        scDim
-        eval $onMoveCursor
-    }
-
-    method setMode {modeIndex} {
-        set modes(current) $modeIndex
-        set modes(index) 0
-        setModeDim
-        applyInitHooks
-    }
-
-    method setModeNil {} { setMode 0}
-    method setModeNotice {} { setMode 3}
-    method setModeTranscription {} { setMode 2}
-
-    method nextMode {} {
-        if {$modes(current) + 1 == [llength $modes(names)]} {
-            setMode 0
-            set modes(current) 0
-        } else {
-            setMode [expr {$modes(current) + 1}]
-        }
-    }
-
-    method nextModeDim {} {
-        set modeName [lindex $modes(names) $modes(current)]
-        if {$modes(index) + 1 == [llength $modes($modeName)]} {
-            set modes(index) 0
-        } else {
-            incr modes(index)
-        }
-        setModeDim
-    }
-
-    method setModeDim {} {
-        set modeName [lindex $modes(names) $modes(current)]
-        set newDims [lindex $modes($modeName) $modes(index) 2]
-        setX [lindex $newDims 0]
-        setY [lindex $newDims 1]
-        updateEntries
-        setWWidth [lindex $modes($modeName) $modes(index) 1]
-        setWHeight [lindex $modes($modeName) $modes(index) 0]
-        query
-    }
-
-    method getModeHooks {hookType} {
-        set modeName [lindex $modes(names) $modes(current)]
-        set hooks [lindex $modes($modeName) $modes(index) $hookType]
-    }
-
-    method applyNormalHooks {obj} {
-        foreach h [getModeHooks 3] {
-            eval $h $obj
-        }
-    }
-
-    method applyInitHooks {} {
-        foreach h [getModeHooks 4] {
-            eval $h
-        }
-    }
-
-    method msgGoto {} {
-        global gotoEntryValue
-        toplevel .tGoto
-        label .tGoto.msg -text "Rejoindre la page :"
-        entry .tGoto.e -textvariable gotoEntryValue -borderwidth 3 -width 50
-        button .tGoto.ok -text "OK" -command [list $this msgGotoOK] 
-        pack .tGoto.msg -expand 1 -fill x
-        pack .tGoto.e -fill x
-        pack .tGoto.ok -fill x
-        focus -force .tGoto.e
-    }
-
-    method msgGotoOK {} {
-        global gotoEntryValue
-        goto $gotoEntryValue
-        destroy .tGoto
     }
 
     method goto {match} {
@@ -996,8 +918,6 @@ itcl::class Dim {
 
         foreach {xy o} [array get objects] {
             $o z
-            updateState $o
-            applyNormalHooks $o
         }
 
         if {$twoVertic} {
@@ -1023,19 +943,13 @@ itcl::class Dim {
                     set colPathnames [lreverse [grid slaves $g -col $j]]
                     set firstVisibleRow [expr {[lsearch -exact $col [lindex $pos([lindex $colPathnames 0]) 0]] + 1}]
                     for {set i 0} {$i < [llength $colPathnames]} {incr i} {
-                        $objects($pos([lindex $colPathnames $i])) notificate [concat "col :" [expr {$firstVisibleRow + $i}] "/$colHeight ; "] 
+                        $objects($pos([lindex $colPathnames $i])) notificate [concat "col :" [expr {$firstVisibleRow + $i}] "/$colHeight ; "]
                     }
                 }
             }
         }
         focus $t
         set busy 0
-    }
-
-    method forEachObject {msg} {
-        foreach {xy o} [array get objects] {
-            catch {$o {*}$msg}
-        }
     }
 
     method z {} {
@@ -1068,52 +982,13 @@ itcl::class Dim {
                       ( ( $wRow <= $row ) && ( $row < ($wRow + $wHeight) ) )}]
     }
 
-    method new {type {delta 1}} {
-        if { [::dinah::editable $x] } {
-            if { !( $sc eq {} ) } {
-                set dbid [scId]
-                set newX {}
-                set newId [::dinah::dbNewEmptyNode $type]
-                set found 0
-                foreach l [::dinah::dbGet $x] {
-                    set i [lsearch $l $dbid]
-                    if {$i > -1} {
-                        lappend newX [linsert $l [expr {$i + $delta}] $newId]
-                        set found 1
-                    } else {
-                        lappend newX $l
-                    }
-                }
-                if {! $found} {
-                    lappend newX [linsert [list $dbid] $delta $newId]
-                }
-                ::dinah::dbSetDim $x $newX
-            } else {
-                set newId [::dinah::dbNewEmptyNode $type]
-                ::dinah::dbAppendSegmentToDim $x [list $newId]
-            }
-            buildAndGrid $newId
-        }
-    }
-
-    method reload {} { buildAndGrid [scId] }
-
-    method copy {} {
-        clearClipboard
-        ::dinah::dbAppendSegmentToDim $::dinah::dimClipboard [list [scId]]
-    }
-
-    method copycat {} {
-        set l [::dinah::dbLGet $::dinah::dimClipboard 0]
-        lappend l [scId]
-        ::dinah::dbSetDim $::dinah::dimClipboard [list $l]
-    }
-
     method scCell {} { return [cell [list [scRowIndex] [scColumnIndex]]] }
     method scDimName {} { return [lindex [scCell] 0] }
     method scDimIndex {} { return [lindex [scCell] 1] }
     method scItemIndex {} { return [lindex [scCell] 2] }
 
+    # if """[scDimName] ne $x""" it means that [scDimName] comes from the vertical/Y dim
+    # therefore in that case the selection cursor row is empty.
     method scRowEmpty {} { return [expr {([llength [scCell]] != 3) || ([scDimName] ne $x)}] }
 
     method scRow {} {
@@ -1126,33 +1001,6 @@ itcl::class Dim {
 
     method scOnLastItem {} {
         return [expr {[scItemIndex] == ([llength [scRow]] - 1)}]
-    }
-
-    method deleteRow {} {
-        if {[::dinah::editable $x] && [scRow] != {}} {
-            set cursor [scId]
-            ::dinah::dbRemoveSegment $x [scDimIndex]
-            buildAndGrid $cursor
-        }
-    }
-
-    method delete {} {
-        set scRow [scRow]
-        if {[::dinah::editable $x] && [scRow] != {}} {
-            if {[llength [scRow]] == 1} {
-                set newScId {}
-                ::dinah::dbRemoveSegment $x [scDimIndex]
-            } else {
-                if {[scOnLastItem]} {
-                    set newScId [lindex [scRow] end-1]
-                } else {
-                    set newScId [lindex [scRow] [expr {[scItemIndex] + 1}]]
-                }
-                set newScRow [lreplace [scRow] [scItemIndex] [scItemIndex]]
-                ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
-            }
-            buildAndGrid $newScId
-        }
     }
 
     method clipboardLastItem {} {
@@ -1227,88 +1075,7 @@ itcl::class Dim {
         }
     }
 
-    method pasteClipboard {} {
-        if {[::dinah::editable $x]} {
-            set row {}
-            foreach frag [::dinah::dbGetSegment $::dinah::dimClipboard 0] {
-                if {![::dinah::dbNodeBelongsToDim $x $frag]} {
-                    lappend row $frag
-                } else {
-                    return 0
-                }
-            }
-            if {$row != {}} {
-                ::dinah::dbAppendSegmentToDim $x $row
-                buildAndGrid [lindex $row 0]
-                return 1
-            } else {
-                return 0
-            }
-        }
-    }
-
     method clearClipboard {} {
         ::dinah::dbSetDim $::dinah::dimClipboard {}
-    }
-
-    method copySegmentToClipboard {} {
-        clearClipboard
-        ::dinah::dbAppendSegmentToDim $::dinah::dimClipboard [::dinah::dbLGet $x [scDimIndex]]
-    }
-
-    method pasteBefore {} {
-        if {[::dinah::editable $x]} {
-            if {[newRow?]} {
-                newRowFromPasteBefore
-                buildAndGrid [scId]
-            } elseif {[noCycleOrDuplicate]} {
-                set newScRow [linsert [scRow] [scItemIndex] [clipboardLastItem]]
-                ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
-                buildAndGrid [scId]
-            }
-        }
-    }
-
-    method pasteAfter {} {
-        if {[::dinah::editable $x]} {
-            if {[newRow?]} {
-                newRowFromPasteAfter
-                buildAndGrid [scId]
-            } elseif {[noCycleOrDuplicate]} {
-                if {[scOnLastItem]} {
-                    set newItemIndex end
-                } else {
-                    set newItemIndex [expr {[scItemIndex] + 1}]
-                }
-                set newScRow [linsert [scRow] $newItemIndex [clipboardLastItem]]
-                ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
-                buildAndGrid [scId]
-            }
-        }
-    }
-
-    method cut {} {copycat; delete}
-
-    method newWindow {} { focus [[::dinah::Container #auto] mkWindow] }
-
-    method newWhiteboard {} {
-        set d [::dinah::Whiteboard #auto]
-        focus [$d mkWindow]
-    }
-
-    method newWindowOnCursor {} {
-        ::dinah::dimWin [scId]
-    }
-
-    method newTreeOnCursor {} {
-        if {([scId] != {}) && ($x ne "") && ($y ne "")} {
-            [[$tree setRoot [scId]] setDim $x $y] load
-        }
-    }
-
-    method nextList {{direction 1}} {
-        if {![scRowEmpty]} {
-            buildAndGrid [::dinah::dbLGet $x [list [expr {([scDimIndex] + $direction) % [llength [::dinah::dbGet $x]]}] 0]]
-        }
     }
 }

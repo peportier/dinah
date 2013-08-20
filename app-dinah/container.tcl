@@ -33,7 +33,7 @@ itcl::class Container {
         foreach i {1 2 3 4} {
             set d [::dinah::dimWin {} $::dinah::dimNil $::dinah::dimNil $quart($i)]
             set dim($i) ::dinah::$d
-            $dim($i) setContainer $this 
+            $dim($i) setContainer $this
         }
         [::dinah::Whiteboard #auto] mkWindow $top
 
