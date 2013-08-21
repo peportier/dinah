@@ -1,25 +1,24 @@
 itcl::class Dim {
-    private variable x ""; # name of the x dimension 
-    private variable y ""; # name of the y dimension 
+    private variable x ""; # name of the x dimension
+    private variable y ""; # name of the y dimension
     private variable x_entry {};
     private variable y_entry {};
     private variable wWidth 4; # visible window width
     private variable wHeight 4;
     private variable wRow 0;
     private variable wCol 0;
-    private variable grid;
+    private variable grid; # grid data structure
     private variable gridWidth 0;
     private variable gridHeight 0;
     private variable sc {}; # selection cursor: {line_of_grid column_of_grid}
     private variable t {}; #toplevel
     private variable f {}; # frame
-    private variable g {}; # grid
+    private variable g {}; # grid frame
     private variable objects; # visible objects
     private variable scDim {}
     private variable scDimXCursor 0
     private variable scDimYCursor 0
     private variable busy 0
-    private variable resolutionLabel ""
     private variable numModifier ""
     private variable container ""
     private variable onMoveCursor ""
@@ -238,7 +237,7 @@ itcl::class Dim {
     }
 
     public method copySegmentToClipboard {} {
-        clearClipboard
+        ::dinah::dbClearClipboard
         ::dinah::dbAppendSegmentToDim $::dinah::dimClipboard [::dinah::dbLGet $x [scDimIndex]]
     }
 
@@ -294,7 +293,7 @@ itcl::class Dim {
     }
 
     public method copy {} {
-        clearClipboard
+        ::dinah::dbClearClipboard
         ::dinah::dbAppendSegmentToDim $::dinah::dimClipboard [list [scId]]
     }
 
@@ -310,7 +309,7 @@ itcl::class Dim {
                 newRowFromPasteBefore
                 buildAndGrid [scId]
             } elseif {[noCycleOrDuplicate]} {
-                set newScRow [linsert [scRow] [scItemIndex] [clipboardLastItem]]
+                set newScRow [linsert [scRow] [scItemIndex] [::dinah::dbClipboardLastItem]]
                 ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
                 buildAndGrid [scId]
             }
@@ -328,7 +327,7 @@ itcl::class Dim {
                 } else {
                     set newItemIndex [expr {[scItemIndex] + 1}]
                 }
-                set newScRow [linsert [scRow] $newItemIndex [clipboardLastItem]]
+                set newScRow [linsert [scRow] $newItemIndex [::dinah::dbClipboardLastItem]]
                 ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
                 buildAndGrid [scId]
             }
@@ -405,7 +404,6 @@ itcl::class Dim {
         entry $f.menu.label
         bindtags $f.menu.label [list $f.menu.label [winfo class $f.menu.label] all]
         bind $f.menu.label <Key-Escape> [list focus $t]
-        set resolutionLabel [label $f.menu.resolution -text ""]
         pack $btnMenu -side left -padx 4 -pady 4
         pack $btnBegin -side left -padx 4 -pady 4
         pack $btnLeftLeft -side left -padx 4 -pady 4
@@ -427,7 +425,6 @@ itcl::class Dim {
         pack $f.menu.prevHistory -side left -padx 4 -pady 4
         pack $f.menu.nextHistory -side left -padx 4 -pady 4
         pack $f.menu.label -side left -padx 4 -pady 4
-        pack $resolutionLabel -side left -padx 4 -pady 4
         pack $f.menu -side top -fill x
         set g [frame $f.grid -bg $::dinah::backgroundColor]
         pack $g -side top -fill both -expand yes
@@ -478,7 +475,7 @@ itcl::class Dim {
     # PRIVATE METHODS #
     ###################
 
-    method addToHistory {} {
+    private method addToHistory {} {
         if {([llength $history] > 0) && ($historyIndex != [expr {[llength $history] - 1}])} {
             set history [lrange $history 0 $historyIndex]
             set historyIndex [expr {[llength $history] - 1}]
@@ -492,34 +489,34 @@ itcl::class Dim {
         }
     }
 
-    method gotoHistory {index} {
+    private method gotoHistory {index} {
         setX [lindex [lindex $history $index] 1]
         setY [lindex [lindex $history $index] 2]
         updateEntries
         buildAndGrid [lindex [lindex $history $index] 0]
     }
 
-    method setOnMoveCursor {code} {
+    private method setOnMoveCursor {code} {
         set onMoveCursor $code
     }
 
-    method gotoRowEnds {where} {
+    private method gotoRowEnds {where} {
         set r [scRow]
         if {$r != {}} {
             buildAndGrid [lindex $r $where]
         }
     }
 
-    method initNumModifier {} {
+    private method initNumModifier {} {
         set numModifier ""
     }
 
-    method getNumModifier {} {
+    private method getNumModifier {} {
         if {$numModifier eq ""} {return "1"}
         return $numModifier
     }
 
-    method setBindings {} {
+    private method setBindings {} {
         if {[info exists objects($sc)]} {
             [$objects($sc) cget -frame] configure -borderwidth $::dinah::fragmentBorderWidth -bg red
         }
@@ -548,7 +545,7 @@ itcl::class Dim {
         }
     }
 
-    method scDim {} {
+    private method scDim {} {
         set scDim {}
         set id [scId]
         set found 0
@@ -568,7 +565,7 @@ itcl::class Dim {
         }
     }
 
-    method switchScDimsX {} {
+    private method switchScDimsX {} {
         set scDimLength [llength $scDim]
         if {$scDimLength > 0} {
             setX [lindex $scDim [expr {$scDimXCursor % $scDimLength}]]
@@ -578,7 +575,7 @@ itcl::class Dim {
         }
     }
 
-    method switchScDimsY {} {
+    private method switchScDimsY {} {
         set scDimLength [llength $scDim]
         if {$scDimLength > 0} {
             setY [lindex $scDim [expr {$scDimYCursor % $scDimLength}]]
@@ -588,18 +585,18 @@ itcl::class Dim {
         }
     }
 
-    method initGrid {} {
+    private method initGrid {} {
         grid rowconfigure $g all -uniform {} -weight 0
         grid columnconfigure $g all -uniform {} -weight 0
         foreach slave [grid slaves $g] { grid forget $slave ; destroy $slave }
         foreach {pos o} [array get objects] { itcl::delete object $o }
     }
 
-    method setWRow {i} { set wRow $i }
+    private method setWRow {i} { set wRow $i }
 
-    method setWCol {j} { set wCol $j }
+    private method setWCol {j} { set wCol $j }
 
-    method wHoriz {i} {
+    private method wHoriz {i} {
         if {(($wCol + $i) >= 0) && (($wCol + $i) < $gridWidth)} {
             incr wCol $i
             mkGrid
@@ -608,22 +605,22 @@ itcl::class Dim {
         return 0
     }
 
-    method wRight {} { wHoriz 1 }
+    private method wRight {} { wHoriz 1 }
 
-    method wLeft {} { wHoriz -1 }
+    private method wLeft {} { wHoriz -1 }
 
-    method wVertic {i} {
+    private method wVertic {i} {
         if {(($wRow + $i) >= 0) && (($wRow + $i) < $gridHeight)} {
             incr wRow $i
             mkGrid
         }
     }
 
-    method wDown {} { wVertic 1 }
+    private method wDown {} { wVertic 1 }
 
-    method wUp {} { wVertic -1 }
+    private method wUp {} { wVertic -1 }
 
-    method scRowIndex {} {
+    private method scRowIndex {} {
         if {[llength $sc] == 2} {
             return [lindex $sc 0]
         } else {
@@ -631,7 +628,7 @@ itcl::class Dim {
         }
     }
 
-    method scColumnIndex {} {
+    private method scColumnIndex {} {
         if {[llength $sc] == 2} {
             return [lindex $sc 1]
         } else {
@@ -639,7 +636,7 @@ itcl::class Dim {
         }
     }
 
-    method goto {match} {
+    private method goto {match} {
         set row [::dinah::dbLGet [scDimName] [scDimIndex]]
         for {set i 0} {$i < [llength $row]} {incr i} {
             if {[string match -nocase *$match* [::dinah::dbGet [lindex $row $i],label]]} {
@@ -649,11 +646,11 @@ itcl::class Dim {
         }
     }
 
-    method scHoriz {i} {
+    private method scHoriz {i} {
         if {![insideW [scRowIndex] [scColumnIndex]]} {return}
         set newScCol [expr {[scColumnIndex] + $i}]
         set exist [info exists grid([scRowIndex],$newScCol)]
-        if {$exist && !( $grid([scRowIndex],$newScCol) eq {} )} {
+        if {$exist && !( [cell [scRowIndex] $newScCol] eq {} )} {
             set row [scRowIndex]
             set col $newScCol
             set oldSc $sc
@@ -671,12 +668,12 @@ itcl::class Dim {
         }
     }
 
-    method scVertic {i} {
+    private method scVertic {i} {
         if {![insideW [scRowIndex] [scColumnIndex]]} {return}
         set newScRow [expr {[scRowIndex] + $i}]
         set exist [info exists grid($newScRow,[scColumnIndex])]
-        if {$exist && !( $grid($newScRow,[scColumnIndex]) eq {} )} {
-            buildAndGrid [id [cell [list $newScRow [scColumnIndex]]]]
+        if {$exist && !( [cell $newScRow [scColumnIndex]] eq {} )} {
+            buildAndGrid [id [cell $newScRow [scColumnIndex]]]
             mkGrid
             addToHistory
             set scDimXCursor 0
@@ -684,7 +681,7 @@ itcl::class Dim {
         }
     }
 
-    method buildBoard {{center {}}} {
+    private method buildBoard {{center {}}} {
         set mainRow {}
         set mainRowIndex {}
         set cols {}
@@ -751,16 +748,18 @@ itcl::class Dim {
                 }
             }
 
-            # complete columns with bottom distance:
-            # top is the distance from the first value of the col to the main row
-            # bottom etc.
-            set maxTop 0; # on all the rows, biggest top distance
-            set maxBottom 0;
+            # complete columns with bottom distances:
+            # for a given column, top    is the number of objects above the main row
+            # for a given column, bottom is the number of objects below the main row
+            # for a given column, fragIndex (i.e. [lindex $col 2]) is the value of top
+            # maxTop and maxBottom are used to compute the necessary height of the grid
+            set maxTop 0;    # will store the biggest top distance
+            set maxBottom 0; # will store the biggest bottom distance
             set newCols {}
             foreach col $cols {
                 if {! ($col eq {})} {
                     set top [lindex $col 2]
-                    set maxTop [expr {max($maxTop,$top)}] 
+                    set maxTop [expr {max($maxTop,$top)}]
                     set bottom [expr {[llength [lindex $col 0]] - $top - 1}]
                     set maxBottom [expr {max($maxBottom,$bottom)}]
                     lappend newCols [linsert $col end $bottom]
@@ -810,7 +809,7 @@ itcl::class Dim {
         setWCol  [lindex $sc 1]
     }
 
-    method focusLeft {} {
+    private method focusLeft {} {
         set left $wCol
         set right [expr {$gridWidth - ($left + $wWidth)}]
         if {$right < 0} {
@@ -822,13 +821,13 @@ itcl::class Dim {
         }
     }
 
-    method focusUp {} {
+    private method focusUp {} {
         set down [expr {$gridHeight - ($wRow + $wHeight)}] 
         if {$down < 0} {
             set top 0
             for {set i [expr {$wRow - 1}]} {$i >= 0} {incr i -1} {
                 for {set j $wCol} {$j < ($wCol + $wWidth)} {incr j} {
-                    if {! ([cell [list $i $j]] eq {})} {
+                    if {! ([cell $i $j] eq {})} {
                         set top [expr {$wRow - $i}]
                         break
                     }
@@ -837,14 +836,14 @@ itcl::class Dim {
             if {($top + $down) < 0} {
                 incr wRow [expr {- $top}]
             } else {
-                incr wRow $down    
+                incr wRow $down
             }
         }
     }
 
-    method optimizeScreenSpace {} { focusLeft; focusUp }
+    private method optimizeScreenSpace {} { focusLeft; focusUp }
 
-    method mkGrid {} {
+    private method mkGrid {} {
         set busy 1
         initGrid
         array unset objects
@@ -870,7 +869,7 @@ itcl::class Dim {
                 set absoluteI [expr {$wRow + $i}]
                 set absoluteJ [expr {$wCol + $j}]
                 set absolutePos [list $absoluteI $absoluteJ]
-                set objId [id [cell $absolutePos]] 
+                set objId [id [cell $absoluteI $absoluteJ]]
                 if {! ($objId eq {})} {
                     if {$usePanedwin} {
                         set o [::dinah::mkObj $objId $panedwin]
@@ -952,21 +951,21 @@ itcl::class Dim {
         set busy 0
     }
 
-    method z {} {
+    private method z {} {
         foreach {pos o} [array get objects] {
             $o z
         }
     }
 
-    method cell {gridPos} {
-        if {[info exists grid([lindex $gridPos 0],[lindex $gridPos 1])]} {
-            return $grid([lindex $gridPos 0],[lindex $gridPos 1])
+    private method cell {rowIndex columnIndex} {
+        if {[info exists grid($rowIndex,$columnIndex)]} {
+            return $grid($rowIndex,$columnIndex)
         } else {
             return {}
         }
     }
 
-    method id {cell} {
+    private method id {cell} {
         if {! ($cell eq {})} {
             if {[llength $cell] == 3} {
                 return [::dinah::dbLGet [lindex $cell 0] [list [lindex $cell 1] [lindex $cell 2]]]
@@ -977,21 +976,21 @@ itcl::class Dim {
         return {}
     }
 
-    method insideW {row col} {
+    private method insideW {row col} {
         return [expr {( ( $wCol  <= $col  ) && ( $col  < ($wCol + $wWidth)   ) ) &&
                       ( ( $wRow <= $row ) && ( $row < ($wRow + $wHeight) ) )}]
     }
 
-    method scCell {} { return [cell [list [scRowIndex] [scColumnIndex]]] }
-    method scDimName {} { return [lindex [scCell] 0] }
-    method scDimIndex {} { return [lindex [scCell] 1] }
-    method scItemIndex {} { return [lindex [scCell] 2] }
+    private method scCell {} { return [cell [scRowIndex] [scColumnIndex]] }
+    private method scDimName {} { return [lindex [scCell] 0] }
+    private method scDimIndex {} { return [lindex [scCell] 1] }
+    private method scItemIndex {} { return [lindex [scCell] 2] }
 
     # if """[scDimName] ne $x""" it means that [scDimName] comes from the vertical/Y dim
     # therefore in that case the selection cursor row is empty.
-    method scRowEmpty {} { return [expr {([llength [scCell]] != 3) || ([scDimName] ne $x)}] }
+    private method scRowEmpty {} { return [expr {([llength [scCell]] != 3) || ([scDimName] ne $x)}] }
 
-    method scRow {} {
+    private method scRow {} {
         if {! [scRowEmpty]} {
             return [::dinah::dbLGet $x [scDimIndex]]
         } else {
@@ -999,33 +998,29 @@ itcl::class Dim {
         }
     }
 
-    method scOnLastItem {} {
+    private method scOnLastItem {} {
         return [expr {[scItemIndex] == ([llength [scRow]] - 1)}]
     }
 
-    method clipboardLastItem {} {
-        return [::dinah::dbLGet $::dinah::dimClipboard {0 end}]
+    private method newRow? {} { return [expr {(! [dimIsNil]) && (! [::dinah::dbClipboardEmpty]) && [scRowEmpty]}] }
+
+    private method noCycleOrDuplicate {} {
+        return [expr {(! [dimIsNil]) && (! [::dinah::dbClipboardEmpty]) && (! [scRowEmpty]) && (! [pastingCycle]) && (! [pastingDuplicate])}]
     }
 
-    method newRow? {} { return [expr {(! [dimIsNil]) && (! [clipboardEmpty]) && [scRowEmpty]}] }
-
-    method noCycleOrDuplicate {} {
-        return [expr {(! [dimIsNil]) && (! [clipboardEmpty]) && (! [scRowEmpty]) && (! [pastingCycle]) && (! [pastingDuplicate])}]
-    }
-
-    method pastingCycle {} {
-        if {[clipboardLastItem] in [scRow]} {
+    private method pastingCycle {} {
+        if {[::dinah::dbClipboardLastItem] in [scRow]} {
             return 1
         } else {
             return 0
         }
     }
 
-    method pastingDuplicate {} {
+    private method pastingDuplicate {} {
         set scDimLength [llength [::dinah::dbGet [scDimName]]]
         for {set i 0} {$i < $scDimLength} {incr i} {
             if {$i != [scDimIndex]} {
-                if {[clipboardLastItem] in [::dinah::dbLGet [scDimName] $i]} {
+                if {[::dinah::dbClipboardLastItem] in [::dinah::dbLGet [scDimName] $i]} {
                     # item appearing twice in a dimension
                     return 1
                 }
@@ -1034,7 +1029,7 @@ itcl::class Dim {
         return 0
     }
 
-    method dimIsNil {} {
+    private method dimIsNil {} {
         if {$x eq "d.nil"} {
             return 1
         } else {
@@ -1042,18 +1037,14 @@ itcl::class Dim {
         }
     }
 
-    method clipboardEmpty {} {
-        return [expr {[clipboardLastItem] == {}}]
-    }
-
-    method pasteIntoNewList {} {
-        if {(! [dimIsNil]) && (! [clipboardEmpty])} {
-            ::dinah::dbAppendSegmentToDim $x [list [clipboardLastItem]]
-            buildAndGrid [clipboardLastItem]
+    private method pasteIntoNewList {} {
+        if {(! [dimIsNil]) && (! [::dinah::dbClipboardEmpty])} {
+            ::dinah::dbAppendSegmentToDim $x [list [::dinah::dbClipboardLastItem]]
+            buildAndGrid [::dinah::dbClipboardLastItem]
         }
     }
 
-    method newListWithTxtNode {} {
+    private method newListWithTxtNode {} {
         if {! [dimIsNil]} {
             set txtId [::dinah::dbNewEmptyNode Txt]
             ::dinah::dbAppendSegmentToDim $x [list $txtId]
@@ -1061,21 +1052,17 @@ itcl::class Dim {
         }
     }
 
-    method newRowFromPasteBefore {} {
-        if {![::dinah::dbNodeBelongsToDim $x [clipboardLastItem]} {
-            set newSegment [::dinah::removeEmptyFromList [list [clipboardLastItem] [scId]]]
+    private method newRowFromPasteBefore {} {
+        if {![::dinah::dbNodeBelongsToDim $x [::dinah::dbClipboardLastItem]} {
+            set newSegment [::dinah::removeEmptyFromList [list [::dinah::dbClipboardLastItem] [scId]]]
             ::dinah::dbAppendSegmentToDim $x $newSegment
         }
     }
 
-    method newRowFromPasteAfter {} {
-        if {![::dinah::dbNodeBelongsToDim $x [clipboardLastItem]} {
-            set newSegment [::dinah::removeEmptyFromList [list [scId] [clipboardLastItem]]]
+    private method newRowFromPasteAfter {} {
+        if {![::dinah::dbNodeBelongsToDim $x [::dinah::dbClipboardLastItem]} {
+            set newSegment [::dinah::removeEmptyFromList [list [scId] [::dinah::dbClipboardLastItem]]]
             ::dinah::dbAppendSegmentToDim $x $newSegment
         }
-    }
-
-    method clearClipboard {} {
-        ::dinah::dbSetDim $::dinah::dimClipboard {}
     }
 }

@@ -294,3 +294,16 @@ proc dbFindInDim {dim id} {
     return {}
 }
 
+
+proc dbClearClipboard {} {
+    ::dinah::dbSetDim $::dinah::dimClipboard {}
+}
+
+proc dbClipboardLastItem {} {
+    return [::dinah::dbLGet $::dinah::dimClipboard {0 end}]
+}
+
+proc dbClipboardEmpty {} {
+    return [expr {[::dinah::dbClipboardLastItem] == {}}]
+}
+
