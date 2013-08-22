@@ -26,6 +26,7 @@ set ::dinah::dimRotate "d.rotate"
 set ::dinah::roots "roots"
 set ::dinah::separatorSize 5
 set ::dinah::fragmentBorderWidth 2
+set ::dinah::selectionCursorColor red
 set ::dinah::backgroundColor antiqueWhite
 set ::dinah::closeColor blue
 set ::dinah::openColor black

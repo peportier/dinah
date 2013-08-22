@@ -34,9 +34,23 @@ itcl::class Dim {
     # PUBLIC METHODS #
     ##################
 
-    public method setX {dim} { set x $dim }
+    public method setX {dim} {
+        if {[::dinah::dbExists $dim]} {
+            set x $dim
+            return 1
+        } else {
+            return 0
+        }
+    }
     public method getX {} { set x }
-    public method setY {dim} { set y $dim }
+    public method setY {dim} {
+        if {[::dinah::dbExists $dim]} {
+            set y $dim
+            return 1
+        } else {
+            return 0
+        }
+    }
     public method getY {} { set y }
 
     public method updateEntries {} {
@@ -85,11 +99,11 @@ itcl::class Dim {
         if {[regexp {^q\..*} $xEntryValue] || [regexp {^q\..*} $yEntryValue]} {
             blank
         }
+        ::dinah::dbNewDim $xEntryValue
+        ::dinah::dbNewDim $yEntryValue
         setX $xEntryValue
         setY $yEntryValue
         updateEntries
-        ::dinah::dbNewDim $x
-        ::dinah::dbNewDim $y
         buildAndGrid [scId]
     }
 
@@ -121,7 +135,8 @@ itcl::class Dim {
         if { $busy } { return }
         if {[wHoriz [expr {$direction * $wWidth}]]} {
             set sc [list [scRowIndex] $wCol]
-            [$objects($sc) cget -frame] configure -borderwidth $::dinah::fragmentBorderWidth -bg red
+            [$objects($sc) cget -frame] configure -borderwidth $::dinah::fragmentBorderWidth \
+                                                  -bg $::dinah::selectionCursorColor
             updateInfo
         }
     }
@@ -517,10 +532,6 @@ itcl::class Dim {
     }
 
     private method setBindings {} {
-        if {[info exists objects($sc)]} {
-            [$objects($sc) cget -frame] configure -borderwidth $::dinah::fragmentBorderWidth -bg red
-        }
-
         bind $t <Key-g> [list $this msgGoto]
         bind $t <Key-Right> [list $this scRight]
         bind $t <Key-Left> [list $this scLeft]
@@ -654,12 +665,13 @@ itcl::class Dim {
             set row [scRowIndex]
             set col $newScCol
             set oldSc $sc
-            set sc [list $row $col] 
+            set sc [list $row $col]
             if {! [insideW $row $col]} {
                 wHoriz $i
             } else {
                 [$objects($oldSc) cget -frame] configure -borderwidth 0
-                [$objects($sc) cget -frame] configure -borderwidth $::dinah::fragmentBorderWidth -bg red
+                [$objects($sc) cget -frame] configure -borderwidth $::dinah::fragmentBorderWidth \
+                                                      -bg $::dinah::selectionCursorColor
             }
             updateInfo
             addToHistory
@@ -682,131 +694,140 @@ itcl::class Dim {
     }
 
     private method buildBoard {{center {}}} {
+        # center is the id of an object on which the selection cursor (sc)
+        # will be set
         set mainRow {}
-        set mainRowIndex {}
+        set mainRowSegIndex {}
         set cols {}
         array unset grid
         array set grid {}
         set sc {}
-        if {[::dinah::dbExists $x]} {
+        if {$center eq {}} {
+            set center [::dinah::dbLGet $x {0 0}]
             if {$center eq {}} {
-                set center [::dinah::dbLGet $x {0 0}]
+                # the board cannot be built because no center was given
+                # and the first fragment of the dim $x is empty
+                # which implies that the dim $x is empty since a dim
+                # should never have empty fragments
+                return 0
             }
-            if {$center eq {}} {
-                return
-            }
-            # main row:
-            set found [::dinah::dbFindInDim $x $center]
-            if {[llength $found] != 0} {
-                set segIndex [lindex $found 0]
-                set fragIndex [lindex $found 1]
-                set seg [::dinah::dbGetSegment $x $segIndex]
-                set mainRowIndex $segIndex
-                set mainRow $seg
-                set sc [list $fragIndex]
-            }
-            set gridWidth [llength $mainRow]
-            # cols:
-            if {[::dinah::dbExists $y]} {
-                if {$mainRow eq {}} {
-                    set found [::dinah::dbFindInDim $y $center]
-                    if {[llength $found] != 0} {
-                        set segIndex [lindex $found 0]
-                        set fragIndex [lindex $found 1]
-                        set seg [::dinah::dbGetSegment $y $segIndex]
-                        set segLength [llength $seg]
-                        for {set k 0} {$k < $segLength} {incr k} {
-                            set grid($k,0) [list $y $segIndex $k]
-                        }
-                        set sc [list $fragIndex 0]
-                        set gridWidth 1
-                        set gridHeight $segLength
-                        setWRow [lindex $sc 0]
-                        setWCol [lindex $sc 1]
-                        return
-                    }
-                    set sc {0 0}
-                    set gridWidth 1
-                    set gridHeight 1
-                    set grid(0,0) $center
-                    setWRow 0
-                    setWCol 0
-                    return
-                } else {
-                    foreach k $mainRow {
-                        set j -1
-                        set found [::dinah::dbFindInDim $y $k]
-                        if {[llength $found] != 0} {
-                            set segIndex [lindex $found 0]
-                            set fragIndex [lindex $found 1]
-                            set seg [::dinah::dbGetSegment $y $segIndex]
-                            lappend cols [list $seg $segIndex $fragIndex]
-                        } else {
-                            lappend cols {}
-                        }
-                    }
+        }
+        #
+        # From now on, $center refers to the id of an object
+        #
+        set centerFoundOnX [::dinah::dbFindInDim $x $center]
+        if {[llength $centerFoundOnX] == 0} {
+            set centerFoundOnY [::dinah::dbFindInDim $y $center]
+            if {[llength $centerFoundOnY] != 0} {
+                # the grid will consist of only one column
+                set segIndex [lindex $centerFoundOnY 0]
+                set fragIndex [lindex $centerFoundOnY 1]
+                set seg [::dinah::dbGetSegment $y $segIndex]
+                set segLength [llength $seg]
+                for {set k 0} {$k < $segLength} {incr k} {
+                    set grid($k,0) [list $y $segIndex $k]
                 }
-            }
-
-            # complete columns with bottom distances:
-            # for a given column, top    is the number of objects above the main row
-            # for a given column, bottom is the number of objects below the main row
-            # for a given column, fragIndex (i.e. [lindex $col 2]) is the value of top
-            # maxTop and maxBottom are used to compute the necessary height of the grid
-            set maxTop 0;    # will store the biggest top distance
-            set maxBottom 0; # will store the biggest bottom distance
-            set newCols {}
-            foreach col $cols {
-                if {! ($col eq {})} {
-                    set top [lindex $col 2]
-                    set maxTop [expr {max($maxTop,$top)}]
-                    set bottom [expr {[llength [lindex $col 0]] - $top - 1}]
-                    set maxBottom [expr {max($maxBottom,$bottom)}]
-                    lappend newCols [linsert $col end $bottom]
-                } else {
-                    lappend newCols {}
-                }
-            }
-            set gridHeight [expr {$maxBottom + $maxTop + 1}]
-            set sc [linsert $sc 0 $maxTop]
-            set cols $newCols
-
-            # grid:
-            for {set i 0} {$i < [llength $mainRow]} {incr i} {
-                set grid($maxTop,$i) [list $x $mainRowIndex $i]
-            }
-            for {set i 0} {$i < [llength $cols]} {incr i} {
-                if {[lindex $cols $i] eq {}} {
-                    for {set j 0} {$j < $maxTop} {incr j} {
-                        set grid($j,$i) {}
-                    }
-                    for {set j 0} {$j < $maxBottom} {incr j} {
-                        set grid([expr {$maxTop + 1 + $j}],$i) {}
-                    }
-                } else {
-                    set top [lindex $cols $i 2]
-                    set bottom [lindex $cols $i 3]
-                    set deltaTop [expr {$maxTop - $top}]
-                    set deltaBottom [expr {$maxBottom - $bottom}]
-                    for {set j 0} {$j < $deltaTop} {incr j} {
-                        set grid($j,$i) {}
-                    }
-                    for {set j 0} {$j < $top} {incr j} {
-                        set grid([expr {$j + $deltaTop}],$i) [list $y [lindex $cols $i 1] $j]
-                    }
-                    for {set j 0} {$j < $bottom} {incr j} {
-                        set grid([expr {$maxTop + 1 + $j}],$i) [list $y [lindex $cols $i 1] [expr {$top + 1 + $j}]]
-                    }
-                    for {set j 0} {$j < $deltaBottom} {incr j} {
-                        set grid([expr {$maxTop + 1 + $bottom + $j}],$i) {}
-                    }
-                }
+                set sc [list $fragIndex 0]
+                set gridWidth 1
+                set gridHeight $segLength
+                setWRow [lindex $sc 0]
+                setWCol [lindex $sc 1]
+                return 1
+            } else {
+                # the grid cannot be build since the $center belongs
+                # to neither the dim $x nor the dim $y
+                return 0
             }
         } else {
-            set sc {0 0}
+            # building the main row:
+            set segIndex [lindex $centerFoundOnX 0]
+            set fragIndex [lindex $centerFoundOnX 1]
+            set seg [::dinah::dbGetSegment $x $segIndex]
+            set mainRowSegIndex $segIndex
+            set mainRow $seg
+            # For now we are only able to set the column index of
+            # the selection cursor (sc). The row index will be set later.
+            set sc [list $fragIndex]
+            set gridWidth [llength $mainRow]
+
+            # building the columns:
+            foreach k $mainRow {
+                set found [::dinah::dbFindInDim $y $k]
+                if {[llength $found] != 0} {
+                    set segIndex [lindex $found 0]
+                    set fragIndex [lindex $found 1]
+                    set seg [::dinah::dbGetSegment $y $segIndex]
+                    lappend cols [list $seg $segIndex $fragIndex]
+                } else {
+                    lappend cols {}
+                }
+            }
+        }
+
+        # complete columns with bottom distances:
+        # for a given column, top    is the number of objects above the main row
+        # for a given column, bottom is the number of objects below the main row
+        # for a given column, fragIndex (i.e. [lindex $col 2]) is the value of top
+        # maxTop and maxBottom are used to compute the height of the grid
+        set maxTop 0;    # will store the biggest top distance
+        set maxBottom 0; # will store the biggest bottom distance
+        set newCols {}
+        foreach col $cols {
+            if {! ($col eq {})} {
+                set top [lindex $col 2]
+                set maxTop [expr {max($maxTop,$top)}]
+                set bottom [expr {[llength [lindex $col 0]] - $top - 1}]
+                set maxBottom [expr {max($maxBottom,$bottom)}]
+                lappend newCols [linsert $col end $bottom]
+            } else {
+                lappend newCols {}
+            }
+        }
+        set gridHeight [expr {$maxBottom + $maxTop + 1}]
+        # We can now complete the position of the selection cursor (sc)
+        # with its row index which is $maxTop since the first row of the
+        # grid is numbered 0
+        set sc [linsert $sc 0 $maxTop]
+        set cols $newCols
+
+        # grid:
+        for {set i 0} {$i < [llength $mainRow]} {incr i} {
+            # the line number of the mainRow is $maxTop
+            set grid($maxTop,$i) [list $x $mainRowSegIndex $i]
+        }
+        for {set i 0} {$i < [llength $cols]} {incr i} {
+            if {[lindex $cols $i] eq {}} {
+                # case of an empty column
+                for {set j 0} {$j < $maxTop} {incr j} {
+                    set grid($j,$i) {}
+                }
+                for {set j 0} {$j < $maxBottom} {incr j} {
+                    set grid([expr {$maxTop + 1 + $j}],$i) {}
+                }
+            } else {
+                # case of a non empty column
+                set segIndex [lindex $cols $i 1]
+                set top [lindex $cols $i 2]
+                set bottom [lindex $cols $i 3]
+                set deltaTop [expr {$maxTop - $top}]
+                set deltaBottom [expr {$maxBottom - $bottom}]
+                for {set j 0} {$j < $deltaTop} {incr j} {
+                    set grid($j,$i) {}
+                }
+                for {set j 0} {$j < $top} {incr j} {
+                    set grid([expr {$j + $deltaTop}],$i) [list $y $segIndex $j]
+                }
+                for {set j 0} {$j < $bottom} {incr j} {
+                    set grid([expr {$maxTop + 1 + $j}],$i) [list $y $segIndex [expr {$top + 1 + $j}]]
+                }
+                for {set j 0} {$j < $deltaBottom} {incr j} {
+                    set grid([expr {$maxTop + 1 + $bottom + $j}],$i) {}
+                }
+            }
         }
         setWRow [lindex $sc 0]
         setWCol  [lindex $sc 1]
+        return 1
     }
 
     private method focusLeft {} {
@@ -853,6 +874,10 @@ itcl::class Dim {
         set lastScreenRow 0
         set lastScreenCol 0
         array set id2obj {}
+
+        # special cases of grids of sizes 2x1 or 1x2
+        # the two windows of such grids will be inserted in a paned window
+        # for allowing the user to resize the windows
         set twoVertic [expr {(($wHeight == 2) && ($wWidth == 1)) ? 1 : 0}]
         set twoHoriz [expr {(($wHeight == 1) && ($wWidth == 2)) ? 1 : 0}]
         set usePanedwin 1
@@ -863,6 +888,7 @@ itcl::class Dim {
         } else {
             set usePanedwin 0
         }
+
         for {set i 0} {$i < $wHeight} {incr i} {
             set nbCols 0
             for {set j 0} {$j < $wWidth} {incr j} {
@@ -871,11 +897,18 @@ itcl::class Dim {
                 set absolutePos [list $absoluteI $absoluteJ]
                 set objId [id [cell $absoluteI $absoluteJ]]
                 if {! ($objId eq {})} {
+                    # In case of the use of a paned window
+                    # (i.e. shapes 2x1 and 1x2), the parent window
+                    # of the window associated to the object at position
+                    # ($absoluteI,$absoluteJ) of the grid data structure
+                    # must be the paned window.
+                    # Otherwise, the parent window is the frame $g
                     if {$usePanedwin} {
                         set o [::dinah::mkObj $objId $panedwin]
                     } else {
                         set o [::dinah::mkObj $objId $g]
                     }
+
                     lappend id2obj($objId) $o
                     $o configure -container $this
                     set objects($absolutePos) $o
@@ -885,7 +918,8 @@ itcl::class Dim {
                     if {[scRowIndex] == $absoluteI} {
                         $o openEW
                         if {[scColumnIndex] == $absoluteJ} {
-                            $w configure -borderwidth $::dinah::fragmentBorderWidth -bg red
+                            $w configure -borderwidth $::dinah::fragmentBorderWidth \
+                                         -bg $::dinah::selectionCursorColor
                         }
                     } else {
                         $o closeEW
@@ -919,16 +953,12 @@ itcl::class Dim {
             $o z
         }
 
-        if {$twoVertic} {
-
-        } elseif {$twoHoriz} {
-
-        } elseif {[scRowIndex] ne {} && [insideW [scRowIndex] $wCol]} {
+        if {(! $usePanedwin) && [scRowIndex] ne {} && [insideW [scRowIndex] $wCol]} {
             set mainRowPathnames [lreverse [grid slaves $g -row [expr {[scRowIndex]-$wRow}]]]
             set leftMostPathname [lindex $mainRowPathnames 0]
             set firstVisibleCol [expr {[lindex $pos($leftMostPathname) 1] + 1}]
             for {set i 0} {$i < [llength $mainRowPathnames]} {incr i} {
-                $objects($pos([lindex $mainRowPathnames $i])) notificate [concat "row :" [expr {$firstVisibleCol + $i}] "/$gridWidth ; "] 
+                $objects($pos([lindex $mainRowPathnames $i])) notificate [concat "row :" [expr {$firstVisibleCol + $i}] "/$gridWidth ; "]
             }
             for {set j 0} {$j < $wWidth} {incr j} {
                 set absoluteJ [expr {$wCol + $j}]
