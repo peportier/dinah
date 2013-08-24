@@ -40,7 +40,7 @@ proc dbRemoveSegment {dimName segIndex} {
 }
 
 proc dbSetAttribute {dbid att value} {
-    if {[info exists ::dinah::db($dbid,isa)]} {
+    if {[::dinah::dbExists $dbid,isa]} {
         ::dinah::dbSet $dbid,$att $value
         return 1
     } else {
@@ -307,3 +307,31 @@ proc dbClipboardEmpty {} {
     return [expr {[::dinah::dbClipboardLastItem] == {}}]
 }
 
+proc dbGetClipboard {} {
+    return [::dinah::dbGetSegment $::dinah::dimClipboard 0]
+}
+
+proc dbAddToCleanClipboard {dbId} {
+    if {::dinah::dbExists $dbId,isa} {
+        ::dinah::dbClearClipboard
+        ::dinah::dbAppendSegmentToDim $::dinah::dimClipboard [list $dbId]
+    } else {
+        error "::dinah::dbAddToCleanClipboard $dbId --> $dbId is not an object identifier"
+    }
+}
+
+proc dbAddToClipboard {dbId} {
+    if {::dinah::dbExists $dbId,isa} {
+        ::dinah::dbAppendToSegment $::dinah::dimClipboard 0 $dbId
+    } else {
+        error "::dinah::dbAddToClipboard $dbId --> $dbId is not an object identifier"
+    }
+}
+
+proc dbGetDimSize {dim} {
+    if {[::dinah::dbIsADim $dimName]} {
+        return [llength [::dinah::dbGet $dimName]]
+    } else {
+        error "::dinah::dbGetDimSize $dim --> $dim is not a dimension"
+    }
+}
