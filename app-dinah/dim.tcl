@@ -137,9 +137,10 @@ itcl::class Dim {
         if { $busy } { return }
         if {[wHoriz [expr {$direction * $wWidth}]]} {
             set sc [list [scRowIndex] $wCol]
-            [$objects($sc) cget -frame] configure -borderwidth $::dinah::fragmentBorderWidth \
-                                                  -bg $::dinah::selectionCursorColor
-            updateInfo
+            [$objects($sc) cget -frame] configure \
+                -borderwidth $::dinah::fragmentBorderWidth \
+                -bg $::dinah::selectionCursorColor
+            cursorWasRedrawn
         }
     }
 
@@ -155,17 +156,17 @@ itcl::class Dim {
 
     public method clickBtnX {} {
         switchScDimsX
-        addToHistory
+        cursorWasRedrawn
     }
 
     public method clickBtnY {} {
         switchScDimsY
-        addToHistory
+        cursorWasRedrawn
     }
 
     public method clickBtnOK {} {
         query
-        addToHistory
+        cursorWasRedrawn
     }
 
     public method prevHistory {} {
@@ -204,7 +205,8 @@ itcl::class Dim {
     public method nextList {{direction 1}} {
         if {![scRowEmpty]} {
             buildAndGrid [::dinah::dbLGet $x \
-                [list [expr {([scDimIndex] + $direction) % [::dinah::dbGetDimSize $x]}] 0]]
+                [list [expr { ([scDimIndex] + $direction) % \
+                              [::dinah::dbGetDimSize $x]       }] 0]]
         }
     }
 
@@ -243,7 +245,7 @@ itcl::class Dim {
                     }
                 }
                 if {! $found} {
-                    # this is the case if the grid is composed of only one column
+                    # if the grid is composed of only one column
                     lappend newX [linsert [list $dbid] $delta $newId]
                 }
                 ::dinah::dbSetDim $x $newX
@@ -259,30 +261,37 @@ itcl::class Dim {
     }
 
     public method copySegmentToClipboard {} {
-        ::dinah::dbClearClipboard
-        ::dinah::dbAppendSegmentToDim $::dinah::dimClipboard \
-            [::dinah::dbGetSegment $x [scDimIndex]]
+        ::dinah::dbAddSegmentToCleanClipboard $x [scDimIndex]
     }
 
-    public method pasteClipboard {} {
+    public method pasteClipboardIntoNewSegment {} {
         if {[::dinah::editable $x]} {
-            set row {}
-            foreach frag [::dinah::dbGetClipboard] {
-                if {![::dinah::dbNodeBelongsToDim $x $frag]} {
-                    lappend row $frag
-                } else {
-                    tk_messageBox -message "clipboard cannot be pasted since object \
-                                            $frag already belongs to dim $x" \
-                                  -icon error
-                    return 0
+            if {![::dinah::dbClipboardIsEmpty]} {
+                set row {}
+                foreach frag [::dinah::dbGetClipboard] {
+                    if {![::dinah::dbNodeBelongsToDim $x $frag]} {
+                        lappend row $frag
+                    } else {
+                        tk_messageBox -message "clipboard cannot be pasted \
+                                                since object $frag already \
+                                                belongs to dim $x" \
+                                      -icon error
+                        return 0
+                    }
                 }
-            }
-            if {$row != {}} {
-                ::dinah::dbAppendSegmentToDim $x $row
-                buildAndGrid [lindex $row 0]
-                return 1
+                if {$row != {}} {
+                    ::dinah::dbAppendSegmentToDim $x $row
+                    buildAndGrid [lindex $row 0]
+                    return 1
+                } else {
+                    error "pasteClipboardIntoNewSegment: should never happen"
+                }
             } else {
+                tk_messageBox -message "Cannot paste clipboard: \
+                                        clipboard is empty." \
+                              -icon error
                 return 0
+
             }
         } else {
             tk_messageBox -message "dim $x is read only" -icon error
@@ -290,13 +299,14 @@ itcl::class Dim {
         }
     }
 
-    public method deleteRow {} {
+    public method deleteSegment {} {
         if {[::dinah::editable $x] && [scRow] != {}} {
             ::dinah::dbRemoveSegment $x [scDimIndex]
             blank
             return 1
         } else {
-            tk_messageBox -message "the row cannot be removed since dimension $x is read only" \
+            tk_messageBox -message "the row cannot be removed since \
+                                    dimension $x is read only" \
                           -icon error
         }
     }
@@ -308,7 +318,9 @@ itcl::class Dim {
         }
         set label [::dinah::dbGet [scId],label]
         set scId [scId]
-        wm title [winfo toplevel $t] "x: $x ; y: $y ; id: $scId ; wWidth: $wWidth ; wHeight: $wHeight ; $label ; $path"
+        wm title [winfo toplevel $t] "x: $x ; y: $y ; id: $scId ; \
+                                      wWidth: $wWidth ; wHeight: $wHeight ; \
+                                      $label ; $path"
         scDim
         eval $onMoveCursor
     }
@@ -318,17 +330,20 @@ itcl::class Dim {
         set found [::dinah::dbFindInDim $x $srcId]
         if {[::dinah::dbNodeBelongsToDim $x $srcId]} {
             buildAndGrid $srcId
-        } elseif {[::dinah::dbAppendSegmentToDim $x [list $srcId]]} {
-            buildAndGrid $srcId
+        } else {
+            tk_messageBox -message "object $srcId does not belong to \
+                                    dimension $x" \
+                          -icon error
         }
     }
 
     public method copy {} {
         if {[scId] neq {}} {
-            ::dinah::dbAddToCleanClipboard [scId]
+            ::dinah::dbAddFragmentToCleanClipboard [scId]
             return 1
         } else {
-            tk_messageBox -message "copy impossible: no object under the selection cursor" \
+            tk_messageBox -message "copy impossible: no object under the \
+                                    selection cursor" \
                           -icon error
             return 0
         }
@@ -336,19 +351,20 @@ itcl::class Dim {
 
     public method copycat {} {
         if {[scId] neq {}} {
-            ::dinah::dbAddToClipboard [scId]
+            ::dinah::dbAddFragmentToClipboard [scId]
             return 1
         } else {
-            tk_messageBox -message "copy impossible: no object under the selection cursor" \
+            tk_messageBox -message "copy impossible: no object under the \
+                                    selection cursor" \
                           -icon error
             return 0
         }
     }
 
     public method pasteBefore {} {
-        if {[::dinah::editable $x] && (![::dinah::dbClipboardEmpty]) \
-                && (![scRowEmpty]) && [noCycleOrDuplicate]} {
-            set newScRow [linsert [scRow] [scItemIndex] [::dinah::dbClipboardLastItem]]
+        if {[pasteGuard]} {
+            set newScRow [linsert [scRow] [scItemIndex] \
+                                  [::dinah::dbClipboardLastItem]]
             ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
             buildAndGrid [scId]
             return 1
@@ -358,14 +374,14 @@ itcl::class Dim {
     }
 
     public method pasteAfter {} {
-        if {[::dinah::editable $x] && (![::dinah::dbClipboardEmpty]) \
-                && (![scRowEmpty]) && [noCycleOrDuplicate]} {
+        if {[pasteGuard]} {
             if {[scOnLastItem]} {
                 set newItemIndex end
             } else {
                 set newItemIndex [expr {[scItemIndex] + 1}]
             }
-            set newScRow [linsert [scRow] $newItemIndex [::dinah::dbClipboardLastItem]]
+            set newScRow [linsert [scRow] $newItemIndex \
+                                  [::dinah::dbClipboardLastItem]]
             ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
             buildAndGrid [scId]
             return 1
@@ -377,8 +393,8 @@ itcl::class Dim {
     public method method cut {} {copycat; delete}
 
     public method delete {} {
-        set scRow [scRow]
-        if {[::dinah::editable $x] && [scRow] != {}} {
+        if {[deleteGuard]} {
+            set scRow [scRow]
             if {[llength [scRow]] == 1} {
                 set newScId {}
                 ::dinah::dbRemoveSegment $x [scDimIndex]
@@ -392,6 +408,9 @@ itcl::class Dim {
                 ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
             }
             buildAndGrid $newScId
+            return 1
+        } else {
+            return 0
         }
     }
 
@@ -399,7 +418,7 @@ itcl::class Dim {
         set numModifier [join [list $numModifier $k] ""]
     }
 
-    # only used by Txt click method. Should do it another way.
+    # only used by Txt click method. Should do it another way (with a handler).
     public method getTopFrame {} {
         return $t
     }
@@ -418,83 +437,101 @@ itcl::class Dim {
         } else {
             set t $parent
         }
-        set f [frame $t.frame -borderwidth 1 -bg black -highlightcolor green -highlightthickness 1]
+        set f [frame $t.frame -borderwidth 1 -bg black -highlightcolor green \
+                              -highlightthickness 1]
+        pack $f -side top -fill both -expand yes
         frame $f.menu
-
-        set btnMenu [button $f.menu.btnMenu -text "M" -command [list $this showBtnMenu]]
-        set btnBegin [button $f.menu.btnBegin -text "|" -command [list $this gotoRowStart]]
-        set btnLeftLeft [button $f.menu.btnLeftLeft -text "<<" -command [list $this wHorizByOneScreen -1]]
-        set btnLeft [button $f.menu.btnLeft -text "<" -command [list $this scLeft]]
-        set btnDown [button $f.menu.btnDown -text "v" -command [list $this scDown]]
-        set btnUp [button $f.menu.btnUp -text "^" -command [list $this scUp]]
-        set btnRight [button $f.menu.btnRight -text ">" -command [list $this scRight]]
-        set btnRightRight [button $f.menu.btnRightRight -text ">>" -command [list $this wHorizByOneScreen 1]]
-        set btnEnd [button $f.menu.btnEnd -text "|" -command [list $this gotoRowEnd]]
-        set btnExtendX [button $f.menu.btnExtendX -text "+X" -command [list $this incrWWidth 1]]
-        set btnReduceX [button $f.menu.btnReduceX -text "-X" -command [list $this incrWWidth -1]]
-        set btnExtendY [button $f.menu.btnExtendY -text "+Y" -command [list $this incrWHeight 1]]
-        set btnReduceY [button $f.menu.btnReduceY -text "-Y" -command [list $this incrWHeight -1]]
-        set btnX [button $f.menu.btnX -text "X:" -command [list $this clickBtnX]]
-        set x_entry [::dinah::Autocomplete x_entry#auto $f.menu.x_entry [::dinah::dbGet dimensions]]
-        set btnY [button $f.menu.btnY -text "Y:" -command [list $this clickBtnY]]
-        set y_entry [::dinah::Autocomplete y_entry#auto $f.menu.y_entry [::dinah::dbGet dimensions]]
-        button $f.menu.ok -text "OK" -command [list $this clickBtnOK]
-        button $f.menu.prevHistory -text "<-" -command [list $this prevHistory]
-        button $f.menu.nextHistory -text "->" -command [list $this nextHistory]
-        pack $btnMenu -side left -padx 4 -pady 4
-        pack $btnBegin -side left -padx 4 -pady 4
-        pack $btnLeftLeft -side left -padx 4 -pady 4
-        pack $btnLeft -side left -padx 4 -pady 4
-        pack $btnDown -side left -padx 4 -pady 4
-        pack $btnUp -side left -padx 4 -pady 4
-        pack $btnRight -side left -padx 4 -pady 4
-        pack $btnRightRight -side left -padx 4 -pady 4
-        pack $btnEnd -side left -padx 4 -pady 4
-        pack $btnExtendX -side left -padx 4 -pady 4
-        pack $btnReduceX -side left -padx 4 -pady 4
-        pack $btnExtendY -side left -padx 4 -pady 4
-        pack $btnReduceY -side left -padx 4 -pady 4
-        pack $btnX -side left -padx 4 -pady 4
-        pack $f.menu.x_entry -side left -padx 4 -pady 4
-        pack $btnY -side left -padx 4 -pady 4
-        pack $f.menu.y_entry -side left -padx 4 -pady 4
-        pack $f.menu.ok -side left -padx 4 -pady 4
-        pack $f.menu.prevHistory -side left -padx 4 -pady 4
-        pack $f.menu.nextHistory -side left -padx 4 -pady 4
         pack $f.menu -side top -fill x
+        menubutton $f.menu.navigation -text "Nav" -menu $f.menu.navigation.m \
+                                      -underline 0
+        pack $f.menu.navigation -side left -padx 4 -pady 4
+        menu $f.menu.navigation.m
+        $f.menu.navigation.m add command -label "First" \
+            -command [list $this gotoRowStart] -underline 0
+        $f.menu.navigation.m add command -label "Last" \
+            -command [list $this gotoRowEnd] -underline 0
+        $f.menu.navigation.m add command -label "Extend window width" \
+            -command [list $this incrWWidth 1]
+        $f.menu.navigation.m add command -label "Reduce window width" \
+            -command [list $this incrWWidth -1]
+        $f.menu.navigation.m add command -label "Extend window height" \
+            -command [list $this incrWHeight 1]
+        $f.menu.navigation.m add command -label "Reduce window height" \
+            -command [list $this incrWHeight -1]
+        $f.menu.navigation.m add command -label "Previous history" \
+            -command [list $this prevHistory] -underline 0
+        $f.menu.navigation.m add command -label "Next history" \
+            -command [list $this nextHistory] -underline 0
+        $f.menu.navigation.m add command -label "Goto label" \
+            -command [list $this msgGoto] -underline 0
+        $f.menu.navigation.m add command -label "Reload" \
+            -command [list $this reload] -underline 0
+        menubutton $f.menu.edition -text "Edit" -menu $f.menu.edition.m \
+            -underline 0
+        pack $f.menu.edition -side left -padx 4 -pady 4
+        menu $f.menu.edition.m
+        $f.menu.edition.m add command -label "Clear view" \
+            -command [list $this blank] -underline 6
+        $f.menu.edition.m add command -label "Swap dimensions" \
+            -command [list $this swapDim] -underline 0
+        $f.menu.edition.m add command -label "Next segment" \
+            -command [list $this nextList 1] -underline 0
+        $f.menu.edition.m add command -label "Previous segment" \
+            -command [list $this nextList -1] -underline 0
+        $f.menu.edition.m add command -label "New text node" \
+            -command [list $this new Txt] -underline 4
+        $f.menu.edition.m add command -label "Copy segment to clipboard" \
+            -command [list $this copySegmentToClipboard]
+        $f.menu.edition.m add command -label "Paste clipboard into \
+                                              a new segment" \
+            -command [list $this pasteClipboardIntoNewSegment]
+        $f.menu.edition.m add command -label "Delete Segment" \
+            -command [list $this deleteSegment]
+        $f.menu.edition.m add command -label "Copy selection to \
+                                              clipboard (Ctrl+c)" \
+            -command [list $this copycat]
+        $f.menu.edition.m add command -label "Paste before selection (Ctrl+V)" \
+            -command [list $this pasteBefore]
+        $f.menu.edition.m add command -label "Paste after selection (Ctrl+v)" \
+            -command [list $this pasteAfter]
+        $f.menu.edition.m add command -label "Cut selection to clipboard \
+                                              (Ctrl+x)" \
+            -command [list $this cut]
+        $f.menu.edition.m add command -label "Delete selection from fragment \
+                                              (Ctrl+d)" \
+            -command [list $this delete]
+        button $f.menu.btnX -text "X:" -command [list $this clickBtnX]
+        pack $f.menu.btnX -side left -padx 4 -pady 4
+        set x_entry [::dinah::Autocomplete x_entry#auto $f.menu.x_entry \
+            [::dinah::dbGet dimensions]]
+        pack $f.menu.x_entry -side left -padx 4 -pady 4
+        button $f.menu.btnY -text "Y:" -command [list $this clickBtnY]
+        pack $f.menu.btnY -side left -padx 4 -pady 4
+        set y_entry [::dinah::Autocomplete y_entry#auto $f.menu.y_entry \
+            [::dinah::dbGet dimensions]]
+        pack $f.menu.y_entry -side left -padx 4 -pady 4
+        button $f.menu.ok -text "OK" -command [list $this clickBtnOK]
+        pack $f.menu.ok -side left -padx 4 -pady 4
         set g [frame $f.grid -bg $::dinah::backgroundColor]
         pack $g -side top -fill both -expand yes
 
-        set dimMenu [menu $f.dimMenu]
-        $dimMenu add command -label "clear view (b)" -command [list $this blank]
-        $dimMenu add command -label "swap dim (s)" -command [list $this swapDim]
-        $dimMenu add command -label "next segment (o)" -command [list $this nextList 1]
-        $dimMenu add command -label "prev segment (O)" -command [list $this nextList -1]
-        $dimMenu add command -label "goto label" -command [list $this msgGoto]
-        $dimMenu add command -label "new Txt (n)" -command [list $this new Txt]
-        $dimMenu add command -label "segment -> clipboard" -command [list $this copySegmentToClipboard]
-        $dimMenu add command -label "paste clipboard" -command [list $this pasteClipboard]
-        $dimMenu add command -label "delete segment" -command [list $this deleteRow]
-        bind $f.menu $::dinah::mouse(B3) [list tk_popup $dimMenu %X %Y]
         bind $f.menu <1> [list focus $t]
-        bind $f.menu <1> +[list $this updateInfo]
 
-        DropSite::register $f.menu -dropcmd [list $this dropmenu] -droptypes {Obj copy}
+        DropSite::register $f.menu -dropcmd [list $this dropmenu] \
+            -droptypes {Obj copy}
 
         initGrid
-
         setBindings
-
         focus $t
-        pack $f -side top -fill both -expand yes
         return $t
     }
 
     # used by Obj for adding a menu to an object when visible in a dim view and
-    # appearing on multiple dims. With this menu, a user selects a dim on which the object appears,
-    # and this dim will be set as the current y-dim for the dim container.
-    public method setYAndUpdate {yDim} {
-        setY $yDim
+    # appearing on multiple dims. With this menu, a user selects a dim on which 
+    # the object appears,
+    # and this dim will be set as the current x-dim for the dim container.
+    public method setXAndUpdate {dim} {
+        setX $dim
         updateEntries
         buildAndGrid [scId]
     }
@@ -507,9 +544,87 @@ itcl::class Dim {
 
     public method reload {} { buildAndGrid [scId] }
 
+    public method wRight {} { wHoriz 1 }
+
+    public method wLeft {} { wHoriz -1 }
+
+    public method wDown {} { wVertic 1 }
+
+    public method wUp {} { wVertic -1 }
+
     ###################
     # PRIVATE METHODS #
     ###################
+
+    private method guardXEmpty {} {
+        if {$x eq ""} {
+            tk_messageBox -message "action impossible: no dimension set \
+                                    on axis x" \
+                          -icon error
+            return 0
+        } else {
+            return 1
+        }
+    }
+
+    private method guardXReadOnly {} {
+        if {![::dinah::editable $x]} {
+            tk_messageBox -message "action impossible: dimension $x \
+                                    is readonly" \
+                          -icon error
+            return 0
+        } else {
+            return 1
+        }
+    }
+
+    private method guardClipboardEmpty {} {
+        if {[::dinah::dbClipboardIsEmpty]} {
+            tk_messageBox -message "action impossible: the clipboard is empty" \
+                          -icon error
+            return 0
+        } else {
+            return 1
+        }
+    }
+
+    private method guardScRowEmpty {} {
+        if {[scRow] eq {}} {
+            tk_messageBox -message "action impossible: the main row is empty" \
+                          -icon error
+            return 0
+        } else {
+            return 1
+        }
+    }
+
+    private method guardCycleOrDuplicate {} {
+        if {![noCycleOrDuplicate]} {
+            tk_messageBox -message "action impossible: the object to be \
+                                    pasted already belongs to dimension $x" \
+                          -icon error
+            return 0
+        } else {
+            return 1
+        }
+    }
+
+    private method pasteGuard {} {
+        if { [guardXEmpty] && [guardXReadOnly] && [guardClipboardEmpty] && \
+             [guardScRowEmpty] && [guardCycleOrDuplicate] } {
+            return 1
+        } else {
+            return 0
+        }
+    }
+
+    private method deleteGuard {} {
+        if { [guardXEmpty] && [guardXReadOnly] && [guardScRowEmpty] } {
+            return 1
+        } else {
+            return 0
+        }
+    }
 
     private method addToHistory {} {
         # if we went back some action in current history
@@ -520,7 +635,8 @@ itcl::class Dim {
         # and we initiate a new action a6, then history becomes
         # a1 a2 a3 a6
         #          ^
-        if {([llength $history] > 0) && ($historyIndex != [expr {[llength $history] - 1}])} {
+        if {([llength $history] > 0) && \
+            ($historyIndex != [expr {[llength $history] - 1}])} {
             set history [lrange $history 0 $historyIndex]
             set historyIndex [expr {[llength $history] - 1}]
         }
@@ -564,34 +680,34 @@ itcl::class Dim {
     }
 
     private method setBindings {} {
-        bind $t <Key-g> [list $this msgGoto]
         bind $t <Key-Right> [list $this scRight]
         bind $t <Key-Left> [list $this scLeft]
         bind $t <Key-Down> [list $this scDown]
         bind $t <Key-Up> [list $this scUp]
         bind $t <Shift-Key-Right> [list $this wHorizByOneScreen 1]
         bind $t <Shift-Key-Left> [list $this wHorizByOneScreen -1]
-        bind $t <Return> [list $this query]
-        bind $t <Key-n> [list $this new Txt]
-        bind $t <Control-Key-C> [list $this copy]
+        bind $t <Control-Key-Left> [list $this wLeft]
+        bind $t <Control-Key-Right> [list $this wRight]
+        bind $t <Control-Key-Up> [list $this wUp]
+        bind $t <Control-Key-Down> [list $this wDown]
         bind $t <Control-Key-c> [list $this copycat]
         bind $t <Control-Key-V> [list $this pasteBefore]
         bind $t <Control-Key-v> [list $this pasteAfter]
         bind $t <Control-Key-x> [list $this cut]
         bind $t <Control-Key-d> [list $this delete]
-        bind $t <Key-s> [list $this swapDim]
-        bind $t <Key-o> [list $this nextList 1]
-        bind $t <Key-O> [list $this nextList -1]
-        bind $t <Control-Key-b> [list $this blank]
         foreach k {0 1 2 3 4 5 6 7 8 9} {
             bind $t <Key-$k> [list $this updateNumModifier $k]
         }
     }
 
+    private method initScDim {} {
+        set scDim {}
+    }
+
     private method scDim {} {
         # store in scDim the list of the dimensions on which
         # the selection cursor (sc) appears
-        set scDim {}
+        initScDim
         set id [scId]
         set found 0
         if {$id ne {}} {
@@ -612,7 +728,7 @@ itcl::class Dim {
 
     private method scDimAfter {dim} {
         # return the element of $scDim coming after $dim,
-        # considering $scDim as a circular list
+        # considering $scDim a circular list
         # if $dim is not an element of $scDim,
         # return the first element of $scDim
         # if $scDim is empty, return -1
@@ -635,8 +751,8 @@ itcl::class Dim {
     }
 
     private method switchScDimsX {} {
-        # switch the x-axis to one of the other dims that the selection cursor (sc)
-        # belongs to
+        # switch the x-axis to one of the other dims that the
+        # selection cursor (sc) belongs to
         set nextDim [scDimAfter [getX]]
         if {$nextDim == -1} {
             return 0
@@ -649,8 +765,8 @@ itcl::class Dim {
     }
 
     private method switchScDimsY {} {
-        # switch the y-axis to one of the other dims that the selection cursor (sc)
-        # belongs to
+        # switch the y-axis to one of the other dims that the
+        # selection cursor (sc) belongs to
         set nextDim [scDimAfter [getY]]
         if {$nextDim == -1} {
             return 0
@@ -682,10 +798,6 @@ itcl::class Dim {
         return 0
     }
 
-    private method wRight {} { wHoriz 1 }
-
-    private method wLeft {} { wHoriz -1 }
-
     private method wVertic {i} {
         if {(($wRow + $i) >= 0) && (($wRow + $i) < $gridHeight)} {
             incr wRow $i
@@ -694,10 +806,6 @@ itcl::class Dim {
         }
         return 0
     }
-
-    private method wDown {} { wVertic 1 }
-
-    private method wUp {} { wVertic -1 }
 
     private method scRowIndex {} {
         if {[llength $sc] == 2} {
@@ -718,7 +826,8 @@ itcl::class Dim {
     private method goto {match} {
         set row [::dinah::dbLGet [scDimName] [scDimIndex]]
         for {set i 0} {$i < [llength $row]} {incr i} {
-            if {[string match -nocase *$match* [::dinah::dbGet [lindex $row $i],label]]} {
+            if {[string match -nocase *$match* [::dinah::dbGet \
+                    [lindex $row $i],label]]} {
                 scHoriz [expr {$i - [scColumnIndex]}]
                 return
             }
@@ -738,11 +847,11 @@ itcl::class Dim {
                 wHoriz $i
             } else {
                 [$objects($oldSc) cget -frame] configure -borderwidth 0
-                [$objects($sc) cget -frame] configure -borderwidth $::dinah::fragmentBorderWidth \
-                                                      -bg $::dinah::selectionCursorColor
+                [$objects($sc) cget -frame] configure \
+                    -borderwidth $::dinah::fragmentBorderWidth \
+                    -bg $::dinah::selectionCursorColor
             }
-            updateInfo
-            addToHistory
+            cursorWasRedrawn
         }
     }
 
@@ -753,14 +862,20 @@ itcl::class Dim {
         if {$exist && !( [cell $newScRow [scColumnIndex]] eq {} )} {
             buildAndGrid [id [cell $newScRow [scColumnIndex]]]
             mkGrid
-            addToHistory
         }
+    }
+
+    private method initInfo {} {
+        wm title [winfo toplevel $t] "x: $x ; y: $y ; \
+                                      wWidth: $wWidth ; wHeight: $wHeight"
     }
 
     private method initBoard {} {
         array unset grid
         array set grid {}
         set sc {}
+        initInfo
+        initScDim
     }
 
     private method buildBoard {{center {}}} {
@@ -833,7 +948,7 @@ itcl::class Dim {
         # complete columns with bottom distances:
         # for a given column, top    is the number of objects above the main row
         # for a given column, bottom is the number of objects below the main row
-        # for a given column, fragIndex (i.e. [lindex $col 2]) is the value of top
+        # for a given column, fragIndex ([lindex $col 2]) is the value of top
         # maxTop and maxBottom are used to compute the height of the grid
         set maxTop 0;    # will store the biggest top distance
         set maxBottom 0; # will store the biggest bottom distance
@@ -884,7 +999,8 @@ itcl::class Dim {
                     set grid([expr {$j + $deltaTop}],$i) [list $y $segIndex $j]
                 }
                 for {set j 0} {$j < $bottom} {incr j} {
-                    set grid([expr {$maxTop + 1 + $j}],$i) [list $y $segIndex [expr {$top + 1 + $j}]]
+                    set grid([expr {$maxTop + 1 + $j}],$i) \
+                        [list $y $segIndex [expr {$top + 1 + $j}]]
                 }
                 for {set j 0} {$j < $deltaBottom} {incr j} {
                     set grid([expr {$maxTop + 1 + $bottom + $j}],$i) {}
@@ -960,9 +1076,11 @@ itcl::class Dim {
         set twoHoriz [expr {(($wHeight == 1) && ($wWidth == 2)) ? 1 : 0}]
         set usePanedwin 1
         if {$twoVertic} {
-            set panedwin [panedwindow $g.pan -orient vertical -handlesize 10 -showhandle 1]
+            set panedwin [panedwindow $g.pan -orient vertical -handlesize 10 \
+                -showhandle 1]
         } elseif {$twoHoriz} {
-            set panedwin [panedwindow $g.pan -orient horizontal -handlesize 10 -showhandle 1]
+            set panedwin [panedwindow $g.pan -orient horizontal -handlesize 10 \
+                -showhandle 1]
         } else {
             set usePanedwin 0
         }
@@ -999,12 +1117,14 @@ itcl::class Dim {
                     if {[scRowIndex] == $absoluteI} {
                         # for the presentation of dimensions in shape H,
                         # if two objects are juxtaposed horizontally,
-                        # they are connected only if they belong to the main row.
+                        # they are connected only if
+                        # they belong to the main row.
                         # Thus the calls to openEW and closeEW
                         $o openEW
                         if {[scColumnIndex] == $absoluteJ} {
-                            $w configure -borderwidth $::dinah::fragmentBorderWidth \
-                                         -bg $::dinah::selectionCursorColor
+                            $w configure \
+                                -borderwidth $::dinah::fragmentBorderWidth \
+                                -bg $::dinah::selectionCursorColor
                         }
                     } else {
                         $o closeEW
@@ -1018,8 +1138,8 @@ itcl::class Dim {
             }
         }
         # if the same object appears more than once on the current view,
-        # add a color to its menu bar to show the user that it is the same object
-        # appearing multiple times (given the definition of a dimension,
+        # add a color to its menu bar to show the user that it is the same
+        # object appearing multiple times (given the definition of a dimension,
         # it cannot appear more than twice on a given view).
         foreach {id objs} [array get id2obj] {
             if {[llength $objs] > 1} {
@@ -1032,16 +1152,18 @@ itcl::class Dim {
         }
         grid rowconfigure $g all -uniform 1 -weight 1
         grid columnconfigure $g all -uniform 1 -weight 1
-        updateInfo
+        cursorWasRedrawn
         update
 
         foreach {xy o} [array get objects] {
             $o z
         }
 
-        # if the main row (i.e. the row on which is the selection cursor) is visible
-        # ask each object (o) of the main row to write on its notification zone:
-        # "row : u/v" where v is the length of the segment corresponding to the main row and
+        # if the main row (i.e. the row on which is the selection cursor)
+        # is visible, ask each object (o) of the main row to write on its
+        # notification zone:
+        # "row : u/v"
+        # where v is the length of the segment corresponding to the main row and
         # u is the position of object o in this segment
         if {[insideW [scRowIndex] $wCol]} {
             if {$twoVertic} {
@@ -1057,11 +1179,14 @@ itcl::class Dim {
             set firstVisibleCol [expr {[lindex $pos($leftMostPathname) 1] + 1}]
             for {set i 0} {$i < [llength $mainRowPathnames]} {incr i} {
                 $objects($pos([lindex $mainRowPathnames $i])) notificate \
-                    [concat "row :" [expr {$firstVisibleCol + $i}] "/$gridWidth ; "]
+                    [concat "row :" [expr {$firstVisibleCol + $i}] \
+                            "/$gridWidth ; "]
             }
         }
-        # ask each object (o) of each visible column to write on its notification zone:
-        # "col: u/v" where v is the length of the segment corresponding to this column,
+        # ask each object (o) of each visible column to write on its
+        # notification zone:
+        # "col: u/v"
+        # where v is the length of the segment corresponding to this column,
         # and u is the position of object o in this segment
         for {set j 0} {$j < $wWidth} {incr j} {
             set absoluteJ [expr {$wCol + $j}]
@@ -1070,7 +1195,8 @@ itcl::class Dim {
             if {$twoVertic} {
                 set colPathnames [$panedwin panes]
             } elseif {$twoHoriz} {
-                # Obviously, in this case the length of $colPathnames is at most 1.
+                # Obviously, in this case the length of $colPathnames is
+                # at most 1.
                 set colPathnames [lindex [$panedwin panes] $j]
             } else {
                 set colPathnames [lreverse [grid slaves $g -col $j]]
@@ -1080,7 +1206,8 @@ itcl::class Dim {
                     [lindex $pos([lindex $colPathnames 0]) 0]] + 1}]
                 for {set i 0} {$i < [llength $colPathnames]} {incr i} {
                     $objects($pos([lindex $colPathnames $i])) notificate \
-                        [concat "col :" [expr {$firstVisibleRow + $i}] "/$colHeight ; "]
+                        [concat "col :" [expr {$firstVisibleRow + $i}] \
+                                "/$colHeight ; "]
                 }
             }
         }
@@ -1122,8 +1249,8 @@ itcl::class Dim {
     }
 
     private method insideW {row col} {
-        return [expr {( ( $wCol  <= $col  ) && ( $col  < ($wCol + $wWidth)   ) ) &&
-                      ( ( $wRow <= $row ) && ( $row < ($wRow + $wHeight) ) )}]
+        return [expr {( ($wCol <= $col) && ($col < ($wCol + $wWidth) )) && \
+                      ( ($wRow <= $row) && ($row < ($wRow + $wHeight)))}]
     }
 
     private method scCell {} { return [cell [scRowIndex] [scColumnIndex]] }
@@ -1131,7 +1258,8 @@ itcl::class Dim {
     private method scDimIndex {} { return [lindex [scCell] 1] }
     private method scItemIndex {} { return [lindex [scCell] 2] }
 
-    # if """[scDimName] ne $x""" it means that [scDimName] comes from the vertical/Y dim
+    # if {[scDimName] ne $x} it means that [scDimName] comes from the
+    # vertical/Y dim
     # therefore in that case the selection cursor row is empty.
     private method scRowEmpty {} {
         return [expr {[scDimName] ne $x}]
@@ -1149,13 +1277,10 @@ itcl::class Dim {
         return [expr {[scItemIndex] == ([llength [scRow]] - 1)}]
     }
 
-    private method newRow? {} {
-        return [expr {(! [dimXIsNil]) && (! [::dinah::dbClipboardEmpty]) && [scRowEmpty]}]
-    }
-
     private method noCycleOrDuplicate {} {
-        return [expr {(! [dimXIsNil]) && (! [::dinah::dbClipboardEmpty]) && (! [scRowEmpty]) \
-            && (! [pastingCycle]) && (! [pastingDuplicate])}]
+        return [expr {(! [dimXIsNil])  && (! [::dinah::dbClipboardIsEmpty]) && \
+                      (! [scRowEmpty]) && (! [pastingCycle]) && \
+                      (! [pastingDuplicate])}]
     }
 
     private method pastingCycle {} {
@@ -1170,7 +1295,8 @@ itcl::class Dim {
         set scDimLength [llength [::dinah::dbGet [scDimName]]]
         for {set i 0} {$i < $scDimLength} {incr i} {
             if {$i != [scDimIndex]} {
-                if {[::dinah::dbClipboardLastItem] in [::dinah::dbLGet [scDimName] $i]} {
+                if {[::dinah::dbClipboardLastItem] in \
+                    [::dinah::dbLGet [scDimName] $i]} {
                     # item appearing twice in a dimension
                     return 1
                 }
@@ -1187,9 +1313,10 @@ itcl::class Dim {
         }
     }
 
-    private method pasteIntoNewList {} {
-        if {(! [dimXIsNil]) && (! [::dinah::dbClipboardEmpty])} {
-            ::dinah::dbAppendSegmentToDim $x [list [::dinah::dbClipboardLastItem]]
+    private method pasteIntoNewSegment {} {
+        if {(! [dimXIsNil]) && (! [::dinah::dbClipboardIsEmpty])} {
+            ::dinah::dbAppendSegmentToDim $x \
+                [list [::dinah::dbClipboardLastItem]]
             buildAndGrid [::dinah::dbClipboardLastItem]
         }
     }
@@ -1202,19 +1329,8 @@ itcl::class Dim {
         }
     }
 
-    private method newRowFromPasteBefore {} {
-        if {![::dinah::dbNodeBelongsToDim $x [::dinah::dbClipboardLastItem]} {
-            set newSegment [::dinah::removeEmptyFromList \
-                [list [::dinah::dbClipboardLastItem] [scId]]]
-            ::dinah::dbAppendSegmentToDim $x $newSegment
-        }
-    }
-
-    private method newRowFromPasteAfter {} {
-        if {![::dinah::dbNodeBelongsToDim $x [::dinah::dbClipboardLastItem]} {
-            set newSegment [::dinah::removeEmptyFromList \
-                [list [scId] [::dinah::dbClipboardLastItem]]]
-            ::dinah::dbAppendSegmentToDim $x $newSegment
-        }
+    private method cursorWasRedrawn {} {
+        updateInfo
+        addToHistory
     }
 }

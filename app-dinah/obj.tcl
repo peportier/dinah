@@ -121,16 +121,16 @@ itcl::class Obj {
             set dims [::dinah::dbGetDimForId $dbid]
             if {[llength $dims] > 0} {
                 foreach {dim segIndex fragIndex} $dims {
-                    $inDimMenu add command -label $dim -command [list $this setYDim $dim]
+                    $inDimMenu add command -label $dim -command [list $this setXDim $dim]
                 }
                 tk_popup $inDimMenu $X $Y
             }
         }}
     }
 
-    method setYDim {dim} {
+    method setXDim {dim} {
         if {! [catch {$container isa Dim} isaDim]} {if {$isaDim} {
-            $container setYAndUpdate $dim
+            $container setXAndUpdate $dim
         }}
     }
 

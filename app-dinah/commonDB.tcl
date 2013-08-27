@@ -303,7 +303,7 @@ proc dbClipboardLastItem {} {
     return [::dinah::dbLGet $::dinah::dimClipboard {0 end}]
 }
 
-proc dbClipboardEmpty {} {
+proc dbClipboardIsEmpty {} {
     return [expr {[::dinah::dbClipboardLastItem] == {}}]
 }
 
@@ -311,21 +311,29 @@ proc dbGetClipboard {} {
     return [::dinah::dbGetSegment $::dinah::dimClipboard 0]
 }
 
-proc dbAddToCleanClipboard {dbId} {
+proc dbAddFragmentToCleanClipboard {dbId} {
     if {::dinah::dbExists $dbId,isa} {
         ::dinah::dbClearClipboard
         ::dinah::dbAppendSegmentToDim $::dinah::dimClipboard [list $dbId]
     } else {
-        error "::dinah::dbAddToCleanClipboard $dbId --> $dbId is not an object identifier"
+        error "::dinah::dbAddFragmentToCleanClipboard $dbId --> $dbId is not \
+               an object identifier"
     }
 }
 
-proc dbAddToClipboard {dbId} {
+proc dbAddFragmentToClipboard {dbId} {
     if {::dinah::dbExists $dbId,isa} {
         ::dinah::dbAppendToSegment $::dinah::dimClipboard 0 $dbId
     } else {
-        error "::dinah::dbAddToClipboard $dbId --> $dbId is not an object identifier"
+        error "::dinah::dbAddFragmentToClipboard $dbId --> $dbId is not an \
+               object identifier"
     }
+}
+
+proc dbAddSegmentToCleanClipboard {dim segIndex} {
+    ::dinah::dbClearClipboard
+    ::dinah::dbAppendSegmentToDim $::dinah::dimClipboard \
+        [::dinah::dbGetSegment $dim $segIndex]
 }
 
 proc dbGetDimSize {dim} {
