@@ -28,10 +28,8 @@ proc dbSet {key value} {
 proc dbSetDim {dimName dimValue} {
     if {! [::dinah::editable $dimName]} {
         error "::dinah::dbSetDim --> $dimName is read only or it does not exist"
-    } else {
-        set ::dinah::db($dimName) $dimValue
     }
-
+    set ::dinah::db($dimName) $dimValue
 }
 
 proc dbRemoveSegment {dimName segIndex} {
@@ -51,25 +49,21 @@ proc dbRemoveSegment {dimName segIndex} {
         $segIndex $segIndex]} errorMsg]} {
         error "::dinah::dbRemoveSegment --> will never happen since we already \
                checked if dimName was existing... $errorMsg"
-    } else {
-        return
     }
 }
 
 proc dbSetAttribute {dbid att value} {
-    if {[::dinah::dbExists $dbid,isa]} {
-        ::dinah::dbSet $dbid,$att $value
-    } else {
+    if {![::dinah::dbExists $dbid,isa]} {
         error "::dinah::dbSetAttribute --> there is no object with id $dbid"
     }
+    ::dinah::dbSet $dbid,$att $value
 }
 
 proc dbGet {key} {
-    if {[::dinah::dbExists $key]} {
-        return $::dinah::db($key)
-    } else {
+    if {![::dinah::dbExists $key]} {
         error "::dinah::dbGet --> key $key does not exist"
     }
+    return $::dinah::db($key)
 }
 
 proc dbExists {key} {
@@ -77,15 +71,12 @@ proc dbExists {key} {
 }
 
 proc dbLSet {key index elem} {
-    if {[::dinah::dbExists $key]} {
-        if {[catch {lset ::dinah::db($key) $index $elem} errorMsg]} {
-            error "::dinah::dbLSet --> there is no index $index for the key \
-                   $key"
-        } else {
-            return
-        }
-    } else {
+    if {![::dinah::dbExists $key]} {
         error "::dinah::dbLSet --> key $key does not exist"
+    }
+    if {[catch {lset ::dinah::db($key) $index $elem} errorMsg]} {
+        error "::dinah::dbLSet --> there is no index $index for the key \
+               $key"
     }
 }
 
@@ -93,12 +84,9 @@ proc dbReplaceSegment {dimName segIndex segValue} {
     if {! [::dinah::editable $dimName]} {
         error "::dinah::dbReplaceSegment --> $dimName is read only or \
                it does not exist"
-    } else {
-        if {[catch {::dinah::dbLSet $dimName $segIndex $segValue} errorMsg]} {
-            error "::dinah::dbReplaceSegment --> $errorMsg"
-        } else {
-            return
-        }
+    }
+    if {[catch {::dinah::dbLSet $dimName $segIndex $segValue} errorMsg]} {
+        error "::dinah::dbReplaceSegment --> $errorMsg"
     }
 }
 
@@ -107,26 +95,23 @@ proc dbLGet {key index} {
     # a list of integers, ...)
     if {[catch {::dinah::dbGet $key} atKey]} {
         error "::dinah::dbLGet --> $atKey"
-    } else {
-        if {($index < 0) || ($index >= [llength $atKey])} {
-            error "::dinah::dbLGet --> object at key $key has no element at \
-                   index $index"
-        } else {
-            return [lindex $atKey $index]
-        }
     }
+    if {($index < 0) || ($index >= [llength $atKey])} {
+        error "::dinah::dbLGet --> object at key $key has no element at \
+               index $index"
+    }
+    return [lindex $atKey $index]
 }
 
 proc dbGetSegment {dimName segIndex} {
-    if {[::dinah::dbIsADim $dimName]} {
-        if {[catch {::dinah::dbLGet $dimName $segIndex} res]} {
-            error "::dinah::dbGetSegment --> $res"
-        } else {
-            return $res
-        }
-    } else {
-        error "::dinah::dbGetSegment --> $dimName is not a dimension"
+    if {![::dinah::dbIsADim $dimName]} {
+        error "::dinah::dbGetSegment --> $dimName is not a dimension, or it \
+               does not exist"
     }
+    if {[catch {::dinah::dbLGet $dimName $segIndex} res]} {
+        error "::dinah::dbGetSegment --> $res"
+    }
+    return $res
 }
 
 proc dbAppendToSegment {dimName segIndex fragId} {
@@ -134,64 +119,54 @@ proc dbAppendToSegment {dimName segIndex fragId} {
             [linsert [::dinah::dbGetSegment $dimName $segIndex] end $fragId]} \
             errorMsg]} {
         error "::dinah::dbAppendToSegment --> $errorMsg"
-    } else {
-        return
     }
 }
 
 proc dbGetSegIndex {dimName dbid} {
-    if {[::dinah::dbIsADim $dimName]} {
-        if {[::dinah::dbExists $dbid,isa]} {
-            set found [::dinah::dbFindInDim $dimName $dbid]
-            if {$found != {}} {
-                return [lindex $found 0]
-            } else {
-                return ""
-            }
-        } else {
-            error "::dinah::dbGetSegIndex --> there is no object with id $dbid"
-        }
-    } else {
+    if {![::dinah::dbIsADim $dimName]} {
         error "::dinah::dbGetSegIndex --> $dimName is not a dimension"
+    }
+    if {![::dinah::dbExists $dbid,isa]} {
+        error "::dinah::dbGetSegIndex --> there is no object with id $dbid"
+    }
+    set found [::dinah::dbFindInDim $dimName $dbid]
+    if {$found != {}} {
+        return [lindex $found 0]
+    } else {
+        return ""
     }
 }
 
 proc dbGetFragment {dimName segIndex fragIndex} {
-    if {[::dinah::dbIsADim $dimName]} {
-        if {[catch {::dinah::dbGetSegment $dimName $segIndex $fragIndex} \
-                seg]} {
-            error "::dinah::dbGetFragment --> $seg"
-        } else {
-            if {($fragIndex < 0) || ($fragIndex >= [llength $seg])} {
-                error "::dinah::dbGetFragment --> segment $segIndex of \
-                       dimension $dimName has no fragment at index $fragIndex"
-            } else {
-                return [lindex $seg $fragIndex]
-            }
-        }
-    } else {
+    if {![::dinah::dbIsADim $dimName]} {
         error "::dinah::dbGetFragment --> $dimName is not a dimension"
+    }
+    if {[catch {::dinah::dbGetSegment $dimName $segIndex $fragIndex} \
+            seg]} {
+        error "::dinah::dbGetFragment --> $seg"
+    }
+    if {($fragIndex < 0) || ($fragIndex >= [llength $seg])} {
+        error "::dinah::dbGetFragment --> segment $segIndex of \
+               dimension $dimName has no fragment at index $fragIndex"
+    } else {
+        return [lindex $seg $fragIndex]
     }
 }
 
 proc dbAppend {key value} {
-    if {[::dinah::dbExists $key]} {
-        lappend ::dinah::db($key) $value
-    } else {
+    if {![::dinah::dbExists $key]} {
         error "::dinah::dbAppend --> key $key does not exist"
     }
+    lappend ::dinah::db($key) $value
 }
 
 proc dbAppendSegmentToDim {dimName seg} {
     if {! [::dinah::editable $dimName]} {
         error "::dinah::dbAppendSegmentToDim --> dimension $dimName is \
                read only, or it does not exist"
-    } else {
-        if {[catch {::dinah::dbAppend $dimName $seg} errorMsg]} {
-            error "::dinah::dbAppendSegmentToDim --> $errorMsg"
-        } else {
-            return
-        }
+    }
+    if {[catch {::dinah::dbAppend $dimName $seg} errorMsg]} {
+        error "::dinah::dbAppendSegmentToDim --> $errorMsg"
     }
 }
 
@@ -203,67 +178,53 @@ proc dbRemFragFromDim {dimName fragId} {
     if {! [::dinah::editable $dimName]} {
         error "::dinah::dbRemFragFromDim --> dimension $dimName is read only,\
                or does not exist"
-    } else {
-        set found [::dinah::dbFindInDim $dimName $fragId]
-        if {$found != {}} {
-            set segIndex [lindex $found 0]
-            set fragIndex [lindex $found 1]
-            if {[catch {::dinah::dbRemFragFromSegByIndex $dimName $segIndex \
-                    $fragIndex} errorMsg]} {
-                error "::dinah::dbRemFragFromDim --> $errorMsg"
-            } else {
-                return
-            }
-        } else {
-            error "::dinah::dbRemFragFromDim --> fragment $fragId does not \
-                   belong to dimension $dimName"
-        }
+    }
+    set found [::dinah::dbFindInDim $dimName $fragId]
+    if {$found eq {}} {
+        error "::dinah::dbRemFragFromDim --> fragment $fragId does not \
+               belong to dimension $dimName"
+    }
+    set segIndex [lindex $found 0]
+    set fragIndex [lindex $found 1]
+    if {[catch {::dinah::dbRemFragFromSegByIndex $dimName $segIndex \
+            $fragIndex} errorMsg]} {
+        error "::dinah::dbRemFragFromDim --> $errorMsg"
     }
 }
 
 proc dbRemFragFromSeg {dimName segIndex fragId} {
     if {[catch {::dinah::dbGetSegment $dimName $segIndex} seg]} {
         error "::dinah::dbRemFragFromSeg --> $seg"
-    } else {
-        set fragIndex [lsearch $seg $fragId]
-        if {$fragIndex > -1} {
-            if {[catch {::dinah::dbRemFragFromSegByIndex $dimName $segIndex \
-                    $fragIndex} errorMsg]} {
-                error "::dinah::dbRemFragFromSeg --> $errorMsg"
-            } else {
-                return
-            }
-        } else {
-            error "::dinah::dbRemFragFromSeg --> fragment $fragId is not an \
-                   element of segment $segIndex of dimension $dimName"
-        }
+    }
+    set fragIndex [lsearch $seg $fragId]
+    if {$fragIndex == -1} {
+        error "::dinah::dbRemFragFromSeg --> fragment $fragId is not an \
+               element of segment $segIndex of dimension $dimName"
+    }
+    if {[catch {::dinah::dbRemFragFromSegByIndex $dimName $segIndex \
+            $fragIndex} errorMsg]} {
+        error "::dinah::dbRemFragFromSeg --> $errorMsg"
     }
 }
 
 proc dbRemFragFromSegByIndex {dimName segIndex fragIndex} {
     if {[catch {::dinah::dbGetSegment $dimName $segIndex} seg]} {
         error "::dinah::dbRemFragFromSegByIndex --> $seg"
+    }
+    if {($fragIndex < 0) || ($fragIndex >= [llength $seg])} {
+        error "::dinah::dbRemFragFromSegByIndex --> segment $segIndex of \
+               dimension $dimName has no fragment at index $fragIndex"
+    }
+    set newSeg [lreplace $seg $fragIndex $fragIndex]
+    if {[llength $newSeg] == 0} {
+        if {[catch {::dinah::dbRemoveSegment $dimName $segIndex} \
+            errorMsg]} {
+            error "::dinah::dbRemFragFromSegByIndex --> $errorMsg"
+        }
     } else {
-        if {($fragIndex < 0) || ($fragIndex >= [llength $seg])} {
-            error "::dinah::dbRemFragFromSegByIndex --> segment $segIndex of \
-                   dimension $dimName has no fragment at index $fragIndex"
-        } else {
-            set newSeg [lreplace $seg $fragIndex $fragIndex]
-            if {[llength $newSeg] == 0} {
-                if {[catch {::dinah::dbRemoveSegment $dimName $segIndex} \
-                    errorMsg]} {
-                    error "::dinah::dbRemFragFromSegByIndex --> $errorMsg"
-                } else {
-                    return
-                }
-            } else {
-                if {[catch {::dinah::dbReplaceSegment $dimName $segIndex \
-                        $newSeg} errorMsg]} {
-                    error "::dinah::dbRemFragFromSegByIndex --> $errorMsg"
-                } else {
-                    return
-                }
-            }
+        if {[catch {::dinah::dbReplaceSegment $dimName $segIndex \
+                $newSeg} errorMsg]} {
+            error "::dinah::dbRemFragFromSegByIndex --> $errorMsg"
         }
     }
 }
@@ -286,60 +247,80 @@ proc dbGetDimForId {dbid} {
 }
 
 proc dbIsADim {dimName} {
-    # will not catch error from dbGet: ::dinah::db(dimensions) must exist
-    expr { [lsearch [::dinah::dbGet "dimensions"] $dimName] > -1}
+    if {[catch {::dinah::dbGet dimensions} dims} {
+        error "::dinah::dbIsADim --> $dims (SHOULD NEVER HAPPEN...)"
+    }
+    return [expr { [lsearch $dims $dimName] > -1}]
 }
 
 # dbInsertNodeIntoDim: insert node srcId into dimension
-# trgDim at the right or at the left of node trgId
-# $direction is either "right" or "left"
+# trgDim to the right or to the left of node trgId
+# $direction is either "before" or "after"
 proc dbInsertNodeIntoDim {srcId direction trgDim trgId} {
-    if {! [::dinah::editable $trgDim]} {return 0}
+    if {$direction ni {before after}} {
+        error "::dinah::dbInsertNodeIntoDim --> '$direction' is not a valid \
+               value for the direction parameter (it should be 'before' \
+               or 'after')"
+    }
+    if {! [::dinah::editable $trgDim]} {
+        error "::dinah::dbInsertNodeIntoDim --> target dimension $trgDim is \
+               read only, or does not exist"
+    }
     set found [::dinah::dbFindInDim $trgDim $trgId]
-    if {$found != {}} {
-        set segIndex [lindex $found 0]
-        set fragIndex [lindex $found 1]
-        set seg [::dinah::dbGetSegment $trgDim $segIndex]
-        if {![::dinah::dbNodeBelongsToDim $trgDim $srcId]} {
-            if {$direction eq "right"} { incr fragIndex }
-            set newSegment [linsert $seg $fragIndex $srcId]
-            ::dinah::dbReplaceSegment $trgDim $segIndex $newSegment
-            return 1
-        } else {
-            return 0
+    if {$found == {}} {
+        error "::dinah::dbInsertNodeIntoDim --> target fragment $trgId not \
+               found in target dimension $trgDim"
+    }
+    set segIndex [lindex $found 0]
+    set fragIndex [lindex $found 1]
+    if {[catch {::dinah::dbGetSegment $trgDim $segIndex} seg]} {
+        error "::dinah::dbInsertNodeIntoDim --> $seg"
+    }
+    if {![::dinah::dbNodeBelongsToDim $trgDim $srcId]} {
+        if {$direction eq "after"} { incr fragIndex }
+        set newSegment [linsert $seg $fragIndex $srcId]
+        if {[catch {::dinah::dbReplaceSegment $trgDim $segIndex $newSegment} \
+                errorMsg]} {
+            error "::dinah::dbInsertNodeIntoDim --> $errorMsg"
         }
     } else {
-        set found [::dinah::dbFindInDim $trgDim $srcId]
-        if {$found == {}} {
-            if {$direction eq "right"} {
-                ::dinah::dbAppendSegmentToDim $trgDim [list $trgId $srcId]
-            } else {
-                ::dinah::dbAppendSegmentToDim $trgDim [list $srcId $trgId]
-            }
-            return 1
-        } else {
-            set segIndex [lindex $found 0]
-            set fragIndex [lindex $found 1]
-            set seg [::dinah::dbGetSegment $trgDim $segIndex]
-            if {$direction eq "left"} { incr fi }
-            set newSegment [linsert $seg $fragIndex $trgId]
-            ::dinah::dbReplaceSegment $trgDim $segIndex $newSegment
-            return 1
-        }
+        error "::dinah::dbInsertNodeIntoDim --> the source fragment $srcId \
+            already belongs to the target dimension $trgDim"
     }
 }
 
 proc dbMoveNodeBetweenDims {srcDim srcId direction trgDim trgId} {
-    if {! [::dinah::editable $srcDim]} {return 0}
+    if {! [::dinah::editable $srcDim]} {
+        error "::dinah::dbMoveNodeBetweenDims --> the source dimension \
+               $srcDim from which the fragment $srcId would be removed is \
+               read only or does not exist"
+    }
     if {$srcDim eq $trgDim} {
-        ::dinah::dbRemFragFromDim $srcDim $srcId
-        puts [::dinah::dbInsertNodeIntoDim $srcId $direction $trgDim $trgId]
-        return 1
-    } elseif {[::dinah::dbInsertNodeIntoDim $srcId $direction $trgDim $trgId ]} {
-        ::dinah::dbRemFragFromDim $srcDim $srcId
-        return 1
+        # in this case the fragment $srcId is moved from one place of $srcDim
+        # to another place of $srcDim, maybe from one segment of srcDim to
+        # another segment of $srcDim, or from its current place to another one
+        # in the same segment
+        if {[catch {::dinah::dbRemFragFromDim $srcDim $srcId} errorMsg]} {
+            error "::dinah::dbMoveNodeBetweenDims --> $errorMsg"
+        }
+        if {[catch {::dinah::dbInsertNodeIntoDim $srcId $direction \
+                $trgDim $trgId} errorMsg]} {
+            error "::dinah::dbMoveNodeBetweenDims --> $errorMsg"
+        }
     } else {
-        return 0
+        if {[catch {::dinah::dbInsertNodeIntoDim $srcId $direction \
+                $trgDim $trgId} errorMsg]} {
+            error "::dinah::dbMoveNodeBetweenDims --> $errorMsg"
+        }
+        if {[catch {::dinah::dbRemFragFromDim $srcDim $srcId} errorMsg]} {
+            if {[catch {::dinah::dbRemFragFromDim $trgDim $srcId} errorMsg2]} {
+                error "::dinah::dbMoveNodeBetweenDims --> should never happen \
+                    since we simply cancel the last successful action. In a \
+                    a concurrent environment the call to dbMoveNodeBetweenDims \
+                    should be design as a transaction. $errorMsg2"
+            }
+            error "::dinah::dbMoveNodeBetweenDims --> $errorMsg"
+        }
     }
 }
 
@@ -366,9 +347,6 @@ proc dbNewEmptyNode {type {label ""}} {
     if {$type eq "Date"} {
         return [::dinah::dbNew [list isa Date day "" month "" year "" hour "" minute "" certain 0 label $label]]
     }
-    if {$type eq "Struct"} {
-        return [::dinah::dbNew [list isa Struct label $label]]
-    }
     if {$type eq "Link"} {
         return [::dinah::dbNew [list isa Link label $label]]
     }
@@ -376,19 +354,27 @@ proc dbNewEmptyNode {type {label ""}} {
 
 proc dbNewDim {dim} {
     if {![::dinah::dbExists $dim] && [regexp {^d\..*} $dim]} {
-        ::dinah::dbAppend "dimensions" $dim
-        ::dinah::dbSetDim $dim {}
-        return 1
+        if {[catch {::dinah::dbAppend "dimensions" $dim} errorMsg]} {
+            error "::dinah::dbNewDim --> $errorMsg"
+        }
+        if {[catch {::dinah::dbSetDim $dim {}} errorMsg]} {
+            error "::dinah::dbNewDim --> (will never happen) $errorMsg"
+        }
     }
     if {[regexp {^q\.(.*)} $dim -> match]} {
         set terms [split $match]
         if {![::dinah::dbExists $dim]} {
-            ::dinah::dbAppend dimensions $dim
+            if {[catch {::dinah::dbAppend dimensions $dim} errorMsg]} {
+                error "::dinah::dbNewDim --> $errorMsg"
+            }
         }
-        ::dinah::dbSetDim $dim [list [::dinah::keywords $terms]]
-        return 1
+        if {[catch {::dinah::dbSetDim $dim [list [::dinah::keywords $terms]]} \
+                errorMsg]} {
+            error "::dinah::dbNewDim --> $errorMsg"
+        }
     }
-    return 0
+    error "::dinah::dbNewDim --> the dimension $dim already exists, or it \
+           does not start with 'd.'"
 }
 
 proc dbNodeBelongsToDim {dim id} {
@@ -411,50 +397,79 @@ proc dbFindInDim {dim id} {
 
 
 proc dbClearClipboard {} {
-    ::dinah::dbSetDim $::dinah::dimClipboard {}
+    # we only use the first segment of the clipboard dimension.
+    # this first segment must exist. thus the value '{{}}' we use to
+    # clear the clipboard
+    if {[catch {::dinah::dbSetDim $::dinah::dimClipboard {{}}} errorMsg]} {
+        error "::dinah::dbClearClipboard --> $errorMsg"
+    }
 }
 
 proc dbClipboardLastItem {} {
-    return [::dinah::dbLGet $::dinah::dimClipboard {0 end}]
+    if {[catch {::dinah::dbGetClipboard} seg]} {
+        error "::dinah::dbClipboardLastItem --> $seg"
+    }
+    return [lindex $seg end]
 }
 
 proc dbClipboardIsEmpty {} {
-    return [expr {[::dinah::dbClipboardLastItem] == {}}]
+    if {[catch {::dinah::dbClipboardLastItem} lastItem]} {
+        error "::dinah::dbClipboardIsEmpty --> $lastItem"
+    }
+    return [expr {$lastItem == {}}]
 }
 
 proc dbGetClipboard {} {
-    return [::dinah::dbGetSegment $::dinah::dimClipboard 0]
+    if {[catch {::dinah::dbGetSegment $::dinah::dimClipboard 0} seg]} {
+        error "::dinah::dbGetClipboard --> $seg"
+    }
+    return $seg
 }
 
 proc dbAddFragmentToCleanClipboard {dbId} {
-    if {::dinah::dbExists $dbId,isa} {
-        ::dinah::dbClearClipboard
-        ::dinah::dbAppendSegmentToDim $::dinah::dimClipboard [list $dbId]
-    } else {
-        error "::dinah::dbAddFragmentToCleanClipboard $dbId --> $dbId is not \
+    if {![::dinah::dbExists $dbId,isa]} {
+        error "::dinah::dbAddFragmentToCleanClipboard --> $dbId is not \
                an object identifier"
+    }
+    if {[catch {::dinah::dbClearClipboard} errorMsg]} {
+        error "::dinah::dbAddFragmentToCleanClipboard --> $errorMsg"
+    }
+    if {[catch {::dinah::dbAppendToSegment $::dinah::dimClipboard 0 $dbId} \
+            errorMsg]} {
+        error "::dinah::dbAddFragmentToCleanClipboard --> $errorMsg"
     }
 }
 
 proc dbAddFragmentToClipboard {dbId} {
-    if {::dinah::dbExists $dbId,isa} {
-        ::dinah::dbAppendToSegment $::dinah::dimClipboard 0 $dbId
-    } else {
-        error "::dinah::dbAddFragmentToClipboard $dbId --> $dbId is not an \
+    if {![::dinah::dbExists $dbId,isa]} {
+        error "::dinah::dbAddFragmentToClipboard --> $dbId is not an \
                object identifier"
     }
-}
-
-proc dbAddSegmentToCleanClipboard {dim segIndex} {
-    ::dinah::dbClearClipboard
-    ::dinah::dbAppendSegmentToDim $::dinah::dimClipboard \
-        [::dinah::dbGetSegment $dim $segIndex]
-}
-
-proc dbGetDimSize {dim} {
-    if {[::dinah::dbIsADim $dimName]} {
-        return [llength [::dinah::dbGet $dimName]]
-    } else {
-        error "::dinah::dbGetDimSize $dim --> $dim is not a dimension"
+    if {[catch {::dinah::dbAppendToSegment $::dinah::dimClipboard 0 $dbId} \
+            errorMsg]} {
+        error "::dinah::dbAddFragmentToClipboard --> $errorMsg"
     }
+}
+
+proc dbAddSegmentToCleanClipboard {dimName segIndex} {
+    if {[catch {::dinah::dbRemoveSegment $::dinah::dimClipboard 0} errorMsg]} {
+        error "::dinah::dbAddSegmentToCleanClipboard --> $errorMsg"
+    }
+    if {[catch {::dinah::dbGetSegment $dimName $segIndex} seg]} {
+        error "::dinah::dbAddSegmentToCleanClipboard --> $seg"
+    }
+    if {[catch {::dinah::dbAppendSegmentToDim $::dinah::dimClipboard $seg} \
+            errorMsg]} {
+        error "::dinah::dbAddSegmentToCleanClipboard --> $errorMsg"
+    }
+}
+
+proc dbGetDimSize {dimName} {
+    if {![::dinah::dbIsADim $dimName]} {
+        error "::dinah::dbGetDimSize --> $dimName is not a dimension"
+    }
+    if {[catch {::dinah::dbGet $dimName} dim]} {
+        error "::dinah::dbGetDimSize --> $dim"
+    }
+    return [llength $dim]
 }
