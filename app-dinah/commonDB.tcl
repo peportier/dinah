@@ -27,6 +27,13 @@ proc dbGet {key} {
     return $::dinah::db($key)
 }
 
+proc dbGetDimensions {} {
+    if {[catch {::dinah::dbGet dimensions} dimNames]} {
+        error "::dinah::dbGetDimensions --> $dimNames"
+    }
+    return $dimNames
+}
+
 proc dbSet {key value} {
     set ::dinah::db($key) $value
 }
@@ -88,8 +95,18 @@ proc dbNew {o} {
 # DIMENSIONS #
 ##############
 
+proc dbGetDim {dimName} {
+    if {![::dinah::dbIsADim $dimName]} {
+        error "::dinah::dbGetDim --> $dimName is not a dimension"
+    }
+    if {[catch {::dinah::dbGet $dimName} dim]} {
+        error "::dinah::dbGetDim --> $dim"
+    }
+    return $dim
+}
+
 proc dbIsADim {dimName} {
-    if {[catch {::dinah::dbGet dimensions} dims} {
+    if {[catch {::dinah::dbGetDimensions} dims]} {
         error "::dinah::dbIsADim --> $dims (SHOULD NEVER HAPPEN...)"
     }
     return [expr { [lsearch $dims $dimName] > -1}]
@@ -105,7 +122,7 @@ proc dbSetDim {dimName dimValue} {
 proc dbGetDimForId {dbid} {
     # return a list of shape: {dim segIndex fragIndex dim segIndex fragIndex...}
     set r {}
-    if {[catch {::dinah::dbGet dimensions} dims} {
+    if {[catch {::dinah::dbGetDimensions} dims} {
         error "::dinah::dbGetDimForId --> $dims (SHOULD NEVER HAPPEN...)"
     } else {
         foreach d $dims {
@@ -121,14 +138,13 @@ proc dbGetDimForId {dbid} {
 
 proc dbNewDim {dim} {
     if {![::dinah::dbExists $dim] && [regexp {^d\..*} $dim]} {
-        if {[catch {::dinah::dbAppend "dimensions" $dim} errorMsg]} {
+        if {[catch {::dinah::dbAppend dimensions $dim} errorMsg]} {
             error "::dinah::dbNewDim --> $errorMsg"
         }
         if {[catch {::dinah::dbSetDim $dim {}} errorMsg]} {
             error "::dinah::dbNewDim --> (will never happen) $errorMsg"
         }
-    }
-    if {[regexp {^q\.(.*)} $dim -> match]} {
+    } elseif {[regexp {^q\.(.*)} $dim -> match]} {
         set terms [split $match]
         if {![::dinah::dbExists $dim]} {
             if {[catch {::dinah::dbAppend dimensions $dim} errorMsg]} {
@@ -139,17 +155,15 @@ proc dbNewDim {dim} {
                 errorMsg]} {
             error "::dinah::dbNewDim --> $errorMsg"
         }
+    } else {
+        error "::dinah::dbNewDim --> the dimension $dim already exists and is \
+               not a query (i.e. it does not start with 'q.'), or it does not \
+               exist but it also does not start with 'd.' or 'q.'"
     }
-    error "::dinah::dbNewDim --> the dimension $dim already exists and is not \
-           a query (i.e. it does not start with 'q.'), or it does not exist \
-           but it also does not start with 'd.' or 'q.'"
 }
 
 proc dbGetDimSize {dimName} {
-    if {![::dinah::dbIsADim $dimName]} {
-        error "::dinah::dbGetDimSize --> $dimName is not a dimension"
-    }
-    if {[catch {::dinah::dbGet $dimName} dim]} {
+    if {[catch {::dinah::dbGetDim $dimName} dim]} {
         error "::dinah::dbGetDimSize --> $dim"
     }
     return [llength $dim]
@@ -215,18 +229,18 @@ proc dbAppendSegmentToDim {dimName seg} {
 
 proc dbRemoveSegment {dimName segIndex} {
     # segIndex must be an integer (e.g. no 'end')
-    if {[catch {::dinah::dbGet $dimName} dim]} {
+    if {[catch {::dinah::dbGetDim $dimName} dim]} {
         error "::dinah::dbRemoveSegment --> $dim"
     }
     if {! [::dinah::editable $dimName]} {
-        # dimName must exist because of the successful dbGet (see above)
+        # dimName must exist because of the successful dbGetDim (see above)
         error "::dinah::dbRemoveSegment --> $dimName is read only"
     }
     if {($segIndex < 0) || ($segIndex >= [llength $dim])} {
         error "::dinah::dbRemoveSegment --> $dimName has no segment with \
                index $segIndex"
     }
-    if {[catch {::dinah::dbSetDim $dimName [lreplace [::dinah::dbGet $dimName] \
+    if {[catch {::dinah::dbSetDim $dimName [lreplace [::dinah::dbGetDim $dimName] \
         $segIndex $segIndex]} errorMsg]} {
         error "::dinah::dbRemoveSegment --> will never happen since we already \
                checked if dimName was existing... $errorMsg"
@@ -402,10 +416,10 @@ proc dbFragmentBelongsToDim {dim id} {
     return 0
 }
 
-proc dbFindInDim {dim id} {
-    if {[::dinah::dbExists $dim]} {
-        for {set i 0} {$i < [llength [::dinah::dbGet $dim]]} {incr i} {
-            set j [lsearch [::dinah::dbLGet $dim $i] $id]
+proc dbFindInDim {dimName id} {
+    if {[::dinah::dbExists $dimName]} {
+        for {set i 0} {$i < [::dinah::dbGetDimSize $dimName]} {incr i} {
+            set j [lsearch [::dinah::dbGetSegment $dimName $i] $id]
             if {$j > -1} {
                 return [list $i $j]
             }

@@ -11,9 +11,9 @@ set ::dinah::keyboard(under9) "ccedilla"
 set ::dinah::keyboard(under0) "agrave"
 set ::dinah::writePermission 1
 
-if {![::dinah::dbExists "notAlone"]} {
-    ::dinah::dbSet "notAlone" 0
-}
+#if {![::dinah::dbExists "notAlone"]} {
+#    ::dinah::dbSet "notAlone" 0
+#}
 
 # 'ladd' adds 'what' to '_list' if 'what' isn't an element
 # of '_list'
@@ -131,10 +131,11 @@ proc keyword {q {ids all}} {
 
         } else {
             foreach id $ids {
-                set v [::dinah::dbAGet $id,$s]
-                if {[string match -nocase *$q* $v]} {
-                    if {$id ni $r} {
-                        lappend r $id
+                foreach {k v} [::dinah::dbAGet $id,$s] {
+                    if {[string match -nocase *$q* $v]} {
+                        if {$id ni $r} {
+                            lappend r $id
+                        }
                     }
                 }
             }
