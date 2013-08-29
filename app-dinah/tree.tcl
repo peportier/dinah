@@ -122,7 +122,7 @@ itcl::class Tree {
     }
 
     method newSon {nodeId} {
-        set newDbId [::dinah::dbNewEmptyNode Txt "label"]
+        set newDbId [::dinah::dbNewEmptyFragment Txt "label"]
         set fatherDbId [itemId $nodeId]
         set found [::dinah::dbFindInDim $hierarchyDim $fatherDbId]
         if {$found != {}} {
@@ -148,7 +148,7 @@ itcl::class Tree {
     }
 
     method newSibling {nodeId} {
-        set newDbId [::dinah::dbNewEmptyNode Txt "label"]
+        set newDbId [::dinah::dbNewEmptyFragment Txt "label"]
         set siblingDbId [itemId $nodeId]
         set found [::dinah::dbFindInDim $siblingDim $siblingDbId]
         if {$found != {}} {

@@ -41,13 +41,13 @@ itcl::class Txt {
     method removeTagFromDB {tagDBId tagName} {
         set segIndex "" ;# index of segment on which tagDBId may appear
         foreach d [list $::dinah::dimNote] {
-            set segIndex [::dinah::dbGetSegIndex $d $tagDBId]
+            set segIndex [::dinah::dbGetSegmentIndex $d $tagDBId]
             if {$segIndex ne ""} {
                 ::dinah::dbRemoveSegment $d $segIndex
             }
         }
-        ::dinah::dbRemFragFromDim $::dinah::dimFragments $tagDBId
-        ::dinah::dbRemFragFromDim "d.$tagName" $tagDBId
+        ::dinah::dbRemoveFragmentFromDim $::dinah::dimFragments $tagDBId
+        ::dinah::dbRemoveFragmentFromDim "d.$tagName" $tagDBId
     }
 
     method removeTag {tagName insideIndex} {
@@ -133,7 +133,7 @@ itcl::class Txt {
     }
 
     method initNewInterval {name fragId} {
-        set noteId [::dinah::dbNewEmptyNode Txt "note ($fragId)"]
+        set noteId [::dinah::dbNewEmptyFragment Txt "note ($fragId)"]
         ::dinah::dbAppendSegmentToDim $::dinah::dimNote [list $fragId $noteId]
         addIntervalToSortedDim $name $fragId
     }
@@ -201,7 +201,7 @@ itcl::class Txt {
     method newInterval {{tagName ""}} {
         if {[selToDBId] eq ""} { 
             set intervalId [::dinah::dbNew [list isa Txt txt [$txtWindow dump -all {*}[$txtWindow tag ranges sel]] label [$txtWindow get {*}[$txtWindow tag ranges sel]]]]
-            ::dinah::dbInsertNodeIntoDim $intervalId "after" $::dinah::dimFragments $dbid
+            ::dinah::dbInsertFragmentIntoDim $intervalId "after" $::dinah::dimFragments $dbid
             set intervalName "interval$intervalId"
             set intervalRange [$txtWindow tag ranges sel]
             eval $txtWindow tag add interval {*}$intervalRange
@@ -214,8 +214,8 @@ itcl::class Txt {
     }
 
     method newStone {tagName} {
-        set intervalId [::dinah::dbNewEmptyNode Txt $tagName]
-        ::dinah::dbInsertNodeIntoDim $intervalId "after" $::dinah::dimFragments $dbid
+        set intervalId [::dinah::dbNewEmptyFragment Txt $tagName]
+        ::dinah::dbInsertFragmentIntoDim $intervalId "after" $::dinah::dimFragments $dbid
         set intervalName "interval$intervalId"
         $txtWindow insert insert "$tagName\n" [list interval $intervalName $tagName]
         return $intervalId

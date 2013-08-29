@@ -84,8 +84,8 @@ proc quart3OnMoveCursor {container} {
 }
 
 proc bouvard:newNote {id} {
-    if {![::dinah::dbNodeBelongsToDim $::dinah::dimNote $id]} {
-        set note [::dinah::dbNewEmptyNode Txt]
+    if {![::dinah::dbFragmentBelongsToDim $::dinah::dimNote $id]} {
+        set note [::dinah::dbNewEmptyFragment Txt]
         ::dinah::dbAppendSegmentToDim $::dinah::dimNote [list $id $note]
     }
 }

@@ -243,7 +243,7 @@ namespace eval ::dinah::zonemaker {
             if {[llength $seg] == 2} {
                 ::dinah::dbRemoveSegment $::dinah::dimFragments $segIndex
             } else {
-                ::dinah::dbRemFragFromSeg $::dinah::dimFragments $segIndex $id
+                ::dinah::dbRemoveFragmentFromSegment $::dinah::dimFragments $segIndex $id
             }
         }
     }

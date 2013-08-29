@@ -224,28 +224,28 @@ itcl::class Obj {
             set srcId [lindex $data end]
             if {$op eq "move" && [::dinah::editable $srcDim]} {
                 if {$target eq $right && [::dinah::editable [$container getX]]} {
-                    ::dinah::dbMoveNodeBetweenDims $srcDim $srcId after [$container getX] $dbid
+                    ::dinah::dbMoveFragmentBetweenDims $srcDim $srcId after [$container getX] $dbid
                 } elseif {$target eq $left && [::dinah::editable [$container getX]]} {
-                    ::dinah::dbMoveNodeBetweenDims $srcDim $srcId before [$container getX] $dbid
+                    ::dinah::dbMoveFragmentBetweenDims $srcDim $srcId before [$container getX] $dbid
                 } elseif {$target eq $bottom && [::dinah::editable [$container getY]]} {
-                    ::dinah::dbMoveNodeBetweenDims $srcDim $srcId after [$container getY] $dbid
+                    ::dinah::dbMoveFragmentBetweenDims $srcDim $srcId after [$container getY] $dbid
                 } elseif {$target eq $bottom && [::dinah::editable [$container getY]]} {
-                    ::dinah::dbMoveNodeBetweenDims $srcDim $srcId before [$container getY] $dbid
+                    ::dinah::dbMoveFragmentBetweenDims $srcDim $srcId before [$container getY] $dbid
                 }
             } elseif {$op eq "force"} {
                 if {$target eq $right && [::dinah::editable [$container getX]]} {
-                    ::dinah::dbInsertNodeIntoDim $srcId after [$container getX] $dbid
+                    ::dinah::dbInsertFragmentIntoDim $srcId after [$container getX] $dbid
                 } elseif {$target eq $left && [::dinah::editable [$container getX]]} {
-                    ::dinah::dbInsertNodeIntoDim $srcId before [$container getX] $dbid
+                    ::dinah::dbInsertFragmentIntoDim $srcId before [$container getX] $dbid
                 } elseif {$target eq $bottom && [::dinah::editable [$container getY]]} {
-                    ::dinah::dbInsertNodeIntoDim $srcId after [$container getY] $dbid
+                    ::dinah::dbInsertFragmentIntoDim $srcId after [$container getY] $dbid
                 } elseif {$target eq $bottom && [::dinah::editable [$container getY]]} {
-                    ::dinah::dbInsertNodeIntoDim $srcId before [$container getY] $dbid
+                    ::dinah::dbInsertFragmentIntoDim $srcId before [$container getY] $dbid
                 }
             }
         }}
         if {! [catch {$container isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} {
-            ::dinah::dbInsertNodeIntoDim $data before [$container getCurrentDim] $dbid
+            ::dinah::dbInsertFragmentIntoDim $data before [$container getCurrentDim] $dbid
         }}
         $target configure -bg $::dinah::targetColor($target)
         return $container
@@ -267,7 +267,7 @@ itcl::class Obj {
             $container delete
         }}
         if {! [catch {$container isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} {
-            ::dinah::dbRemFragFromDim [$container getCurrentDim] $dbid
+            ::dinah::dbRemoveFragmentFromDim [$container getCurrentDim] $dbid
             $container reload
         }}
     }

@@ -123,8 +123,8 @@ proc navWinOnMoveCursor {container} {
             $quart3 setModeNotice
         }
     }
-    if {![::dinah::dbNodeBelongsToDim $::dinah::dimTranscription $quart1ScId]} {
-        set transcriptionId [::dinah::dbNewEmptyNode Txt "transcription ($quart1ScId)"]
+    if {![::dinah::dbFragmentBelongsToDim $::dinah::dimTranscription $quart1ScId]} {
+        set transcriptionId [::dinah::dbNewEmptyFragment Txt "transcription ($quart1ScId)"]
         set newSegment [list $quart1ScId $transcriptionId]
         ::dinah::dbAppendSegmentToDim $::dinah::dimTranscription $newSegment
     }

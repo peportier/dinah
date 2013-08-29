@@ -233,7 +233,7 @@ itcl::class Dim {
             if { !( $sc eq {} ) } {
                 set dbid [scId]
                 set newX {}
-                set newId [::dinah::dbNewEmptyNode $type]
+                set newId [::dinah::dbNewEmptyFragment $type]
                 set found 0
                 foreach l [::dinah::dbGet $x] {
                     set i [lsearch $l $dbid]
@@ -261,7 +261,7 @@ itcl::class Dim {
     }
 
     public method copySegmentToClipboard {} {
-        ::dinah::dbAddSegmentToCleanClipboard $x [scDimIndex]
+        ::dinah::dbAddSegmentToEmptyClipboard $x [scDimIndex]
     }
 
     public method pasteClipboardIntoNewSegment {} {
@@ -269,7 +269,7 @@ itcl::class Dim {
             if {![::dinah::dbClipboardIsEmpty]} {
                 set row {}
                 foreach frag [::dinah::dbGetClipboard] {
-                    if {![::dinah::dbNodeBelongsToDim $x $frag]} {
+                    if {![::dinah::dbFragmentBelongsToDim $x $frag]} {
                         lappend row $frag
                     } else {
                         tk_messageBox -message "clipboard cannot be pasted \
@@ -328,7 +328,7 @@ itcl::class Dim {
     public method dropmenu {target src xcoord ycoord op type data} {
         set srcId [lindex $data end]
         set found [::dinah::dbFindInDim $x $srcId]
-        if {[::dinah::dbNodeBelongsToDim $x $srcId]} {
+        if {[::dinah::dbFragmentBelongsToDim $x $srcId]} {
             buildAndGrid $srcId
         } else {
             tk_messageBox -message "object $srcId does not belong to \
@@ -339,7 +339,7 @@ itcl::class Dim {
 
     public method copy {} {
         if {[scId] neq {}} {
-            ::dinah::dbAddFragmentToCleanClipboard [scId]
+            ::dinah::dbAddFragmentToEmptyClipboard [scId]
             return 1
         } else {
             tk_messageBox -message "copy impossible: no object under the \
@@ -1323,7 +1323,7 @@ itcl::class Dim {
 
     private method newListWithTxtNode {} {
         if {! [dimXIsNil]} {
-            set txtId [::dinah::dbNewEmptyNode Txt]
+            set txtId [::dinah::dbNewEmptyFragment Txt]
             ::dinah::dbAppendSegmentToDim $x [list $txtId]
             buildAndGrid $txtId
         }

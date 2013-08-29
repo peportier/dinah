@@ -244,7 +244,7 @@ proc order {dimIndex dimLinear newDim} {
                 set id ""
                 if {$fragIndex == 0} { set id [::dinah::dbGetFragment $dimIndex $segIndex 1] }
                 if {$fragIndex == 1} { set id [::dinah::dbGetFragment $dimIndex $segIndex 0] }
-                if { ($id ne "") && ($id ni $newS) && (![::dinah::dbNodeBelongsToDim $newDim $id]) } {
+                if { ($id ne "") && ($id ni $newS) && (![::dinah::dbFragmentBelongsToDim $newDim $id]) } {
                     lappend newS $id
                 } else {
                     tk_messageBox -message "The following fragment is indexed twice by $dimIndex."
@@ -285,7 +285,7 @@ proc every {t body} {
 }
 
 proc newTree {rootName} {
-    set rootId [::dinah::dbNewEmptyNode Txt $rootName]
+    set rootId [::dinah::dbNewEmptyFragment Txt $rootName]
     ::dinah::dbSetAttribute $rootId txt "text {$rootName\n} 1.0"
     ::dinah::dbAppendSegmentToDim $::dinah::dim0 [list $rootId]
     ::dinah::dbAppendSegmentToDim $::dinah::roots $rootId
