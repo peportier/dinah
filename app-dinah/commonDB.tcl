@@ -196,6 +196,10 @@ proc dbGetSegment {dimName segIndex} {
         error "::dinah::dbGetSegment --> $dimName is not a dimension, or it\
                does not exist"
     }
+    if {($segIndex < 0) || ($segIndex >= [::dinah::dbGetDimSize $dimName])} {
+        error "::dinah::dbGetSegment --> $dimName has no segment with\
+               index $segIndex"
+    }
     if {[catch {::dinah::dbLGet $dimName $segIndex} res]} {
         error "::dinah::dbGetSegment --> $res"
     }
@@ -206,8 +210,9 @@ proc dbGetSegmentIndex {dimName dbid} {
     if {![::dinah::dbIsADim $dimName]} {
         error "::dinah::dbGetSegmentIndex --> $dimName is not a dimension"
     }
-    if {![::dinah::dbExists $dbid,isa]} {
-        error "::dinah::dbGetSegmentIndex --> there is no object with id $dbid"
+    if {![::dinah::dbIsAFragment $dbid]} {
+        error "::dinah::dbGetSegmentIndex --> there is no fragment with id\
+               $dbid"
     }
     set found [::dinah::dbFindInDim $dimName $dbid]
     if {$found != {}} {
@@ -285,6 +290,12 @@ proc dbAppendSegmentToDim {dimName seg} {
     }
     set tempList {}
     foreach frag $seg {
+        if {![::dinah::dbIsAFragment $frag]} {
+            error "::dinah::dbAppendSegmentToDim --> the database entry with id\
+                   $frag is not a fragment"
+        }
+        ######
+        ######
         if {$frag in $tempList} {
             error "::dinah::dbAppendSegmentToDim --> the fragment $frag\
                    appears at least twice in the segment to be appended to\
@@ -292,8 +303,8 @@ proc dbAppendSegmentToDim {dimName seg} {
                    twice in a given dimension."
         }
         lappend tempList $frag
-    }
-    foreach frag $seg {
+        ######
+        ######
         if {[::dinah::dbFragmentBelongsToDim $dimName $frag]} {
             error "::dinah::dbAppendSegmentToDim --> The segment to be\
                    appended to \
@@ -320,8 +331,8 @@ proc dbRemoveSegment {dimName segIndex} {
         error "::dinah::dbRemoveSegment --> $dimName has no segment with\
                index $segIndex"
     }
-    if {[catch {::dinah::dbSetDim $dimName [lreplace [::dinah::dbGetDim $dimName] \
-        $segIndex $segIndex]} errorMsg]} {
+    if {[catch {::dinah::dbSetDim $dimName [lreplace [::dinah::dbGetDim \
+            $dimName] $segIndex $segIndex]} errorMsg]} {
         error "::dinah::dbRemoveSegment --> will never happen since we already\
                checked if dimName was existing... $errorMsg"
     }
@@ -335,6 +346,9 @@ proc dbRemoveSegment {dimName segIndex} {
 # trgDim to the right or to the left of node trgId
 # $direction is either "before" or "after"
 proc dbInsertFragmentIntoDim {srcId direction trgDim trgId} {
+    if {![dbIsAFragment $srcId]} {
+        error "the database entry with id $srcId is not a fragment"
+    }
     if {$direction ni {before after}} {
         error "::dinah::dbInsertFragmentIntoDim --> '$direction' is not a valid\
                value for the direction parameter (it should be 'before'\
@@ -351,7 +365,7 @@ proc dbInsertFragmentIntoDim {srcId direction trgDim trgId} {
     }
     set segIndex [lindex $found 0]
     set fragIndex [lindex $found 1]
-    if {[::dinah::dbFragmentBelongsToDim $srcId $trgDim]} {
+    if {[::dinah::dbFragmentBelongsToDim $trgDim $srcId]} {
         error "::dinah::dbInsertFragmentIntoDim --> The source fragment $srcId\
                already belongs to the target dimension $trgDim, and the same\
                fragment cannot appear twice in a given dimension."
@@ -368,11 +382,6 @@ proc dbInsertFragmentIntoDim {srcId direction trgDim trgId} {
 }
 
 proc dbMoveFragmentBetweenDims {srcDim srcId direction trgDim trgId} {
-    if {! [::dinah::editable $srcDim]} {
-        error "::dinah::dbMoveFragmentBetweenDims --> the source dimension\
-               $srcDim from which the fragment $srcId would be removed is\
-               read only or does not exist"
-    }
     if {$srcDim eq $trgDim} {
         # in this case the fragment $srcId is moved from one place of $srcDim
         # to another place of $srcDim, maybe from one segment of srcDim to
@@ -410,7 +419,7 @@ proc dbGetFragment {dimName segIndex fragIndex} {
     if {![::dinah::dbIsADim $dimName]} {
         error "::dinah::dbGetFragment --> $dimName is not a dimension"
     }
-    if {[catch {::dinah::dbGetSegment $dimName $segIndex $fragIndex} \
+    if {[catch {::dinah::dbGetSegment $dimName $segIndex} \
             seg]} {
         error "::dinah::dbGetFragment --> $seg"
     }
@@ -532,6 +541,13 @@ proc dbClone {id} {
 # CLIPBOARD #
 #############
 
+proc dbInitClipboard {} {
+    if {![::dinah::dbIsADim $::dinah::dimClipboard]} {
+        ::dinah::dbNewDim $::dinah::dimClipboard
+        ::dinah::dbClearClipboard
+    }
+}
+
 proc dbClearClipboard {} {
     # we only use the first segment of the clipboard dimension.
     # this first segment must exist. thus the value '{{}}' we use to
@@ -563,9 +579,9 @@ proc dbGetClipboard {} {
 }
 
 proc dbAddFragmentToEmptyClipboard {dbId} {
-    if {![::dinah::dbExists $dbId,isa]} {
+    if {![::dinah::dbIsAFragment $dbId]} {
         error "::dinah::dbAddFragmentToEmptyClipboard --> $dbId is not\
-               an object identifier"
+               a fragment identifier"
     }
     if {[catch {::dinah::dbClearClipboard} errorMsg]} {
         error "::dinah::dbAddFragmentToEmptyClipboard --> $errorMsg"
@@ -577,9 +593,9 @@ proc dbAddFragmentToEmptyClipboard {dbId} {
 }
 
 proc dbAddFragmentToClipboard {dbId} {
-    if {![::dinah::dbExists $dbId,isa]} {
-        error "::dinah::dbAddFragmentToClipboard --> $dbId is not an\
-               object identifier"
+    if {![::dinah::dbIsAFragment $dbId]} {
+        error "::dinah::dbAddFragmentToClipboard --> $dbId is not a\
+               fragment identifier"
     }
     if {[catch {::dinah::dbAppendToSegment $::dinah::dimClipboard 0 $dbId} \
             errorMsg]} {
