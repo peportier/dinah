@@ -11,9 +11,9 @@ set ::dinah::keyboard(under9) "ccedilla"
 set ::dinah::keyboard(under0) "agrave"
 set ::dinah::writePermission 1
 
-#if {![::dinah::dbExists "notAlone"]} {
-#    ::dinah::dbSet "notAlone" 0
-#}
+if {![::dinah::dbExists "notAlone"]} {
+    ::dinah::dbSet "notAlone" 0
+}
 
 # 'ladd' adds 'what' to '_list' if 'what' isn't an element
 # of '_list'
