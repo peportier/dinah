@@ -422,8 +422,8 @@ namespace eval ::dinah {
     }
 
     if {[catch {dbGetFragment "d.1" 0 -1} errorMsg]} {
-        if {$errorMsg ne "::dinah::dbGetFragment --> segment 0 of\
-               dimension d.1 has no fragment at index -1"} {
+        if {$errorMsg ne "::dinah::dbGetFragment --> index -1 is not a proper\
+                          index, it should be an integer"} {
             incr nbFailures
             puts "T45 KO"
         }
@@ -595,8 +595,218 @@ namespace eval ::dinah {
         puts "T65 KO"
     }
 
-    puts [dbGetDim "d.1"]
-    puts [dbGetDim "d.2"]
+    dbAppend "d.1" {3 5}
+    if {[dbGetDim "d.1"] ne {4 {3 5}}} {
+        incr nbFailures
+        puts "T66 KO"
+    }
+
+    if {[catch {dbAppend "d.3" 1} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbAppend --> key d.3 does not exist"} {
+            incr nbFailures
+            puts "T67 KO"
+        }
+    } else {
+        incr nbFailures
+        puts "T67 KO"
+    }
+
+    dbSetAttribute 1 txt "abc def ghi"
+    if {[dbGetAttribute 1 txt] ne "abc def ghi"} {
+        incr nbFailures
+        puts "T68 KO"
+    }
+
+    if {[catch {dbSetAttribute 6 txt ""} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbSetAttribute --> there is no fragment with\
+                          id 6"} {
+            incr nbFailures
+            puts "T69 KO"
+        }
+    } else {
+        incr nbFailures
+        puts "T69 KO"
+    }
+
+    if {[catch {dbSetAttribute 1 tag "aTag"} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbSetAttribute --> the fragment 1 has no\
+                          attribute tag"} {
+            incr nbFailures
+            puts "T70 KO"
+        }
+    } else {
+        incr nbFailures
+        puts "T70 KO"
+    }
+
+    if {[catch {dbGetAttribute 6 txt} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbGetAttribute --> there is no fragment with\
+                          id 6"} {
+            incr nbFailures
+            puts "T71 KO"
+        }
+    } else {
+        incr nbFailures
+        puts "T71 KO"
+    }
+
+    if {[catch {dbGetAttribute 1 tag} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbGetAttribute --> the fragment 1 has no\
+                          attribute tag"} {
+            incr nbFailures
+            puts "T72 KO"
+        }
+    } else {
+        incr nbFailures
+        puts "T72 KO"
+    }
+
+    dbNewAttribute 1 tag "aTag"
+    if {[dbGetAttribute 1 tag] ne "aTag"} {
+        incr nbFailures
+        puts "T73 KO"
+    }
+
+    if {[catch {dbNewAttribute 6 tag} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbNewAttribute --> there is no fragment with\
+                          id 6"} {
+            incr nbFailures
+            puts "T74 KO"
+        }
+    } else {
+        incr nbFailures
+        puts "T74 KO"
+    }
+
+    if {[dbGetAttributesNames 1] ne {isa label tag txt}} {
+        incr nbFailures
+        puts "T75 KO"
+    }
+
+    if {[catch {dbGetAttributesNames 6} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbGetAttributesNames --> there is no\
+                          fragment with id 6"} {
+            incr nbFailures
+            puts "T76 KO"
+        }
+    } else {
+        incr nbFailures
+        puts "T76 KO"
+    }
+
+    if {[dbLGet dimensions 0] ne "d.nil"} {
+        incr nbFailures
+        puts "T77 KO"
+    }
+
+    if {[catch {dbLGet dimensions end} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbLGet --> index end is not a proper\
+                          index, it should be an integer"} {
+            incr nbFailures
+            puts "T78 KO"
+        }
+    } else {
+        incr nbFailures
+        puts "T78 KO"
+    }
+
+    if {[catch {dbLGet dimensions 4} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbLGet --> object at key dimensions has no\
+                          element at index 4"} {
+            incr nbFailures
+            puts "T79 KO"
+        }
+    } else {
+        incr nbFailures
+        puts "T79 KO"
+    }
+
+    if {[catch {dbGetSegment "d.2" end} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbGetSegment --> index end is not a proper\
+                          index, it should be an integer"} {
+            incr nbFailures
+            puts "T80 KO"
+        }
+    } else {
+        incr nbFailures
+        puts "T80 KO"
+    }
+
+    if {[catch {dbRemoveSegment "d.1" end} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbRemoveSegment --> index end is not a proper\
+                          index, it should be an integer"} {
+            incr nbFailures
+            puts "T81 KO"
+        }
+    } else {
+        incr nbFailures
+        puts "T81 KO"
+    }
+
+    if {[catch {dbRemoveFragmentFromSegmentByIndex "d.1" 1 end} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbRemoveFragmentFromSegmentByIndex --> index\
+                          end is not a proper index, it should be an integer"} {
+            incr nbFailures
+            puts "T82 KO"
+        }
+    } else {
+        incr nbFailures
+        puts "T82 KO"
+    }
+
+    dbLSet "d.1" 1 {3 2}
+    if {[dbGetDim "d.1"] ne {4 {3 2}}} {
+        incr nbFailures
+        puts "T83 KO"
+    }
+
+    if {[catch {dbLSet "d.1" 2 5} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbLSet --> object at key d.1 has no element\
+                          at index 2"} {
+            incr nbFailures
+            puts "T84 KO"
+        }
+    } else {
+        incr nbFailures
+        puts "T84 KO"
+    }
+
+    if {[catch {dbLSet "d.1" end 5} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbLSet --> index end is not a proper\
+                          index, it should be an integer"} {
+            incr nbFailures
+            puts "T85 KO"
+        }
+    } else {
+        incr nbFailures
+        puts "T85 KO"
+    }
+
+    dbSave
+    array set ::dinah::db {}
+    dbLoad
+    if {[dbGetAttribute 1 txt] ne "abc def ghi"} {
+        incr nbFailures
+        puts "T86 KO"
+    }
+
+    dbSetAttribute 2 txt "def abc jkl"
+
+    if {[dbSearch "gh"] ne {1}} {
+        incr nbFailures
+        puts "T87 KO"
+    }
+
+    if {[dbSearch "abc"] ne {1 2}} {
+        incr nbFailures
+        puts "T88 KO"
+    }
+
+    dbNewDim "q.abc hi"
+    if {[dbGetDim "q.abc hi"] ne {1}} {
+        incr nbFailures
+        puts "T89 KO"
+    }
 
     puts "$nbFailures test(s) failed"
 }

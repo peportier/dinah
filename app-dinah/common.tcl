@@ -109,42 +109,6 @@ proc setConvert {path} {
     }
 }
 
-proc keywords {qs} {
-    set r "all"
-    foreach q $qs { set r [::dinah::keyword $q $r] }
-    return $r
-}
-
-proc keyword {q {ids all}} {
-    set id ""
-    set r {}
-    foreach s {label txt} {
-        if {$ids eq "all"} {
-            foreach {k v} [::dinah::dbAGet *,$s] {
-                if {[string match -nocase *$q* $v]} {
-                    regexp {(.*),.*} $k -> id
-                    if {$id ni $r} {
-                        lappend r $id
-                    }
-                }
-            }
-
-        } else {
-            foreach id $ids {
-                foreach {k v} [::dinah::dbAGet $id,$s] {
-                    if {[string match -nocase *$q* $v]} {
-                        if {$id ni $r} {
-                            lappend r $id
-                        }
-                    }
-                }
-            }
-        }
-    }
-    set r [lsort -dictionary $r]
-    return $r
-}
-
 proc userConnect {} {
     if {[::dinah::dbGet "notAlone"]} {
         set ::dinah::writePermission 0

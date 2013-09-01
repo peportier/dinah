@@ -12,6 +12,12 @@ proc dbSaveTo {fn} {
 
 proc dbSave {} { ::dinah::dbSaveTo $::dinah::dbFile }
 
+proc dbLoadFrom {fn} {
+    source -encoding utf-8 $fn
+}
+
+proc dbLoad {} { ::dinah::dbLoadFrom $::dinah::dbFile }
+
 #############
 # LOW LEVEL #
 #############
@@ -53,10 +59,12 @@ proc dbOSet {id o} {
 }
 
 proc dbLGet {key index} {
-    # index must be an integer (e.g. no 'end', no multidim indexation with
-    # a list of integers, ...)
     if {[catch {::dinah::dbGet $key} atKey]} {
         error "::dinah::dbLGet --> $atKey"
+    }
+    if {![regexp {^\d*$} $index]} {
+        error "::dinah::dbLGet --> index $index is not a proper index, it\
+               should be an integer"
     }
     if {($index < 0) || ($index >= [llength $atKey])} {
         error "::dinah::dbLGet --> object at key $key has no element at\
@@ -66,20 +74,61 @@ proc dbLGet {key index} {
 }
 
 proc dbLSet {key index elem} {
-    if {![::dinah::dbExists $key]} {
-        error "::dinah::dbLSet --> key $key does not exist"
+    if {[catch {::dinah::dbGet $key} atKey]} {
+        error "::dinah::dbLSet --> $atKey"
     }
-    if {[catch {lset ::dinah::db($key) $index $elem} errorMsg]} {
-        error "::dinah::dbLSet --> there is no index $index for the key\
-               $key"
+    if {![regexp {^\d*$} $index]} {
+        error "::dinah::dbLSet --> index $index is not a proper index, it\
+               should be an integer"
     }
+    if {($index < 0) || ($index >= [llength $atKey])} {
+        error "::dinah::dbLSet --> object at key $key has no element at\
+               index $index"
+    }
+    lset ::dinah::db($key) $index $elem
 }
 
-proc dbSetAttribute {dbid att value} {
+proc dbGetAttributesNames {dbid} {
+    if {![::dinah::dbIsAFragment $dbid]} {
+        error "::dinah::dbGetAttributesNames --> there is no fragment with id\
+               $dbid"
+    }
+    set attributesNames {}
+    foreach {k v} [dbAGet $dbid,*] {
+        if {[regexp $dbid,(.*) $k -> attributeName]} {
+            lappend attributesNames $attributeName
+        }
+    }
+    return [lsort -dictionary $attributesNames]
+}
+
+proc dbGetAttribute {dbid attName} {
+    if {![::dinah::dbIsAFragment $dbid]} {
+        error "::dinah::dbGetAttribute --> there is no fragment with id $dbid"
+    }
+    if {![::dinah::dbExists $dbid,$attName]} {
+        error "::dinah::dbGetAttribute --> the fragment $dbid has no attribute\
+               $attName"
+    }
+    ::dinah::dbGet $dbid,$attName
+}
+
+proc dbSetAttribute {dbid attName attValue} {
     if {![::dinah::dbIsAFragment $dbid]} {
         error "::dinah::dbSetAttribute --> there is no fragment with id $dbid"
     }
-    ::dinah::dbSet $dbid,$att $value
+    if {![::dinah::dbExists $dbid,$attName]} {
+        error "::dinah::dbSetAttribute --> the fragment $dbid has no attribute\
+               $attName"
+    }
+    ::dinah::dbSet $dbid,$attName $attValue
+}
+
+proc dbNewAttribute {dbid attName {attValue ""}} {
+    if {![::dinah::dbIsAFragment $dbid]} {
+        error "::dinah::dbNewAttribute --> there is no fragment with id $dbid"
+    }
+    ::dinah::dbSet $dbid,$attName $attValue
 }
 
 proc dbAppend {key value} {
@@ -169,7 +218,7 @@ proc dbNewDim {dim} {
                 error "::dinah::dbNewDim --> $errorMsg"
             }
         }
-        if {[catch {::dinah::dbSetDim $dim [list [::dinah::keywords $terms]]} \
+        if {[catch {::dinah::dbSetDim $dim [list [::dinah::dbSearch $terms]]} \
                 errorMsg]} {
             error "::dinah::dbNewDim --> $errorMsg"
         }
@@ -195,6 +244,10 @@ proc dbGetSegment {dimName segIndex} {
     if {![::dinah::dbIsADim $dimName]} {
         error "::dinah::dbGetSegment --> $dimName is not a dimension, or it\
                does not exist"
+    }
+    if {![regexp {^\d*$} $segIndex]} {
+        error "::dinah::dbGetSegment --> index $segIndex is not a proper index,\
+               it should be an integer"
     }
     if {($segIndex < 0) || ($segIndex >= [::dinah::dbGetDimSize $dimName])} {
         error "::dinah::dbGetSegment --> $dimName has no segment with\
@@ -327,6 +380,10 @@ proc dbRemoveSegment {dimName segIndex} {
         # dimName must exist because of the successful dbGetDim (see above)
         error "::dinah::dbRemoveSegment --> $dimName is read only"
     }
+    if {![regexp {^\d*$} $segIndex]} {
+        error "::dinah::dbRemoveSegment --> index $segIndex is not a proper\
+               index, it should be an integer"
+    }
     if {($segIndex < 0) || ($segIndex >= [llength $dim])} {
         error "::dinah::dbRemoveSegment --> $dimName has no segment with\
                index $segIndex"
@@ -423,6 +480,10 @@ proc dbGetFragment {dimName segIndex fragIndex} {
             seg]} {
         error "::dinah::dbGetFragment --> $seg"
     }
+    if {![regexp {^\d*$} $fragIndex]} {
+        error "::dinah::dbGetFragment --> index $fragIndex is not a proper\
+               index, it should be an integer"
+    }
     if {($fragIndex < 0) || ($fragIndex >= [llength $seg])} {
         error "::dinah::dbGetFragment --> segment $segIndex of\
                dimension $dimName has no fragment at index $fragIndex"
@@ -467,6 +528,10 @@ proc dbRemoveFragmentFromSegment {dimName segIndex fragId} {
 proc dbRemoveFragmentFromSegmentByIndex {dimName segIndex fragIndex} {
     if {[catch {::dinah::dbGetSegment $dimName $segIndex} seg]} {
         error "::dinah::dbRemoveFragmentFromSegmentByIndex --> $seg"
+    }
+    if {![regexp {^\d*$} $fragIndex]} {
+        error "::dinah::dbRemoveFragmentFromSegmentByIndex --> index $fragIndex\
+               is not a proper index, it should be an integer"
     }
     if {($fragIndex < 0) || ($fragIndex >= [llength $seg])} {
         error "::dinah::dbRemoveFragmentFromSegmentByIndex --> segment\
@@ -615,3 +680,44 @@ proc dbAddSegmentToEmptyClipboard {dimName segIndex} {
         error "::dinah::dbAddSegmentToEmptyClipboard --> $errorMsg"
     }
 }
+
+##########
+# SEARCH #
+##########
+
+proc dbSearch {qs} {
+    set r "all"
+    foreach q $qs { set r [::dinah::dbKeyword $q $r] }
+    return $r
+}
+
+proc dbKeyword {q {ids all}} {
+    set id ""
+    set r {}
+    foreach s {label txt} {
+        if {$ids eq "all"} {
+            foreach {k v} [::dinah::dbAGet *,$s] {
+                if {[string match -nocase *$q* $v]} {
+                    regexp {(.*),.*} $k -> id
+                    if {$id ni $r} {
+                        lappend r $id
+                    }
+                }
+            }
+
+        } else {
+            foreach id $ids {
+                foreach {k v} [::dinah::dbAGet $id,$s] {
+                    if {[string match -nocase *$q* $v]} {
+                        if {$id ni $r} {
+                            lappend r $id
+                        }
+                    }
+                }
+            }
+        }
+    }
+    set r [lsort -dictionary $r]
+    return $r
+}
+
