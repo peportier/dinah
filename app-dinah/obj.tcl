@@ -1,11 +1,11 @@
 itcl::class Obj {
-    public variable dbid ""
-    public variable container ""
-    public variable frame ""
-
-    # is the image inside a standalone window?
-    # IF it is THEN $standalone is the name of the toplevel window
-    # containing the image ELSE $standalone is ""
+    protected variable dbid ""
+    protected variable container ""
+    protected variable frame ""
+    # if the object is not managed by a container (i.e. a dimensional view,
+    # a whiteboard, ...) then $standalone is the name of the toplevel that
+    # contains the representation of the object. Otherwise the value of
+    # $standalone is "":
     protected variable standalone ""
     protected variable notificationLabel ""
     protected variable inDim
@@ -16,26 +16,26 @@ itcl::class Obj {
     protected variable bottom ""
     protected variable genericMenu ""
     protected variable inDimMenu ""
+    protected variable whiteboardX ""
+    protected variable whiteboardY ""
 
-    method select {} {catch {$container buildAndGrid $dbid}}
+    ##################
+    # PUBLIC METHODS #
+    ##################
 
-    method newNodeOnRight {type} {
+    public method select {} {catch {$container buildAndGrid $dbid}}
+
+    public method newNodeOnRight {type} {
         if {[catch {$container buildAndGrid $dbid}]} {return}
         $container new $type
     }
 
-    method newNodeOnLeft {type} {
+    public method newNodeOnLeft {type} {
         if {[catch {$container buildAndGrid $dbid}]} {return}
         $container new $type 0
     }
 
-    method getContainer {} {return $container}
-
-    method z {} {return ""}
-
-    method specificLayout {} {return ""}
-
-    method afterLayout {} {return ""}
+    public method z {} {return ""}
 
     method mkWindow {{parentw ""}} {
         if {$parentw == ""} {
@@ -49,30 +49,31 @@ itcl::class Obj {
         set center [frame $frame.center]
         set bottom [frame $frame.bottom -height $::dinah::separatorSize]
         set right [frame $frame.right -width $::dinah::separatorSize]
-        entry $center.foldedEntry -textvariable ::dinah::db($dbid,label) -font "$::dinah::font 15 underline" -justify center
+        entry $center.foldedEntry -textvariable ::dinah::db($dbid,label) \
+            -font "$::dinah::font 15 underline" -justify center
         frame $center.menu
         set notificationLabel [label $center.menu.notification -text ""]
         set inDim [label $center.menu.inDim -text "?"]
 
         set inDimMenu [menu $frame.inDimMenu]
         set genericMenu [menu $frame.genericMenu]
-        $genericMenu add command -label "delete (Ctrl-d)" -command [list $this delete]
         $genericMenu add command -label fold -command [list $this fold]
-        $genericMenu add command -label clone -command [list $this makeClone]
         bind $center.menu $::dinah::mouse(B3) [list tk_popup $genericMenu %X %Y]
         bind $center.menu <Double-1> [list $this select]
-        bind $center.menu <1> [list $this menu1 %X %Y]
+        bind $center.menu <1> [list $this storeCoordinates %X %Y]
         bind $center.menu.inDim <1> [list $this menuInDim %X %Y]
-        bind $center.menu.notification <1> [list $this menu1 %X %Y]
-        bind $center.menu.notification <B1-Motion> [list $this menu1motion %X %Y]
+        bind $center.menu.notification <1> [list $this storeCoordinates %X %Y]
+        bind $center.menu.notification <B1-Motion> [list $this moveItem %X %Y]
         bind $center.foldedEntry <Double-1> [list $this unfold]
 
         set rightMenu [menu $frame.rightMenu]
-        $rightMenu add command -label "new txt" -command [list $this newNodeOnRight Txt]
+        $rightMenu add command -label "new txt" \
+            -command [list $this newNodeOnRight Txt]
         bind $right $::dinah::mouse(B3) [list tk_popup $rightMenu %X %Y]
 
         set leftMenu [menu $frame.leftMenu]
-        $leftMenu add command -label "new txt" -command [list $this newNodeOnLeft Txt]
+        $leftMenu add command -label "new txt" \
+            -command [list $this newNodeOnLeft Txt]
         bind $left $::dinah::mouse(B3) [list tk_popup $leftMenu %X %Y]
 
         specificLayout
@@ -81,60 +82,233 @@ itcl::class Obj {
         dragAndDrop
     }
 
-    method menu1 {X Y} {
-        if {! [catch {$container isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} {
+    public method storeCoordinates {X Y} {
+        if {! [catch {$container isa Whiteboard} isaWhiteboard]} {
+        if {$isaWhiteboard} {
             $container getFocus
             $container setCursorOnId $dbid
-            set ::dinah::memx [[$container getCanvas] canvasx $X]
-            set ::dinah::memy [[$container getCanvas] canvasx $Y]
+            set whiteboardX [[$container getCanvas] canvasx $X]
+            set whiteboardY [[$container getCanvas] canvasy $Y]
         }}
     }
 
-    method menu1motion {X Y} {
-        if {! [catch {$container isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} {
+    public method moveItem {X Y} {
+        if {! [catch {$container isa Whiteboard} isaWhiteboard]} {
+        if {$isaWhiteboard} {
             set x [[$container getCanvas] canvasx $X]
             set y [[$container getCanvas] canvasy $Y]
-            set dx [expr {$X - $::dinah::memx}]
-            set dy [expr {$Y - $::dinah::memy}]
-            $container moveItem [$container getItemFromId $dbid] $dx $dy 
-            set ::dinah::memx $X
-            set ::dinah::memy $Y
+            set dx [expr {$X - $whiteboardX}]
+            set dy [expr {$Y - $whiteboardY}]
+            $container moveItem [$container getItemFromId $dbid] $dx $dy
+            set whiteboardX $X
+            set whiteboardY $Y
         }}
     }
 
-    method fold {} {
-        unsetBindings
+    public method fold {} {
         pack forget $center.menu $center.main
         pack $center.foldedEntry -side top -fill x -expand 1 -padx 4 -pady 4
         focus $center.foldedEntry
     }
 
-    method unfold {} {
+    public method unfold {} {
         pack forget $center.foldedEntry
         pack $center.menu -side top -fill x -padx 4 -pady 4
         pack $center.main -side top -fill both -expand true -padx 4 -pady 4
     }
 
-    method menuInDim {X Y} {
-        if {! [catch {$container isa Dim} isaDim]} {if {$isaDim} {
+    public method menuInDim {X Y} {
+        if {! [catch {$container isa Dim} isaDim]} {
+        if {$isaDim} {
             $inDimMenu delete 0 end
             set dims [::dinah::dbGetDimForId $dbid]
-            if {[llength $dims] > 0} {
-                foreach {dim segIndex fragIndex} $dims {
-                    $inDimMenu add command -label $dim -command [list $this setXDim $dim]
-                }
-                tk_popup $inDimMenu $X $Y
+            foreach {dim segIndex fragIndex} $dims {
+                $inDimMenu add command -label $dim \
+                    -command [list $this setXDim $dim]
             }
+            tk_popup $inDimMenu $X $Y
         }}
     }
 
-    method setXDim {dim} {
+    public method setXDim {dim} {
         if {! [catch {$container isa Dim} isaDim]} {if {$isaDim} {
             $container setXAndUpdate $dim
         }}
     }
 
-    method layout {} {
+    public method notificate {txt} {
+        $notificationLabel configure -text \
+            [concat [$notificationLabel cget -text] $txt]
+    }
+
+    # an object is circled by 4 thin borders
+    # each border can be thought as either opened or closed
+    # each border can take one of two colors ($::dinah::openColor &
+    # $::dinah::closeColor)
+    # in the context of a dimensional view a closed border means that if
+    # another object can be seen adjacent along this border it doesn't mean
+    # that the two objects are related by the current dimension
+    # (viz. X-Dimension for EW borders, and Y-Dimension for NS borders)
+    public method openNS {} {
+        $top configure -bg $::dinah::openColor
+        $bottom configure -bg $::dinah::openColor
+    }
+
+    public method closeNS {} {
+        $top configure -bg $::dinah::closeColor
+        $bottom configure -bg $::dinah::closeColor
+    }
+
+    public method openEW {} {
+        $left configure -bg $::dinah::openColor
+        $right configure -bg $::dinah::openColor
+    }
+
+    public method closeEW {} {
+        $left configure -bg $::dinah::closeColor
+        $right configure -bg $::dinah::closeColor
+    }
+
+    public method setMenuColor {color} {
+        $frame.center.menu configure -background $color
+    }
+
+    public method getContainer {} { return $container }
+
+    public method setContainer {c} { set container $c }
+
+    public method draginitcmd {src x y toplevelBitmap} {
+        if {! [catch {$container isa Dim} isaDim]} {if {$isaDim} {
+            if {$dbid in [$container scRow]} {
+                set data [list [$container getX] $dbid]
+            } else {
+                set data [list [$container getY] $dbid]
+            }
+        }} else {
+            set data $dbid
+        }
+        return [list Obj {copy move} $data]
+    }
+
+    public method dragendcmd {src target op type data dropResult} {
+        # if the drop action failed, dropResult is set to 0 (false):
+        if {!$dropResult} { return }
+        # if the drop action succeeded, dropResult is set to the container
+        # of the drop target:
+        if {! [catch {$container isa Dim} isaDim]} {
+        if {$isaDim} {
+            $container reload
+        }}
+        if {! [catch {$dropResult isa Dim} isaDim]} {
+        if {$isaDim} {
+            $dropResult reload
+        }}
+        if {! [catch {$dropResult isa Whiteboard} isaWhiteboard]} {
+        if {$isaWhiteboard} {
+            $dropResult reload
+        }}
+    }
+
+    public method dropcmd {target src x y op type data} {
+        if {! [catch {$container isa Dim} isaDim]} {
+        if {$isaDim} {
+            set srcDim [lindex $data 0]
+            set srcId [lindex $data end]
+            if {$op eq "move"} {
+                if {$target eq $right} {
+                    if {[catch {::dinah::dbMoveFragmentBetweenDims \
+                            $srcDim $srcId after \
+                            [$container getX] $dbid} errorMsg]} {
+                        tk_messageBox -message $errorMsg -icon error
+                        return 0
+                    }
+                } elseif {$target eq $left} {
+                    if {[catch {::dinah::dbMoveFragmentBetweenDims \
+                            $srcDim $srcId before \
+                            [$container getX] $dbid} errorMsg]} {
+                        tk_messageBox -message $errorMsg -icon error
+                        return 0
+                    }
+
+                } elseif {$target eq $bottom} {
+                    if {[catch {::dinah::dbMoveFragmentBetweenDims \
+                            $srcDim $srcId after \
+                            [$container getY] $dbid} errorMsg]} {
+                        tk_messageBox -message $errorMsg -icon error
+                        return 0
+                    }
+                } elseif {$target eq $top} {
+                    if {[catch {::dinah::dbMoveFragmentBetweenDims \
+                            $srcDim $srcId before \
+                            [$container getY] $dbid} errorMsg]} {
+                        tk_messageBox -message $errorMsg -icon error
+                        return 0
+                    }
+                }
+            } elseif {$op eq "copy"} {
+                if {$target eq $right} {
+                    if {[catch {::dinah::dbInsertFragmentIntoDim $srcId after \
+                            [$container getX] $dbid} errorMsg]} {
+                        tk_messageBox -message $errorMsg -icon error
+                        return 0
+                    }
+                } elseif {$target eq $left} {
+                    if {[catch {::dinah::dbInsertFragmentIntoDim $srcId before \
+                            [$container getX] $dbid} errorMsg]} {
+                        tk_messageBox -message $errorMsg -icon error
+                        return 0
+                    }
+                } elseif {$target eq $bottom} {
+                    if {[catch {::dinah::dbInsertFragmentIntoDim $srcId after \
+                            [$container getY] $dbid} errorMsg]} {
+                        tk_messageBox -message $errorMsg -icon error
+                        return 0
+                    }
+                } elseif {$target eq $top} {
+                    if {[catch {::dinah::dbInsertFragmentIntoDim $srcId before \
+                            [$container getY] $dbid} errorMsg]} {
+                        tk_messageBox -message $errorMsg -icon error
+                        return 0
+                    }
+                }
+            }
+        }}
+        if {! [catch {$container isa Whiteboard} isaWhiteboard]} {
+        if {$isaWhiteboard} {
+            if {[catch {::dinah::dbInsertFragmentIntoDim $data before \
+                    [$container getCurrentDim] $dbid} errorMsg]} {
+                tk_messageBox -message $errorMsg -icon error
+                return 0
+            }
+        }}
+        $target configure -bg $::dinah::targetColor($target)
+        return $container
+    }
+
+    public method dropovercmd {target src evt x y op type data} {
+        if {$evt eq "enter"} {
+            set ::dinah::targetColor($target) [$target cget -bg]
+            $target configure -bg pink
+        }
+        if {$evt eq "leave"} {
+            $target configure -bg $::dinah::targetColor($target)
+        }
+        return 3
+    }
+
+    #####################
+    # PROTECTED METHODS #
+    #####################
+
+    protected method specificLayout {} {return ""}
+
+    protected method afterLayout {} {return ""}
+
+    ###################
+    # PRIVATE METHODS #
+    ###################
+
+    private method layout {} {
         if {[llength [::dinah::dbGetDimForId $dbid]] > 0} {
             pack $inDim -side left -padx 4 -pady 4
         }
@@ -155,126 +329,15 @@ itcl::class Obj {
         pack $frame -fill both -expand 1
     }
 
-    method dragAndDrop {} {
-        DragSite::register $center.menu -dragevent 1 -draginitcmd [list $this draginitcmd] -dragendcmd [list $this dragendcmd]
+    private method dragAndDrop {} {
+        DragSite::register $center.menu -dragevent 1 \
+            -draginitcmd [list $this draginitcmd] \
+            -dragendcmd [list $this dragendcmd]
         foreach e [list $right $bottom $left $top] {
-            DropSite::register $e -dropcmd [list $this dropcmd] -dropovercmd [list $this dropovercmd] -droptypes {Obj copy Obj {move control}}
+            DropSite::register $e -dropcmd [list $this dropcmd] \
+                -dropovercmd [list $this dropovercmd] \
+                -droptypes {Obj {copy none} Obj {move control}}
         }
-    }
-
-    method notificate {txt} {
-        $notificationLabel configure -text [concat [$notificationLabel cget -text] $txt]
-    }
-
-    method openNS {} {
-        $top configure -bg $::dinah::openColor
-        $bottom configure -bg $::dinah::openColor
-    }
-
-    method closeNS {} {
-        $top configure -bg $::dinah::closeColor
-        $bottom configure -bg $::dinah::closeColor
-    }
-
-    method openEW {} {
-        $left configure -bg $::dinah::openColor
-        $right configure -bg $::dinah::openColor
-    }
-
-    method closeEW {} {
-        $left configure -bg $::dinah::closeColor
-        $right configure -bg $::dinah::closeColor
-    }
-
-    method setMenuColor {color} {
-        $frame.center.menu configure -background $color
-    }
-
-    method setContainer {c} {
-        set container $c
-        if {! [catch {$container isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} {
-            $genericMenu add command -label "remove from board" -command [list $container delete $dbid]
-            $genericMenu add command -label next -command [list $container next $dbid]
-            $genericMenu add command -label prev -command [list $container prev $dbid]
-        }}
-    }
-
-    method draginitcmd {src x y toplevelSymbol} {
-        if {! [catch {$container isa Dim} isaDim]} {if {$isaDim} {
-            if {$dbid in [$container scRow]} {
-                set data [list [$container getX] $dbid]
-            } else {
-                set data [list [$container getY] $dbid]
-            }
-        }} else {
-            set data $dbid
-        }
-        return [list Obj {copy move} $data]
-    }
-
-    method dragendcmd {src target op type data dropResult} {
-        if {! [catch {$container isa Dim} isaDim]} {if {$isaDim} { $container reload }}
-        if {! [catch {$dropResult isa Dim} isaDim]} {if {$isaDim} { $dropResult reload }}
-        if {! [catch {$dropResult isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} { $dropResult reload }}
-    }
-
-    method dropcmd {target src x y op type data} {
-        if {! [catch {$container isa Dim} isaDim]} {if {$isaDim} {
-            set srcDim [lindex $data 0]
-            set srcId [lindex $data end]
-            if {$op eq "move" && [::dinah::editable $srcDim]} {
-                if {$target eq $right && [::dinah::editable [$container getX]]} {
-                    ::dinah::dbMoveFragmentBetweenDims $srcDim $srcId after [$container getX] $dbid
-                } elseif {$target eq $left && [::dinah::editable [$container getX]]} {
-                    ::dinah::dbMoveFragmentBetweenDims $srcDim $srcId before [$container getX] $dbid
-                } elseif {$target eq $bottom && [::dinah::editable [$container getY]]} {
-                    ::dinah::dbMoveFragmentBetweenDims $srcDim $srcId after [$container getY] $dbid
-                } elseif {$target eq $bottom && [::dinah::editable [$container getY]]} {
-                    ::dinah::dbMoveFragmentBetweenDims $srcDim $srcId before [$container getY] $dbid
-                }
-            } elseif {$op eq "force"} {
-                if {$target eq $right && [::dinah::editable [$container getX]]} {
-                    ::dinah::dbInsertFragmentIntoDim $srcId after [$container getX] $dbid
-                } elseif {$target eq $left && [::dinah::editable [$container getX]]} {
-                    ::dinah::dbInsertFragmentIntoDim $srcId before [$container getX] $dbid
-                } elseif {$target eq $bottom && [::dinah::editable [$container getY]]} {
-                    ::dinah::dbInsertFragmentIntoDim $srcId after [$container getY] $dbid
-                } elseif {$target eq $bottom && [::dinah::editable [$container getY]]} {
-                    ::dinah::dbInsertFragmentIntoDim $srcId before [$container getY] $dbid
-                }
-            }
-        }}
-        if {! [catch {$container isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} {
-            ::dinah::dbInsertFragmentIntoDim $data before [$container getCurrentDim] $dbid
-        }}
-        $target configure -bg $::dinah::targetColor($target)
-        return $container
-    }
-
-    method dropovercmd {target src evt x y op type data} {
-        if {$evt eq "enter"} {
-            set ::dinah::targetColor($target) [$target cget -bg]
-            $target configure -bg pink
-        }
-        if {$evt eq "leave"} {
-            $target configure -bg $::dinah::targetColor($target)
-        }
-        return 3
-    }
-
-    method delete {} {
-        if {! [catch {$container isa Dim} isaDim]} {if {$isaDim} {
-            $container delete
-        }}
-        if {! [catch {$container isa Whiteboard} isaWhiteboard]} {if {$isaWhiteboard} {
-            ::dinah::dbRemoveFragmentFromDim [$container getCurrentDim] $dbid
-            $container reload
-        }}
-    }
-
-    method makeClone {} {
-        ::dinah::dbClone $dbid
-        $container reload
     }
 
 }

@@ -497,7 +497,7 @@ itcl::class Dim {
         $f.menu.edition.m add command -label "Cut selection to clipboard \
                                               (Ctrl+x)" \
             -command [list $this cut]
-        $f.menu.edition.m add command -label "Delete selection from fragment \
+        $f.menu.edition.m add command -label "Delete selection from segment \
                                               (Ctrl+d)" \
             -command [list $this delete]
         button $f.menu.btnX -text "X:" -command [list $this clickBtnX]
