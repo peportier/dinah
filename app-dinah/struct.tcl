@@ -10,10 +10,7 @@ itcl::class Struct {
         set dbid $id
     }
 
-    destructor {
-        destroy $frame
-        destroy $standalone
-    }
+    destructor {}
 
     method specificLayout {} {
         set main [frame $center.main]

@@ -23,9 +23,7 @@ itcl::class Page {
     }
 
     destructor {
-        destroy $frame
         deleteImage
-        destroy $standalone
     }
 
     method quickZoom {} {

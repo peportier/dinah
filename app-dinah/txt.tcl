@@ -11,10 +11,7 @@ itcl::class Txt {
 
     constructor {id} { set dbid $id }
 
-    destructor {
-        destroy $frame
-        destroy $standalone
-    }
+    destructor {}
 
 
     method reload {} {

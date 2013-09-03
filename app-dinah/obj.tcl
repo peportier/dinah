@@ -8,7 +8,8 @@ itcl::class Obj {
     # $standalone is "":
     protected variable standalone ""
     protected variable notificationLabel ""
-    protected variable inDim
+    protected variable inDimButton
+    protected variable viewButton
     protected variable center ""
     protected variable left ""
     protected variable right ""
@@ -23,16 +24,37 @@ itcl::class Obj {
     # PUBLIC METHODS #
     ##################
 
+    destructor {
+        destroy $frame
+        destroy $standalone
+    }
+
     public method select {} {catch {$container buildAndGrid $dbid}}
 
     public method newNodeOnRight {type} {
-        if {[catch {$container buildAndGrid $dbid}]} {return}
+        if {[catch {$container buildAndGrid $dbid}]} {
+            return
+        }
         $container new $type
     }
 
     public method newNodeOnLeft {type} {
         if {[catch {$container buildAndGrid $dbid}]} {return}
         $container new $type 0
+    }
+
+    public method popupRightMenu {X Y} {
+        if {! [catch {$container isa Dim} isaDim]} {
+        if {$isaDim} {
+            tk_popup $rightMenu $X $Y
+        }}
+    }
+
+    public method popupLeftMenu {X Y} {
+        if {! [catch {$container isa Dim} isaDim]} {
+        if {$isaDim} {
+            tk_popup $leftMenu $X $Y
+        }}
     }
 
     public method z {} {return ""}
@@ -53,15 +75,17 @@ itcl::class Obj {
             -font "$::dinah::font 15 underline" -justify center
         frame $center.menu
         set notificationLabel [label $center.menu.notification -text ""]
-        set inDim [label $center.menu.inDim -text "?"]
-
-        set inDimMenu [menu $frame.inDimMenu]
-        set genericMenu [menu $frame.genericMenu]
-        $genericMenu add command -label fold -command [list $this fold]
-        bind $center.menu $::dinah::mouse(B3) [list tk_popup $genericMenu %X %Y]
+        set inDimButton [menubutton $center.menu.inDimButton -text "dims" \
+                -menu $center.menu.inDimButton.m -underline 0]
+        set inDimMenu [menu $center.menu.inDimButton.m]
+        set viewButton [menubutton $center.menu.viewButton -text "view" \
+                -menu $center.menu.viewButton.m -underline 0]
+        set genericMenu [menu $center.menu.viewButton.m]
+        $genericMenu add command -label fold -command [list $this fold] \
+            -underline 0
         bind $center.menu <Double-1> [list $this select]
         bind $center.menu <1> [list $this storeCoordinates %X %Y]
-        bind $center.menu.inDim <1> [list $this menuInDim %X %Y]
+        bind $center.menu.inDimButton <1> [list $this menuInDim %X %Y]
         bind $center.menu.notification <1> [list $this storeCoordinates %X %Y]
         bind $center.menu.notification <B1-Motion> [list $this moveItem %X %Y]
         bind $center.foldedEntry <Double-1> [list $this unfold]
@@ -69,12 +93,12 @@ itcl::class Obj {
         set rightMenu [menu $frame.rightMenu]
         $rightMenu add command -label "new txt" \
             -command [list $this newNodeOnRight Txt]
-        bind $right $::dinah::mouse(B3) [list tk_popup $rightMenu %X %Y]
+        bind $right $::dinah::mouse(B3) [list $this popupRightMenu %X %Y]
 
         set leftMenu [menu $frame.leftMenu]
         $leftMenu add command -label "new txt" \
             -command [list $this newNodeOnLeft Txt]
-        bind $left $::dinah::mouse(B3) [list tk_popup $leftMenu %X %Y]
+        bind $left $::dinah::mouse(B3) [list $this popupLeftMenu %X %Y]
 
         specificLayout
         layout
@@ -126,7 +150,7 @@ itcl::class Obj {
                 $inDimMenu add command -label $dim \
                     -command [list $this setXDim $dim]
             }
-            tk_popup $inDimMenu $X $Y
+            #tk_popup $inDimMenu $X $Y
         }}
     }
 
@@ -245,7 +269,8 @@ itcl::class Obj {
                         return 0
                     }
                 }
-            } elseif {$op eq "copy"} {
+              # There may be a bug in BWidget it should be {$op eq "copy"}
+            } elseif {$op eq "force"} {
                 if {$target eq $right} {
                     if {[catch {::dinah::dbInsertFragmentIntoDim $srcId after \
                             [$container getX] $dbid} errorMsg]} {
@@ -282,7 +307,11 @@ itcl::class Obj {
             }
         }}
         $target configure -bg $::dinah::targetColor($target)
-        return $container
+        if {$container ne ""} {
+            return $container
+        } else {
+            return 0
+        }
     }
 
     public method dropovercmd {target src evt x y op type data} {
@@ -310,8 +339,9 @@ itcl::class Obj {
 
     private method layout {} {
         if {[llength [::dinah::dbGetDimForId $dbid]] > 0} {
-            pack $inDim -side left -padx 4 -pady 4
+            pack $inDimButton -side left -padx 4 -pady 4
         }
+        pack $viewButton -side left -padx 4 -pady 4
         pack $notificationLabel -side left -padx 4 -pady 4
         pack $center.menu -side top -fill x -padx 4 -pady 4
         pack $center.main -side top -fill both -expand true -padx 4 -pady 4
@@ -327,6 +357,8 @@ itcl::class Obj {
         grid columnconfigure $frame 1 -weight 1
         grid columnconfigure $frame 2 -minsize $::dinah::separatorSize -weight 0
         pack $frame -fill both -expand 1
+        openNS
+        openEW
     }
 
     private method dragAndDrop {} {
@@ -336,7 +368,7 @@ itcl::class Obj {
         foreach e [list $right $bottom $left $top] {
             DropSite::register $e -dropcmd [list $this dropcmd] \
                 -dropovercmd [list $this dropovercmd] \
-                -droptypes {Obj {copy none} Obj {move control}}
+                -droptypes {Obj {{default copy} none} Obj {move control}}
         }
     }
 

@@ -5,10 +5,7 @@ itcl::class Link {
 
     constructor {id} { set dbid $id }
 
-    destructor {
-        destroy $frame
-        destroy $standalone
-    }
+    destructor {}
 
     public method specificLayout {}
 }

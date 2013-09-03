@@ -562,6 +562,11 @@ proc dbNewEmptyFragment {type {label ""}} {
     if {$type eq "Link"} {
         return [::dinah::dbNew [list isa Link label $label]]
     }
+    if {$type eq "Label"} {
+        return [::dinah::dbNew [list isa Label label $label]]
+    }
+    error "::dinah::dbNewEmptyFragment --> the type $type is not a valid type\
+           (viz. Txt, Date, Link or Label)"
 }
 
 proc dbFragmentBelongsToDim {dim id} {

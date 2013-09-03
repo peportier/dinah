@@ -5,20 +5,7 @@ namespace eval ::dinah {
     # INIT #
     ########
 
-    source commonDB.tcl
-
-    set writePermission 1
-    set dimClone "d.clone"
-    set dimClipboard "d.clipboard"
-    set dbFile "/tmp/db.dinah"
-    array set db {}
-    set db(lastid) 0
-    set db(dimensions) {"d.nil"}
-
-    proc editable {dimName} {
-        return [expr {($dimName ni {"" "d.nil"}) && \
-            ($dimName in [dbGetDimensions])}]
-    }
+    source commonDB_test_preamble.tcl
 
     set nbFailures 0
 
@@ -806,6 +793,17 @@ namespace eval ::dinah {
     if {[dbGetDim "q.abc hi"] ne {1}} {
         incr nbFailures
         puts "T89 KO"
+    }
+
+    if {[catch {dbNewEmptyFragment Unknown "unknown1"} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbNewEmptyFragment --> the type Unknown is\
+                          not a valid type (viz. Txt, Date, Link or Label)"} {
+            incr nbFailures
+            puts "T90 KO"
+        }
+    } else {
+        incr nbFailures
+        puts "T90 KO"
     }
 
     puts "$nbFailures test(s) failed"

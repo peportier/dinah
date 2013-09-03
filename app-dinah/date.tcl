@@ -10,10 +10,7 @@ itcl::class Date {
 
     constructor {id} { set dbid $id }
 
-    destructor {
-        destroy $frame
-        destroy $standalone
-    }
+    destructor {}
 
     private method valid? {y m d h min}
     private method hour? {h}
