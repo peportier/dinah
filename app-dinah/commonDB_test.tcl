@@ -14,13 +14,13 @@ namespace eval ::dinah {
     #########
 
     dbNewDim "d.1"
-    if {[dbGetDimensions] ne {d.nil d.1}} {
+    if {[dbGetDimensions] ne [list $::dinah::dimNil "d.1"]} {
         incr nbFailures
         puts "T1 KO"
     }
 
     dbNewDim "d.2"
-    if {[dbGetDimensions] ne {d.nil d.1 d.2}} {
+    if {[dbGetDimensions] ne [list $::dinah::dimNil d.1 d.2]} {
         incr nbFailures
         puts "T2 KO"
     }
@@ -197,7 +197,7 @@ namespace eval ::dinah {
         puts "T22 KO"
     }
 
-    if {[catch {dbAppendSegmentToDim "d.nil" {2}} errorMsg]} {
+    if {[catch {dbAppendSegmentToDim $::dinah::dimNil {2}} errorMsg]} {
         if {$errorMsg ne "::dinah::dbAppendSegmentToDim --> dimension d.nil\
                           is read only, or it does not exist"} {
             incr nbFailures
@@ -289,7 +289,7 @@ namespace eval ::dinah {
         puts "T32 KO"
     }
 
-    if {[catch {dbRemoveFragmentFromDim "d.nil" 1} errorMsg]} {
+    if {[catch {dbRemoveFragmentFromDim $::dinah::dimNil 1} errorMsg]} {
         if {$errorMsg ne "::dinah::dbRemoveFragmentFromDim --> dimension\
             d.nil is read only, or does not exist"} {
             incr nbFailures
@@ -334,7 +334,7 @@ namespace eval ::dinah {
         puts "T36 KO"
     }
 
-    if {[catch {dbInsertFragmentIntoDim 2 after "d.nil" 3} errorMsg]} {
+    if {[catch {dbInsertFragmentIntoDim 2 after $::dinah::dimNil 3} errorMsg]} {
         if {$errorMsg ne "::dinah::dbInsertFragmentIntoDim --> target dimension\
                           d.nil is read only, or does not exist"} {
             incr nbFailures
@@ -684,7 +684,7 @@ namespace eval ::dinah {
         puts "T76 KO"
     }
 
-    if {[dbLGet dimensions 0] ne "d.nil"} {
+    if {[dbLGet dimensions 0] ne $::dinah::dimNil} {
         incr nbFailures
         puts "T77 KO"
     }

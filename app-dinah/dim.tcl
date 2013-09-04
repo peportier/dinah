@@ -109,7 +109,7 @@ itcl::class Dim {
         buildAndGrid [scId]
     }
 
-    public method scId {} { return [id [scCell]] }
+    public method scId {} { return [lindex [scCell] 3] }
 
     public method setWWidth {nbColumns} {
         if {$nbColumns > 0} {
@@ -124,10 +124,6 @@ itcl::class Dim {
     }
 
     public method getFocus {} { focus $t }
-
-    public method showBtnMenu {} {
-        tk_popup $dimMenu [winfo rootx $btnMenu] [winfo rooty $btnMenu]
-    }
 
     public method gotoRowEnd {} { gotoRowEnds "end" }
 
@@ -185,8 +181,8 @@ itcl::class Dim {
     }
 
     public method blank {} {
-        setX "d.nil"
-        setY "d.nil"
+        setX $::dinah::dimNil
+        setY $::dinah::dimNil
         updateEntries
         setWWidth 4
         setWHeight 4
@@ -205,7 +201,7 @@ itcl::class Dim {
     public method nextList {{direction 1}} {
         if {![scRowEmpty]} {
             buildAndGrid [::dinah::dbLGet $x \
-                [list [expr { ([scDimIndex] + $direction) % \
+                [list [expr { ([scSegIndex] + $direction) % \
                               [::dinah::dbGetDimSize $x]       }] 0]]
         }
     }
@@ -261,7 +257,7 @@ itcl::class Dim {
     }
 
     public method copySegmentToClipboard {} {
-        ::dinah::dbAddSegmentToEmptyClipboard $x [scDimIndex]
+        ::dinah::dbAddSegmentToEmptyClipboard $x [scSegIndex]
     }
 
     public method pasteClipboardIntoNewSegment {} {
@@ -301,7 +297,7 @@ itcl::class Dim {
 
     public method deleteSegment {} {
         if {[::dinah::editable $x] && [scRow] != {}} {
-            ::dinah::dbRemoveSegment $x [scDimIndex]
+            ::dinah::dbRemoveSegment $x [scSegIndex]
             blank
             return 1
         } else {
@@ -365,7 +361,7 @@ itcl::class Dim {
         if {[pasteGuard]} {
             set newScRow [linsert [scRow] [scItemIndex] \
                                   [::dinah::dbClipboardLastItem]]
-            ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
+            ::dinah::dbReplaceSegment $x [scSegIndex] $newScRow
             buildAndGrid [scId]
             return 1
         } else {
@@ -382,7 +378,7 @@ itcl::class Dim {
             }
             set newScRow [linsert [scRow] $newItemIndex \
                                   [::dinah::dbClipboardLastItem]]
-            ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
+            ::dinah::dbReplaceSegment $x [scSegIndex] $newScRow
             buildAndGrid [scId]
             return 1
         } else {
@@ -397,7 +393,7 @@ itcl::class Dim {
             set scRow [scRow]
             if {[llength [scRow]] == 1} {
                 set newScId {}
-                ::dinah::dbRemoveSegment $x [scDimIndex]
+                ::dinah::dbRemoveSegment $x [scSegIndex]
             } else {
                 if {[scOnLastItem]} {
                     set newScId [lindex [scRow] end-1]
@@ -405,7 +401,7 @@ itcl::class Dim {
                     set newScId [lindex [scRow] [expr {[scItemIndex] + 1}]]
                 }
                 set newScRow [lreplace [scRow] [scItemIndex] [scItemIndex]]
-                ::dinah::dbReplaceSegment $x [scDimIndex] $newScRow
+                ::dinah::dbReplaceSegment $x [scSegIndex] $newScRow
             }
             buildAndGrid $newScId
             return 1
@@ -824,12 +820,14 @@ itcl::class Dim {
     }
 
     private method goto {match} {
-        set row [::dinah::dbLGet [scDimName] [scDimIndex]]
-        for {set i 0} {$i < [llength $row]} {incr i} {
-            if {[string match -nocase *$match* [::dinah::dbGet \
-                    [lindex $row $i],label]]} {
-                scHoriz [expr {$i - [scColumnIndex]}]
-                return
+        set row [scRow]
+        if {$row ne {}} {
+            for {set i 0} {$i < [llength $row]} {incr i} {
+                if {[string match -nocase *$match* [::dinah::dbGet \
+                        [lindex $row $i],label]]} {
+                    scHoriz [expr {$i - [scColumnIndex]}]
+                    return
+                }
             }
         }
     }
@@ -907,7 +905,7 @@ itcl::class Dim {
                 set seg [::dinah::dbGetSegment $y $segIndex]
                 set segLength [llength $seg]
                 for {set k 0} {$k < $segLength} {incr k} {
-                    set grid($k,0) [list $y $segIndex $k]
+                    set grid($k,0) [list $y $segIndex $k [lindex $seg $k]]
                 }
                 set sc [list $fragIndex 0]
                 set gridWidth 1
@@ -974,7 +972,8 @@ itcl::class Dim {
         # grid:
         for {set i 0} {$i < [llength $mainRow]} {incr i} {
             # the line number of the mainRow is $maxTop
-            set grid($maxTop,$i) [list $x $mainRowSegIndex $i]
+            set grid($maxTop,$i) [list $x $mainRowSegIndex $i \
+                [lindex $mainRow $i]]
         }
         for {set i 0} {$i < [llength $cols]} {incr i} {
             if {[lindex $cols $i] eq {}} {
@@ -987,6 +986,7 @@ itcl::class Dim {
                 }
             } else {
                 # case of a non empty column
+                set seg [lindex $cols $i 0]
                 set segIndex [lindex $cols $i 1]
                 set top [lindex $cols $i 2]
                 set bottom [lindex $cols $i 3]
@@ -996,11 +996,13 @@ itcl::class Dim {
                     set grid($j,$i) {}
                 }
                 for {set j 0} {$j < $top} {incr j} {
-                    set grid([expr {$j + $deltaTop}],$i) [list $y $segIndex $j]
+                    set grid([expr {$j + $deltaTop}],$i) \
+                        [list $y $segIndex $j [lindex $seg $j]]
                 }
                 for {set j 0} {$j < $bottom} {incr j} {
+                    set fragIndex [expr {$top + 1 + $j}]
                     set grid([expr {$maxTop + 1 + $j}],$i) \
-                        [list $y $segIndex [expr {$top + 1 + $j}]]
+                        [list $y $segIndex $fragIndex [lindex $seg $fragIndex]]
                 }
                 for {set j 0} {$j < $deltaBottom} {incr j} {
                     set grid([expr {$maxTop + 1 + $bottom + $j}],$i) {}
@@ -1239,15 +1241,6 @@ itcl::class Dim {
         }
     }
 
-    private method id {cell} {
-        if {! ($cell eq {})} {
-            return [::dinah::dbLGet [lindex $cell 0] \
-                [list [lindex $cell 1] [lindex $cell 2]]]
-        } else {
-            return {}
-        }
-    }
-
     private method insideW {row col} {
         return [expr {( ($wCol <= $col) && ($col < ($wCol + $wWidth) )) && \
                       ( ($wRow <= $row) && ($row < ($wRow + $wHeight)))}]
@@ -1255,7 +1248,7 @@ itcl::class Dim {
 
     private method scCell {} { return [cell [scRowIndex] [scColumnIndex]] }
     private method scDimName {} { return [lindex [scCell] 0] }
-    private method scDimIndex {} { return [lindex [scCell] 1] }
+    private method scSegIndex {} { return [lindex [scCell] 1] }
     private method scItemIndex {} { return [lindex [scCell] 2] }
 
     # if {[scDimName] ne $x} it means that [scDimName] comes from the
@@ -1267,7 +1260,7 @@ itcl::class Dim {
 
     private method scRow {} {
         if {! [scRowEmpty]} {
-            return [::dinah::dbLGet $x [scDimIndex]]
+            return [::dinah::dbGetSegment [scDimName] [scSegIndex]]
         } else {
             return {}
         }
@@ -1294,7 +1287,7 @@ itcl::class Dim {
     private method pastingDuplicate {} {
         set scDimLength [llength [::dinah::dbGet [scDimName]]]
         for {set i 0} {$i < $scDimLength} {incr i} {
-            if {$i != [scDimIndex]} {
+            if {$i != [scSegIndex]} {
                 if {[::dinah::dbClipboardLastItem] in \
                     [::dinah::dbLGet [scDimName] $i]} {
                     # item appearing twice in a dimension
@@ -1306,7 +1299,7 @@ itcl::class Dim {
     }
 
     private method dimXIsNil {} {
-        if {$x eq "d.nil"} {
+        if {$x eq $::dinah::dimNil} {
             return 1
         } else {
             return 0
