@@ -25,12 +25,12 @@ namespace eval ::dinah {
         puts "T2 KO"
     }
 
-    if {[dbGetDim "d.1"] ne {}} {
+    if {[dbGetDim "d.1"] ne {{}}} {
         incr nbFailures
         puts "T3 KO"
     }
 
-    if {[dbGetDimSize "d.1"] != 0} {
+    if {[dbGetDimSize "d.1"] != 1} {
         incr nbFailures
         puts "T4 KO"
     }
@@ -46,24 +46,24 @@ namespace eval ::dinah {
     }
 
     dbAppendSegmentToDim "d.1" [list [dbNewEmptyFragment Txt text1]]
-    if {[dbGetDim "d.1"] ne {1}} {
+    if {[dbGetDim "d.1"] ne {{} 1}} {
         incr nbFailures
         puts "T7 KO"
     }
 
-    dbAppendSegmentToDim "d.1" [list [dbNewEmptyFragment Txt text2]]
-    if {[dbGetDim "d.1"] ne {1 2}} {
+    dbAppendToSegment "d.1" 0 [dbNewEmptyFragment Txt text2]
+    if {[dbGetDim "d.1"] ne {2 1}} {
         incr nbFailures
         puts "T8 KO"
     }
 
     dbAppendToSegment "d.1" 0 [dbNewEmptyFragment Txt text3]
-    if { [dbGetDim "d.1"] ne {{1 3} 2} } {
+    if { [dbGetDim "d.1"] ne {{2 3} 1} } {
         incr nbFailures
         puts "T9 KO"
     }
 
-    if {[catch {dbAppendToSegment "d.1" 1 3} errorMsg]} {
+    if {[catch {dbAppendToSegment "d.1" 0 3} errorMsg]} {
         if {$errorMsg ne "::dinah::dbAppendToSegment --> the fragment 3\
                           already belongs to the dimension d.1, and the\
                           same fragment cannot appear twice in a given\
@@ -77,14 +77,14 @@ namespace eval ::dinah {
     }
 
     dbNewEmptyFragment Txt text4
-    dbReplaceSegment "d.1" 1 {2 4}
-    if { [dbGetDim "d.1"] ne {{1 3} {2 4}} } {
+    dbReplaceSegment "d.1" 1 {1 4}
+    if { [dbGetDim "d.1"] ne {{2 3} {1 4}} } {
         incr nbFailures
         puts "T11 KO"
     }
 
     if {[catch {dbReplaceSegment "d.1" 1 {2 4 1}} errorMsg]} {
-        if {$errorMsg ne "::dinah::dbReplaceSegment --> the fragment 1\
+        if {$errorMsg ne "::dinah::dbReplaceSegment --> the fragment 2\
                        from the segment to be inserted into dimension d.1\
                        in place of another segment (call it s1) of dimension\
                        d.1, already appears in dimension d.1 inside\
@@ -98,8 +98,8 @@ namespace eval ::dinah {
         puts "T12 KO"
     }
 
-    if {[catch {dbReplaceSegment "d.1" 1 {2 4 2}} errorMsg]} {
-        if {$errorMsg ne "::dinah::dbReplaceSegment --> the fragment 2\
+    if {[catch {dbReplaceSegment "d.1" 1 {1 4 1}} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbReplaceSegment --> the fragment 1\
                    appears at least twice in the segment to be inserted into\
                    dimension d.1 in place of another segment of dimension\
                    d.1, and the same fragment cannot appear\
@@ -130,8 +130,8 @@ namespace eval ::dinah {
         puts "T15 KO"
     }
 
-    dbAppendSegmentToDim "d.2" {1}
-    if { [dbGetDimForId 1] ne {d.1 0 0 d.2 0 0} } {
+    dbAppendToSegment "d.2" 0 {1}
+    if { [dbGetDimForId 1] ne {d.1 1 0 d.2 0 0} } {
         incr nbFailures
         puts "T16 KO"
     }
@@ -371,7 +371,7 @@ namespace eval ::dinah {
     }
 
     dbMoveFragmentBetweenDims "d.1" 2 after "d.2" 1
-    if {[dbGetDim "d.2"] ne {{1 2} {4 3}} && [dbGetDim "d.1"] ne {{1 3} 4}} {
+    if {[dbGetDim "d.2"] ne {{1 2} {4 3}} && [dbGetDim "d.1"] ne {3 {1 4}}} {
         incr nbFailures
         puts "T40 KO"
     }
@@ -382,7 +382,7 @@ namespace eval ::dinah {
         puts "T41 KO"
     }
 
-    if {[dbGetFragment "d.1" 1 0] ne 4} {
+    if {[dbGetFragment "d.1" 1 0] ne 1} {
         incr nbFailures
         puts "T42 KO"
     }
@@ -397,9 +397,9 @@ namespace eval ::dinah {
         puts "T43 KO"
     }
 
-    if {[catch {dbGetFragment "d.1" 1 1} errorMsg]} {
+    if {[catch {dbGetFragment "d.1" 1 2} errorMsg]} {
         if {$errorMsg ne "::dinah::dbGetFragment --> segment 1 of\
-               dimension d.1 has no fragment at index 1"} {
+               dimension d.1 has no fragment at index 2"} {
             incr nbFailures
             puts "T44 KO"
         }
@@ -505,17 +505,20 @@ namespace eval ::dinah {
         puts "T56 KO"
     }
 
-    dbAddSegmentToEmptyClipboard "d.1" 0
-    if {[dbGetClipboard] ne {1 3}} {
+    dbAddSegmentToEmptyClipboard "d.1" 1
+    if {[dbGetClipboard] ne {1 4}} {
         incr nbFailures
         puts "T57 KO"
     }
 
     dbRemoveSegment "d.1" 0
-    if {[dbGetDim "d.1"] ne {4}} {
+    if {[dbGetDim "d.1"] ne {{1 4}}} {
         incr nbFailures
         puts "T58 KO"
     }
+
+    dbRemoveFragmentFromDim "d.1" 1
+    # [dbGetDim "d.1"] eq {4}
 
     if {[catch {dbRemoveSegment "d.1" 1} errorMsg]} {
         if {$errorMsg ne "::dinah::dbRemoveSegment --> d.1 has no segment with\

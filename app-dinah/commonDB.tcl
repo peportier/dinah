@@ -208,7 +208,7 @@ proc dbNewDim {dim} {
         if {[catch {::dinah::dbAppend dimensions $dim} errorMsg]} {
             error "::dinah::dbNewDim --> $errorMsg"
         }
-        if {[catch {::dinah::dbSetDim $dim {}} errorMsg]} {
+        if {[catch {::dinah::dbSetDim $dim {{}}} errorMsg]} {
             error "::dinah::dbNewDim --> (will never happen) $errorMsg"
         }
     } elseif {[regexp {^q\.(.*)} $dim -> match]} {
