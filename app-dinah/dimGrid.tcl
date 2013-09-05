@@ -8,7 +8,7 @@ itcl::class DimGrid {
     private variable scDim {}
     private variable history {}
     private variable historyIndex 0
-    private variable numModifier ""
+    private variable numModifier 1
 
     constructor {} {}
 
@@ -21,7 +21,7 @@ itcl::class DimGrid {
             set x $dim
             return 1
         } else {
-            return 0
+            error "DimGrid::setX --> dimension $dim does not exist"
         }
     }
     public method getX {} { set x }
@@ -30,10 +30,22 @@ itcl::class DimGrid {
             set y $dim
             return 1
         } else {
-            return 0
+            error "DimGrid::setY --> dimension $dim does not exist"
         }
     }
     public method getY {} { set y }
+
+    public method getNumModifier {} { set numModifier }
+
+    public method setNumModifier {n} {
+    if {![regexp {^\d*$} $n]} {
+        error "DimGrid::setNumModifier --> modifier's value ($n) should be\
+               a positive integer"
+    }
+        set numModifier $n
+    }
+
+    public method initNumModifier {} { setNumModifier 1 }
 
     public method scRight {} {
         scHoriz [getNumModifier]
@@ -86,14 +98,19 @@ itcl::class DimGrid {
         set oldY $y
         setY $x
         setX $oldY
-        buildAndGrid [scId]
+        mkGrid [scId]
     }
 
-    public method nextList {{direction 1}} {
+    public method nextSegment {{direction 1}} {
         if {![scRowEmpty]} {
-            buildAndGrid [::dinah::dbLGet $x \
-                [list [expr { ([scSegIndex] + $direction) % \
-                              [::dinah::dbGetDimSize $x]       }] 0]]
+            set newSegIndex [expr { ([scSegIndex] + $direction) % \
+                                    [::dinah::dbGetDimSize $x] }]
+            if {$newSegIndex != [scSegIndex]} {
+                if {[catch {::dinah::dbGetFragment $x $newSegIndex 0} fragId]} {
+                    error "DimGrid::nextSegment --> $fragId"
+                }
+                mkGrid $fragId
+            }
         }
     }
 
