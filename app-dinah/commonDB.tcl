@@ -208,7 +208,7 @@ proc dbNewDim {dim} {
         if {[catch {::dinah::dbAppend dimensions $dim} errorMsg]} {
             error "::dinah::dbNewDim --> $errorMsg"
         }
-        if {[catch {::dinah::dbSetDim $dim {{}}} errorMsg]} {
+        if {[catch {::dinah::dbSetDim $dim {}} errorMsg]} {
             error "::dinah::dbNewDim --> (will never happen) $errorMsg"
         }
     } elseif {[regexp {^q\.(.*)} $dim -> match]} {
@@ -550,6 +550,20 @@ proc dbRemoveFragmentFromSegmentByIndex {dimName segIndex fragIndex} {
             error "::dinah::dbRemoveFragmentFromSegmentByIndex --> $errorMsg"
         }
     }
+}
+
+proc dbRemoveFragment {fragId} {
+    foreach dim [::dinah::dbGetDimensions] {
+        if {[::dinah::dbFragmentBelongsToDim $dim $fragId]} {
+            if {[catch {::dinah::dbRemoveFragmentFromDim $dim $fragId} \
+                    errorMsg]} {
+                error "::dinah::dbRemoveFragment --> the fragment $fragId\
+                       belongs to the read only dimension $dim. Therefore, it\
+                       cannot be removed."
+            }
+        }
+    }
+    array unset ::dinah::db $fragId,*
 }
 
 proc dbNewEmptyFragment {type {label ""}} {

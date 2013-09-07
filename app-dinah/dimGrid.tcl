@@ -114,169 +114,156 @@ itcl::class DimGrid {
         }
     }
 
-    public method new {type {delta 1}} {
-        if { [::dinah::editable $x] } {
-            if { !( $sc eq {} ) } {
-                set dbid [scId]
-                set newX {}
-                set newId [::dinah::dbNewEmptyFragment $type]
-                set found 0
-                foreach l [::dinah::dbGet $x] {
-                    set i [lsearch $l $dbid]
-                    if {$i > -1} {
-                        lappend newX [linsert $l [expr {$i + $delta}] $newId]
-                        set found 1
-                    } else {
-                        lappend newX $l
-                    }
-                }
-                if {! $found} {
-                    # if the grid is composed of only one column
-                    lappend newX [linsert [list $dbid] $delta $newId]
-                }
-                ::dinah::dbSetDim $x $newX
-                buildAndGrid $newId
-                return 1
-            } else {
-                return 0
+    public method insertFragIntoGrid {fragId {direction after} {srcId ""}} {
+        if {![::dinah::dbIsAFragment $fragId]} {
+            error "DimGrid::insertFragIntoGrid --> $fragId is not the\
+                   identifier of a valid fragment"
+        }
+        if {$srcId eq ""} { set srcId [scId] }
+        if {! [idBelongsToGrid $srcId]} {
+            error "DimGrid::insertFragIntoGrid --> there is no fragment $srcId\
+                   in the grid"
+        }
+        if {$direction in {before after}} {
+            if { ![::dinah::editable $x] } {
+                error "DimGrid::insertFragIntoGrid --> dimension $x is\
+                       read only"
             }
+            if {[::dinah::dbFragmentBelongsToDim $x $srcId]} {
+                ::dinah::dbInsertFragmentIntoDim \
+                    $fragId $direction $x $srcId
+            } else {
+                if {$direction eq "after"} {
+                    ::dinah::dbAppendSegmentToDim $x \
+                        [list $srcId $fragId]
+                } else {
+                    ::dinah::dbAppendSegmentToDim $x \
+                        [list $fragId $srcId]
+                }
+            }
+            mkGrid $srcId
+        } elseif {$direction in {above below}} {
+            if { ![::dinah::editable $y] } {
+                error "DimGrid::insertFragIntoGrid --> dimension $y is\
+                       read only"
+            }
+            if {[::dinah::dbFragmentBelongsToDim $y $srcId]} {
+                if {$direction eq "above"} {
+                    ::dinah::dbInsertFragmentIntoDim \
+                        $fragId before $y $srcId
+                } else {
+                    ::dinah::dbInsertFragmentIntoDim \
+                        $fragId after $y $srcId
+                }
+            } else {
+                if {$direction eq "above"} {
+                    ::dinah::dbAppendSegmentToDim $y \
+                        [list $srcId $fragId]
+                } else {
+                    ::dinah::dbAppendSegmentToDim $y \
+                        [list $fragId $srcId]
+                }
+            }
+            mkGrid $srcId
         } else {
-            tk_messageBox -message "dim $x is read only" -icon error
-            return 0
+            error "DimGrid::insertFragIntoGrid --> $direction is not a valid\
+                   direction, should be 'before', 'after', 'above' or 'below'"
+        }
+    }
+
+    public method new {type {direction after} {srcId ""}}} {
+        set newFragmentId [::dinah::dbNewEmptyFragment $type]
+        if {[catch {insertFragIntoGrid $newFragmentId $direction $srcId}\
+                errorMsg]} {
+            ::dinah::dbRemoveFragment $newFragmentId
+            error "DimGrid::new --> $errorMsg"
         }
     }
 
     public method copySegmentToClipboard {} {
-        ::dinah::dbAddSegmentToEmptyClipboard $x [scSegIndex]
+        if {![scRowEmpty]} {
+            ::dinah::dbAddSegmentToEmptyClipboard $x [scSegIndex]
+        } else {
+            error "DimGrid::copySegmentToClipboard --> the row is empty"
+        }
     }
 
     public method pasteClipboardIntoNewSegment {} {
-        if {[::dinah::editable $x]} {
-            if {![::dinah::dbClipboardIsEmpty]} {
-                set row {}
-                foreach frag [::dinah::dbGetClipboard] {
-                    if {![::dinah::dbFragmentBelongsToDim $x $frag]} {
-                        lappend row $frag
-                    } else {
-                        tk_messageBox -message "clipboard cannot be pasted \
-                                                since object $frag already \
-                                                belongs to dim $x" \
-                                      -icon error
-                        return 0
-                    }
-                }
-                if {$row != {}} {
-                    ::dinah::dbAppendSegmentToDim $x $row
-                    buildAndGrid [lindex $row 0]
-                    return 1
-                } else {
-                    error "pasteClipboardIntoNewSegment: should never happen"
-                }
-            } else {
-                tk_messageBox -message "Cannot paste clipboard: \
-                                        clipboard is empty." \
-                              -icon error
-                return 0
-
-            }
-        } else {
-            tk_messageBox -message "dim $x is read only" -icon error
-            return 0
+        if {![::dinah::editable $x]} {
+            error "DimGrid::pasteClipboardIntoNewSegment --> X dimension $x\
+                   is read only"
         }
+        if {[::dinah::dbClipboardIsEmpty]} {
+            error "DimGrid::pasteClipboardIntoNewSegment --> clipboard is\
+                   empty"
+        }
+        if {[catch {::dinah::dbAppendSegmentToDim $x [::dinah::dbGetClipboard]}\
+                errorMsg]} {
+            error "DimGrid::pasteIntoNewSegment --> $errorMsg"
+        }
+        mkGrid [lindex [::dinah::dbGetClipboard] 0]
     }
 
     public method deleteSegment {} {
-        if {[::dinah::editable $x] && [scRow] != {}} {
-            ::dinah::dbRemoveSegment $x [scSegIndex]
-            blank
-            return 1
-        } else {
-            tk_messageBox -message "the row cannot be removed since \
-                                    dimension $x is read only" \
-                          -icon error
+        if {![::dinah::editable $x]} {
+            error "DimGrid::deleteSegment --> X dimension $x is read only"
         }
+        if {[scRowEmpty]} {
+            error "DimGrid::deleteSegment --> the row is empty"
+        }
+        ::dinah::dbRemoveSegment $x [scSegIndex]
+        blank
     }
 
     public method copy {} {
-        if {[scId] neq {}} {
-            ::dinah::dbAddFragmentToEmptyClipboard [scId]
-            return 1
-        } else {
-            tk_messageBox -message "copy impossible: no object under the \
-                                    selection cursor" \
-                          -icon error
-            return 0
+        if {[scId] eq {}} {
+            error "DimGrid::copy --> no fragment under selection cursor"
         }
+        ::dinah::dbAddFragmentToEmptyClipboard [scId]
     }
 
     public method copycat {} {
-        if {[scId] neq {}} {
-            ::dinah::dbAddFragmentToClipboard [scId]
-            return 1
-        } else {
-            tk_messageBox -message "copy impossible: no object under the \
-                                    selection cursor" \
-                          -icon error
-            return 0
+        if {[scId] eq {}} {
+            error "DimGrid::copy --> no fragment under selection cursor"
+        }
+        if {[catch {::dinah::dbAddFragmentToClipboard [scId]} errorMsg]} {
+            error "DimGrid::copycat --> $errorMsg"
         }
     }
 
-    public method pasteBefore {} {
-        if {[pasteGuard]} {
-            set newScRow [linsert [scRow] [scItemIndex] \
-                                  [::dinah::dbClipboardLastItem]]
-            ::dinah::dbReplaceSegment $x [scSegIndex] $newScRow
-            buildAndGrid [scId]
-            return 1
-        } else {
-            return 0
+    public method paste {direction} {
+        if {[::dinah::dbClipboardIsEmpty]} {
+            error "DimGrid::paste --> clipboard is empty"
         }
-    }
-
-    public method pasteAfter {} {
-        if {[pasteGuard]} {
-            if {[scOnLastItem]} {
-                set newItemIndex end
-            } else {
-                set newItemIndex [expr {[scItemIndex] + 1}]
-            }
-            set newScRow [linsert [scRow] $newItemIndex \
-                                  [::dinah::dbClipboardLastItem]]
-            ::dinah::dbReplaceSegment $x [scSegIndex] $newScRow
-            buildAndGrid [scId]
-            return 1
-        } else {
-            return 0
-        }
+        insertFragIntoGrid [::dinah::dbClipboardLastItem] $direction
     }
 
     public method method cut {} {copycat; delete}
 
-    public method delete {} {
-        if {[deleteGuard]} {
-            set scRow [scRow]
-            if {[llength [scRow]] == 1} {
-                set newScId {}
-                ::dinah::dbRemoveSegment $x [scSegIndex]
-            } else {
-                if {[scOnLastItem]} {
-                    set newScId [lindex [scRow] end-1]
-                } else {
-                    set newScId [lindex [scRow] [expr {[scItemIndex] + 1}]]
-                }
-                set newScRow [lreplace [scRow] [scItemIndex] [scItemIndex]]
-                ::dinah::dbReplaceSegment $x [scSegIndex] $newScRow
-            }
-            buildAndGrid $newScId
-            return 1
+    public method deleteScFromRow {} {
+        if {[scRowEmpty]} {
+            error "DimGrid::deleteScFromRow --> the row is empty"
+        }
+        if {![::dinah::editable $x]} {
+            error "DimGrid::deleteScFromRow --> Dimension $x is read only"
+        }
+        ::dinah::dbRemoveFragmentFromSegment $x [scSegIndex] [scId]
+        if {[llength [scRow] == 1} {
+            blank
+        } elseif {[scOnLastItem]} {
+            mkGrid [lindex [scRow] end-1]
         } else {
-            return 0
+            mkGrid [lindex [scRow] [expr {[scItemIndex] + 1}]]
         }
     }
 
     ###################
     # PRIVATE METHODS #
     ###################
+
+    private method idBelongsToGrid {id} {
+
+    }
 
     private method cursorMoved {} {
         addToHistory
@@ -308,14 +295,12 @@ itcl::class DimGrid {
     private method gotoHistory {index} {
         setX [lindex [lindex $history $index] 1]
         setY [lindex [lindex $history $index] 2]
-        updateEntries
-        buildAndGrid [lindex [lindex $history $index] 0]
+        mkGrid [lindex [lindex $history $index] 0]
     }
 
     private method gotoRowEnds {where} {
-        set r [scRow]
-        if {$r != {}} {
-            buildAndGrid [lindex $r $where]
+        if {![scRowEmpty]} {
+            mkGrid [lindex [scRow] $where]
         }
     }
 

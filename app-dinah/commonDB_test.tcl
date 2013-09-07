@@ -14,23 +14,23 @@ namespace eval ::dinah {
     #########
 
     dbNewDim "d.1"
-    if {[dbGetDimensions] ne [list $::dinah::dimNil "d.1"]} {
+    if {[dbGetDimensions] ne [list $::dinah::dimNil "d.readonly" "d.1"]} {
         incr nbFailures
         puts "T1 KO"
     }
 
     dbNewDim "d.2"
-    if {[dbGetDimensions] ne [list $::dinah::dimNil d.1 d.2]} {
+    if {[dbGetDimensions] ne [list $::dinah::dimNil "d.readonly" d.1 d.2]} {
         incr nbFailures
         puts "T2 KO"
     }
 
-    if {[dbGetDim "d.1"] ne {{}}} {
+    if {[dbGetDim "d.1"] ne {}} {
         incr nbFailures
         puts "T3 KO"
     }
 
-    if {[dbGetDimSize "d.1"] != 1} {
+    if {[dbGetDimSize "d.1"] != 0} {
         incr nbFailures
         puts "T4 KO"
     }
@@ -45,6 +45,7 @@ namespace eval ::dinah {
         puts "T6 KO"
     }
 
+    dbAppendSegmentToDim "d.1" {}
     dbAppendSegmentToDim "d.1" [list [dbNewEmptyFragment Txt text1]]
     if {[dbGetDim "d.1"] ne {{} 1}} {
         incr nbFailures
@@ -130,6 +131,7 @@ namespace eval ::dinah {
         puts "T15 KO"
     }
 
+    dbAppendSegmentToDim "d.2" {}
     dbAppendToSegment "d.2" 0 {1}
     if { [dbGetDimForId 1] ne {d.1 1 0 d.2 0 0} } {
         incr nbFailures
@@ -700,9 +702,9 @@ namespace eval ::dinah {
         puts "T78 KO"
     }
 
-    if {[catch {dbLGet dimensions 4} errorMsg]} {
+    if {[catch {dbLGet dimensions 5} errorMsg]} {
         if {$errorMsg ne "::dinah::dbLGet --> object at key dimensions has no\
-                          element at index 4"} {
+                          element at index 5"} {
             incr nbFailures
             puts "T79 KO"
         }
@@ -809,5 +811,27 @@ namespace eval ::dinah {
         puts "T90 KO"
     }
 
+    dbRemoveFragment 1
+    if { ([dbGetDim "d.2"] ne {2}         ) &&\
+         ([dbGetDim "d.clipboard"] ne {4} ) &&\
+         ([dbGetDim "q.abc hi"] ne {}     )} {
+        incr nbFailures
+        puts "T91 KO"
+    }
+
+    if {[catch {dbRemoveFragment 2} errorMsg]} {
+        if {$errorMsg ne "::dinah::dbRemoveFragment --> the fragment 2\
+                       belongs to the read only dimension d.readonly.\
+                       Therefore, it cannot be removed."} {
+            incr nbFailures
+            puts "T92 KO"
+        }
+    } else {
+        incr nbFailures
+        puts "T92 KO"
+    }
+
     puts "$nbFailures test(s) failed"
+
+    foreach dim [dbGetDimensions] { puts "$dim :" ; puts [dbGetDim $dim] }
 }
