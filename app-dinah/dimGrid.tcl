@@ -1,10 +1,10 @@
 itcl::class DimGrid {
-    private variable x ""; # name of the x dimension
-    private variable y ""; # name of the y dimension
+    private variable x $::dinah::dimNil; # name of the x dimension
+    private variable y $::dinah::dimNil; # name of the y dimension
     private variable grid; # grid data structure
-    private variable gridWidth 0;
-    private variable gridHeight 0;
-    private variable sc {}; # selection cursor: {line_of_grid column_of_grid}
+    private variable gridWidth 0
+    private variable gridHeight 0
+    private variable sc {}; # selection cursor: {rowIndex columnIndex}
     private variable scDim {}
     private variable history {}
     private variable historyIndex 0
@@ -38,7 +38,7 @@ itcl::class DimGrid {
     public method getNumModifier {} { set numModifier }
 
     public method setNumModifier {n} {
-    if {![regexp {^\d*$} $n]} {
+    if {(![regexp {^\d*$} $n]) || ($n < 1)} {
         error "DimGrid::setNumModifier --> modifier's value ($n) should be\
                a positive integer"
     }
@@ -91,7 +91,7 @@ itcl::class DimGrid {
     public method blank {} {
         setX $::dinah::dimNil
         setY $::dinah::dimNil
-        initBoard
+        initGrid
     }
 
     public method swapDim {} {
@@ -199,9 +199,29 @@ itcl::class DimGrid {
         }
         if {[catch {::dinah::dbAppendSegmentToDim $x [::dinah::dbGetClipboard]}\
                 errorMsg]} {
-            error "DimGrid::pasteIntoNewSegment --> $errorMsg"
+            error "DimGrid::pasteClipboardIntoNewSegment --> $errorMsg"
         }
         mkGrid [lindex [::dinah::dbGetClipboard] 0]
+    }
+
+    public method pasteClipboardLastItemIntoNewSegment {} {
+        if {[::dinah::dbClipboardIsEmpty]} {
+            error "DimGrid::pasteClipboardLastItemIntoNewSegment -->\
+                   clipboard is empty"
+        }
+        if {[catch {newSegmentWith [::dinah::dbClipboardLastItem]} errorMsg]} {
+            error "DimGrid::pasteClipboardLastItemIntoNewSegment --> $errorMsg"
+        }
+    }
+
+    public method newSegmentWithNew {typeOfFrag} {
+        if {[catch {::dinah::dbNewEmptyFragment $typeOfFrag} newFrag]} {
+            error "DimGrid::newSegmentWithNew --> $newFrag"
+        }
+        if {[catch {newSegmentWith $newFrag} errorMsg]} {
+            ::dinah::dbRemoveFragment $newFrag
+            error "DimGrid::newSegmentWithNew --> $errorMsg"
+        }
     }
 
     public method deleteSegment {} {
@@ -253,9 +273,19 @@ itcl::class DimGrid {
         } elseif {[scOnLastItem]} {
             mkGrid [lindex [scRow] end-1]
         } else {
-            mkGrid [lindex [scRow] [expr {[scItemIndex] + 1}]]
+            mkGrid [lindex [scRow] [expr {[scFragIndex] + 1}]]
         }
     }
+
+    public method getRowIndicesForColumn {j} {
+        set col {}
+        foreach {k v} [array get grid *,$j] {
+            if {$v ne {}} {lappend col [regsub {,.*$} $k ""]}
+        }
+        set col [lsort -integer $col]
+        return $col
+    }
+
 
     ###################
     # PRIVATE METHODS #
@@ -267,6 +297,7 @@ itcl::class DimGrid {
 
     private method cursorMoved {} {
         addToHistory
+        mkScDim
     }
 
     private method addToHistory {} {
@@ -308,23 +339,15 @@ itcl::class DimGrid {
         set scDim {}
     }
 
-    private method scDim {} {
+    private method mkScDim {} {
         # store in scDim the list of the dimensions on which
         # the selection cursor (sc) appears
         initScDim
         set id [scId]
-        set found 0
-        if {$id ne {}} {
-            foreach d [::dinah::dbGet dimensions] {
-                foreach l [::dinah::dbGet $d] {
-                    foreach i $l {
-                        if {$id eq $i} {
-                            lappend scDim $d
-                            set found 1
-                            break
-                        }
-                    }
-                    if {$found} {set found 0; break}
+        if {[scId] ne {}} {
+            foreach dim [::dinah::dbGetDimensions] {
+                if {[::dinah::dbFragmentBelongsToDim $dim [scId]} {
+                    lappend scDim $dim
                 }
             }
         }
@@ -335,7 +358,7 @@ itcl::class DimGrid {
         # considering $scDim a circular list
         # if $dim is not an element of $scDim,
         # return the first element of $scDim
-        # if $scDim is empty, return -1
+        # if $scDim is empty, return {}
         set scDimLength [llength $scDim]
         if {$scDimLength > 0} {
             set dimIndex [lsearch -exact $scDim $dim]
@@ -350,7 +373,7 @@ itcl::class DimGrid {
                 }
             }
         } else {
-            return -1
+            return {}
         }
     }
 
@@ -358,12 +381,11 @@ itcl::class DimGrid {
         # switch the x-axis to one of the other dims that the
         # selection cursor (sc) belongs to
         set nextDim [scDimAfter [getX]]
-        if {$nextDim == -1} {
+        if {$nextDim eq {}} {
             return 0
         } else {
             setX $nextDim
-            updateEntries
-            buildAndGrid [scId]
+            mkGrid [scId]
             return 1
         }
     }
@@ -372,18 +394,17 @@ itcl::class DimGrid {
         # switch the y-axis to one of the other dims that the
         # selection cursor (sc) belongs to
         set nextDim [scDimAfter [getY]]
-        if {$nextDim == -1} {
+        if {$nextDim eq {}} {
             return 0
         } else {
             setY $nextDim
-            updateEntries
-            buildAndGrid [scId]
+            mkGrid [scId]
             return 1
         }
     }
 
     private method scRowIndex {} {
-        if {[llength $sc] == 2} {
+        if {![scRowEmpty]} {
             return [lindex $sc 0]
         } else {
             return {}
@@ -391,7 +412,7 @@ itcl::class DimGrid {
     }
 
     private method scColumnIndex {} {
-        if {[llength $sc] == 2} {
+        if {![scRowEmpty]} {
             return [lindex $sc 1]
         } else {
             return {}
@@ -399,11 +420,12 @@ itcl::class DimGrid {
     }
 
     private method goto {match} {
-        set row [scRow]
-        if {$row ne {}} {
+        if {![scRowEmpty]} {
+            set row [scRow]
             for {set i 0} {$i < [llength $row]} {incr i} {
-                if {[string match -nocase *$match* [::dinah::dbGet \
-                        [lindex $row $i],label]]} {
+                set fragId [lindex $row $i]
+                set fragLabel [::dinah::dbGetAttribute $fragId "label"
+                if {[string match -nocase *$match* $fragLabel]} {
                     scHoriz [expr {$i - [scColumnIndex]}]
                     return
                 }
@@ -412,92 +434,58 @@ itcl::class DimGrid {
     }
 
     private method scHoriz {i} {
-        if {![insideW [scRowIndex] [scColumnIndex]]} {return}
         set newScCol [expr {[scColumnIndex] + $i}]
-        set exist [info exists grid([scRowIndex],$newScCol)]
-        if {$exist && !( [cell [scRowIndex] $newScCol] eq {} )} {
-            set row [scRowIndex]
-            set col $newScCol
-            set oldSc $sc
-            set sc [list $row $col]
-            if {! [insideW $row $col]} {
-                wHoriz $i
-            } else {
-                [$objects($oldSc) cget -frame] configure -borderwidth 0
-                [$objects($sc) cget -frame] configure \
-                    -borderwidth $::dinah::fragmentBorderWidth \
-                    -bg $::dinah::selectionCursorColor
-            }
-            cursorWasRedrawn
+        if {![cellIsEmpty [scRowIndex] $newScCol]} {
+            set sc [list [scRowIndex] $newScCol]
+            cursorMoved
+            return 1
+        } else {
+            return 0
         }
     }
 
     private method scVertic {i} {
-        if {![insideW [scRowIndex] [scColumnIndex]]} {return}
         set newScRow [expr {[scRowIndex] + $i}]
-        set exist [info exists grid($newScRow,[scColumnIndex])]
-        if {$exist && !( [cell $newScRow [scColumnIndex]] eq {} )} {
-            buildAndGrid [id [cell $newScRow [scColumnIndex]]]
-            mkGrid
+        if {![cellIsEmpty $newScRow [scColumnIndex]]} {
+            mkGrid [cellId $newScRow [scColumnIndex]]
+            cursorMoved
+            return 1
+        } else {
+            return 0
         }
     }
 
-    private method initBoard {} {
+    private method initGrid {} {
         array unset grid
         array set grid {}
         set sc {}
-        initInfo
         initScDim
     }
 
-    private method buildBoard {{center {}}} {
-        # center is the id of an object on which the selection cursor (sc)
+    private method mkGrid {{center {}}} {
+        # center is the id of a fragment on which the selection cursor (sc)
         # will be set
         set mainRow {}
         set mainRowSegIndex {}
         set cols {}
-        initBoard
+        initGrid
         if {$center eq {}} {
-            set center [::dinah::dbLGet $x {0 0}]
-            if {$center eq {}} {
-                error "the board cannot be built because no center was given \
-                       and the first fragment of the dim $x is empty \
-                       which implies that the dim $x is empty since a dim \
-                       should never have empty fragments"
+            if {[catch {::dinah::dbGetFragment $x 0 0} center]} {
+                error "DimGrid::mkGrid --> dimension $x is empty"
             }
         }
         #
-        # From now on, $center refers to the id of an object
+        # From now on, $center refers to the id of a fragment on which
+        # the selection cursor (sc) will be set.
         #
         set centerFoundOnX [::dinah::dbFindInDim $x $center]
         if {[llength $centerFoundOnX] == 0} {
-            set centerFoundOnY [::dinah::dbFindInDim $y $center]
-            if {[llength $centerFoundOnY] != 0} {
-                # the grid will consist of only one column
-                set segIndex [lindex $centerFoundOnY 0]
-                set fragIndex [lindex $centerFoundOnY 1]
-                set seg [::dinah::dbGetSegment $y $segIndex]
-                set segLength [llength $seg]
-                for {set k 0} {$k < $segLength} {incr k} {
-                    set grid($k,0) [list $y $segIndex $k [lindex $seg $k]]
-                }
-                set sc [list $fragIndex 0]
-                set gridWidth 1
-                set gridHeight $segLength
-                setWRow [lindex $sc 0]
-                setWCol [lindex $sc 1]
-                return 1
-            } else {
-                error "the grid cannot be build since $center belongs \
-                       to neither the dim $x nor the dim $y"
-            }
+            error "DimGrid::mkGrid --> $center is not a fragment of $x"
         } else {
             # building the main row:
-            set segIndex [lindex $centerFoundOnX 0]
+            set mainRowSegIndex [lindex $centerFoundOnX 0]
             set fragIndex [lindex $centerFoundOnX 1]
-            set seg [::dinah::dbGetSegment $x $segIndex]
-            set mainRowSegIndex $segIndex
-            set mainRow $seg
+            set mainRow [::dinah::dbGetSegment $x $segIndex]
             # For now we are only able to set the column index of
             # the selection cursor (sc). The row index will be set later.
             set sc [list $fragIndex]
@@ -583,18 +571,6 @@ itcl::class DimGrid {
                 }
             }
         }
-        setWRow [lindex $sc 0]
-        setWCol  [lindex $sc 1]
-        return 1
-    }
-
-    private method getGridColumn {j} {
-        set col {}
-        foreach {k v} [array get grid *,$j] {
-            if {$v ne {}} {lappend col [regsub {,.*$} $k ""]}
-        }
-        set col [lsort -integer $col]
-        return $col
     }
 
     private method cell {rowIndex columnIndex} {
@@ -605,16 +581,47 @@ itcl::class DimGrid {
         }
     }
 
-    private method scCell {} { return [cell [scRowIndex] [scColumnIndex]] }
-    private method scDimName {} { return [lindex [scCell] 0] }
-    private method scSegIndex {} { return [lindex [scCell] 1] }
-    private method scItemIndex {} { return [lindex [scCell] 2] }
+    private method cellIsEmpty {rowIndex colIndex} {
+        expr {[cell $rowIndex $colIndex] eq {}}
+    }
 
-    # if {[scDimName] ne $x} it means that [scDimName] comes from the
-    # vertical/Y dim
-    # therefore in that case the selection cursor row is empty.
+
+    private method cellDimName {rowIndex columnIndex} {
+        lindex [cell $rowIndex $columnIndex] 0
+    }
+    private method cellSegIndex {rowIndex columnIndex} {
+        lindex [cell $rowIndex $columnIndex] 1
+    }
+    private method cellFragIndex {rowIndex columnIndex} {
+        lindex [cell $rowIndex $columnIndex] 2
+    }
+    private method cellId {rowIndex columnIndex} {
+        lindex [cell $rowIndex $columnIndex] 3
+    }
+
+    private method scCell {} { return [cell [scRowIndex] [scColumnIndex]] }
+    private method scDimName {} { cellDimName [scRowIndex] [scColumnIndex] }
+    private method scSegIndex {} { cellSegIndex [scRowIndex] [scColumnIndex] }
+    private method scFragIndex {} { cellFragIndex [scRowIndex] [scColumnIndex] }
+
+    private method scRowLength {} {
+        if {$sc eq {}} {
+            return -1
+        } else {
+            set scRowLength 0
+            foreach {k v} [array get [lindex $sc 0],*] {
+                incr scRowLength
+            }
+            return $scRowLength
+        }
+    }
+
     private method scRowEmpty {} {
-        return [expr {[scDimName] ne $x}]
+        if {[scRowLength] <= 1} {
+            return 1
+        } else {
+            return 0
+        }
     }
 
     private method scRow {} {
@@ -626,58 +633,24 @@ itcl::class DimGrid {
     }
 
     private method scOnLastItem {} {
-        return [expr {[scItemIndex] == ([llength [scRow]] - 1)}]
-    }
-
-    private method noCycleOrDuplicate {} {
-        return [expr {(! [dimXIsNil])  && (! [::dinah::dbClipboardIsEmpty]) && \
-                      (! [scRowEmpty]) && (! [pastingCycle]) && \
-                      (! [pastingDuplicate])}]
-    }
-
-    private method pastingCycle {} {
-        if {[::dinah::dbClipboardLastItem] in [scRow]} {
-            return 1
-        } else {
+        if {[scRowEmpty]} {
             return 0
         }
+        expr {[scFragIndex] == ([scRowLength] - 1)}
     }
 
-    private method pastingDuplicate {} {
-        set scDimLength [llength [::dinah::dbGet [scDimName]]]
-        for {set i 0} {$i < $scDimLength} {incr i} {
-            if {$i != [scSegIndex]} {
-                if {[::dinah::dbClipboardLastItem] in \
-                    [::dinah::dbLGet [scDimName] $i]} {
-                    # item appearing twice in a dimension
-                    return 1
-                }
-            }
+    private method newSegmentWith {fragId} {
+        if {![::dinah::editable $x]} {
+            error "DimGrid::newSegmentWith --> X dimension $x is read only"
         }
-        return 0
-    }
-
-    private method dimXIsNil {} {
-        if {$x eq $::dinah::dimNil} {
-            return 1
-        } else {
-            return 0
+        if {![::dinah::dbIsAFragment $fragId]} {
+            error "DimGrid::newSegmentWith --> $fragId is not a\
+                   fragment's identifier"
         }
-    }
-
-    private method pasteIntoNewSegment {} {
-        if {(! [dimXIsNil]) && (! [::dinah::dbClipboardIsEmpty])} {
-            ::dinah::dbAppendSegmentToDim $x \
-                [list [::dinah::dbClipboardLastItem]]
-            buildAndGrid [::dinah::dbClipboardLastItem]
+        if {[catch {::dinah::dbAppendSegmentToDim $x [list $fragId]}\
+                errorMsg]} {
+            error "DimGrid::newSegmentWith --> $errorMsg"
         }
-    }
-
-    private method newListWithTxtNode {} {
-        if {! [dimXIsNil]} {
-            set txtId [::dinah::dbNewEmptyFragment Txt]
-            ::dinah::dbAppendSegmentToDim $x [list $txtId]
-            buildAndGrid $txtId
-        }
+        mkGrid $fragId
     }
 }
