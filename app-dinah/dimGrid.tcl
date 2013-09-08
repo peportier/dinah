@@ -92,6 +92,7 @@ itcl::class DimGrid {
         setX $::dinah::dimNil
         setY $::dinah::dimNil
         initGrid
+        cursorMoved
     }
 
     public method swapDim {} {
@@ -99,6 +100,7 @@ itcl::class DimGrid {
         setY $x
         setX $oldY
         mkGrid [scId]
+        cursorMoved
     }
 
     public method nextSegment {{direction 1}} {
@@ -110,6 +112,7 @@ itcl::class DimGrid {
                     error "DimGrid::nextSegment --> $fragId"
                 }
                 mkGrid $fragId
+                cursorMoved
             }
         }
     }
@@ -120,7 +123,7 @@ itcl::class DimGrid {
                    identifier of a valid fragment"
         }
         if {$srcId eq ""} { set srcId [scId] }
-        if {! [idBelongsToGrid $srcId]} {
+        if {! [fragBelongsToGrid $srcId]} {
             error "DimGrid::insertFragIntoGrid --> there is no fragment $srcId\
                    in the grid"
         }
@@ -171,7 +174,7 @@ itcl::class DimGrid {
         }
     }
 
-    public method new {type {direction after} {srcId ""}}} {
+    public method new {type {direction after} {srcId ""}} {
         set newFragmentId [::dinah::dbNewEmptyFragment $type]
         if {[catch {insertFragIntoGrid $newFragmentId $direction $srcId}\
                 errorMsg]} {
@@ -202,6 +205,7 @@ itcl::class DimGrid {
             error "DimGrid::pasteClipboardIntoNewSegment --> $errorMsg"
         }
         mkGrid [lindex [::dinah::dbGetClipboard] 0]
+        cursorMoved
     }
 
     public method pasteClipboardLastItemIntoNewSegment {} {
@@ -258,7 +262,7 @@ itcl::class DimGrid {
         insertFragIntoGrid [::dinah::dbClipboardLastItem] $direction
     }
 
-    public method method cut {} {copycat; delete}
+    public method cut {} {copycat; delete}
 
     public method deleteScFromRow {} {
         if {[scRowEmpty]} {
@@ -268,22 +272,45 @@ itcl::class DimGrid {
             error "DimGrid::deleteScFromRow --> Dimension $x is read only"
         }
         ::dinah::dbRemoveFragmentFromSegment $x [scSegIndex] [scId]
-        if {[llength [scRow] == 1} {
+        if {[llength [getScRow] == 1} {
             blank
         } elseif {[scOnLastItem]} {
-            mkGrid [lindex [scRow] end-1]
+            mkGrid [lindex [getScRow] end-1]
+            cursorMoved
         } else {
-            mkGrid [lindex [scRow] [expr {[scFragIndex] + 1}]]
+            mkGrid [lindex [getScRow] [expr {[scFragIndex] + 1}]]
+            cursorMoved
         }
     }
 
     public method getRowIndicesForColumn {j} {
         set col {}
-        foreach {k v} [array get grid *,$j] {
-            if {$v ne {}} {lappend col [regsub {,.*$} $k ""]}
+        foreach subList [getColumn $j] {
+            lappend col [lindex $subList 0]
         }
-        set col [lsort -integer $col]
         return $col
+    }
+
+    public method getColumn {j} {
+        if {($j < 0) || ($j >= [getGridWidth])} {
+            return {}
+        }
+        set rowIndices {}
+        foreach {k v} [array get grid *,$j] {
+            if {$v ne {}} {lappend rowIndices [regsub {,.*$} $k ""]}
+        }
+        set rowIndices [lsort -integer $rowIndices]
+        set col {}
+        foreach i $rowIndices { lappend col [list $i [cellId $i $j]] }
+        return $col
+    }
+
+    private method getScRow {} {
+        if {! [scRowEmpty]} {
+            return [::dinah::dbGetSegment [scDimName] [scSegIndex]]
+        } else {
+            return {}
+        }
     }
 
 
@@ -291,16 +318,32 @@ itcl::class DimGrid {
     # PRIVATE METHODS #
     ###################
 
-    private method idBelongsToGrid {id} {
-
+    # private --> testing
+    method fragPositionInGrid {fragId} {
+        set fragPositions {}
+        for {set j 0} {$j < [getGridWidth]} {incr j} {
+            set i [lindex 0\
+                [lsearch -index 1 -exact -inline [getColumn $j] $fragId]]
+            if {$i ne ""} {
+                lappend fragPositions [list $i $j]
+            }
+        }
+        return fragPositions
     }
 
-    private method cursorMoved {} {
+    # private --> testing
+    method fragBelongsToGrid {fragId} {
+        expr {[fragPositionInGrid $fragId] ne {}}
+    }
+
+    # private --> testing
+    method cursorMoved {} {
         addToHistory
         mkScDim
     }
 
-    private method addToHistory {} {
+    # private --> testing
+    method addToHistory {} {
         # if we went back some action in current history
         # and we want to initiate a new action
         # then we forget the part of history we explored back.
@@ -323,23 +366,31 @@ itcl::class DimGrid {
         }
     }
 
-    private method gotoHistory {index} {
+    # private --> testing
+    method gotoHistory {index} {
         setX [lindex [lindex $history $index] 1]
         setY [lindex [lindex $history $index] 2]
         mkGrid [lindex [lindex $history $index] 0]
+        # we don't call cursorMoved when going back in history
+        # but we have to call explicitly mkScDim (which would otherwise be
+        # called by cursorMoved
+        mkScDim
     }
 
-    private method gotoRowEnds {where} {
+    # private --> testing
+    method gotoRowEnds {where} {
         if {![scRowEmpty]} {
-            mkGrid [lindex [scRow] $where]
+            mkGrid [lindex [getScRow] $where]
         }
     }
 
-    private method initScDim {} {
+    # private --> testing
+    method initScDim {} {
         set scDim {}
     }
 
-    private method mkScDim {} {
+    # private --> testing
+    method mkScDim {} {
         # store in scDim the list of the dimensions on which
         # the selection cursor (sc) appears
         initScDim
@@ -353,7 +404,8 @@ itcl::class DimGrid {
         }
     }
 
-    private method scDimAfter {dim} {
+    # private --> testing
+    method scDimAfter {dim} {
         # return the element of $scDim coming after $dim,
         # considering $scDim a circular list
         # if $dim is not an element of $scDim,
@@ -377,7 +429,8 @@ itcl::class DimGrid {
         }
     }
 
-    private method switchScDimsX {} {
+    # private --> testing
+    method switchScDimsX {} {
         # switch the x-axis to one of the other dims that the
         # selection cursor (sc) belongs to
         set nextDim [scDimAfter [getX]]
@@ -386,11 +439,13 @@ itcl::class DimGrid {
         } else {
             setX $nextDim
             mkGrid [scId]
+            cursorMoved
             return 1
         }
     }
 
-    private method switchScDimsY {} {
+    # private --> testing
+    method switchScDimsY {} {
         # switch the y-axis to one of the other dims that the
         # selection cursor (sc) belongs to
         set nextDim [scDimAfter [getY]]
@@ -399,11 +454,13 @@ itcl::class DimGrid {
         } else {
             setY $nextDim
             mkGrid [scId]
+            cursorMoved
             return 1
         }
     }
 
-    private method scRowIndex {} {
+    # private --> testing
+    method scRowIndex {} {
         if {![scRowEmpty]} {
             return [lindex $sc 0]
         } else {
@@ -411,7 +468,8 @@ itcl::class DimGrid {
         }
     }
 
-    private method scColumnIndex {} {
+    # private --> testing
+    method scColumnIndex {} {
         if {![scRowEmpty]} {
             return [lindex $sc 1]
         } else {
@@ -419,9 +477,10 @@ itcl::class DimGrid {
         }
     }
 
-    private method goto {match} {
+    # private --> testing
+    method goto {match} {
         if {![scRowEmpty]} {
-            set row [scRow]
+            set row [getScRow]
             for {set i 0} {$i < [llength $row]} {incr i} {
                 set fragId [lindex $row $i]
                 set fragLabel [::dinah::dbGetAttribute $fragId "label"
@@ -433,7 +492,8 @@ itcl::class DimGrid {
         }
     }
 
-    private method scHoriz {i} {
+    # private --> testing
+    method scHoriz {i} {
         set newScCol [expr {[scColumnIndex] + $i}]
         if {![cellIsEmpty [scRowIndex] $newScCol]} {
             set sc [list [scRowIndex] $newScCol]
@@ -444,7 +504,8 @@ itcl::class DimGrid {
         }
     }
 
-    private method scVertic {i} {
+    # private --> testing
+    method scVertic {i} {
         set newScRow [expr {[scRowIndex] + $i}]
         if {![cellIsEmpty $newScRow [scColumnIndex]]} {
             mkGrid [cellId $newScRow [scColumnIndex]]
@@ -455,14 +516,16 @@ itcl::class DimGrid {
         }
     }
 
-    private method initGrid {} {
+    # private --> testing
+    method initGrid {} {
         array unset grid
         array set grid {}
         set sc {}
         initScDim
     }
 
-    private method mkGrid {{center {}}} {
+    # private --> testing
+    method mkGrid {{center {}}} {
         # center is the id of a fragment on which the selection cursor (sc)
         # will be set
         set mainRow {}
@@ -485,7 +548,7 @@ itcl::class DimGrid {
             # building the main row:
             set mainRowSegIndex [lindex $centerFoundOnX 0]
             set fragIndex [lindex $centerFoundOnX 1]
-            set mainRow [::dinah::dbGetSegment $x $segIndex]
+            set mainRow [::dinah::dbGetSegment $x $mainRowSegIndex]
             # For now we are only able to set the column index of
             # the selection cursor (sc). The row index will be set later.
             set sc [list $fragIndex]
@@ -573,7 +636,18 @@ itcl::class DimGrid {
         }
     }
 
-    private method cell {rowIndex columnIndex} {
+    # private --> testing
+    method getGridWidth {} {
+        set gridWidth
+    }
+
+    # private --> testing
+    method getGridHeight {} {
+        set gridHeight
+    }
+
+    # private --> testing
+    method cell {rowIndex columnIndex} {
         if {[info exists grid($rowIndex,$columnIndex)]} {
             return $grid($rowIndex,$columnIndex)
         } else {
@@ -581,30 +655,40 @@ itcl::class DimGrid {
         }
     }
 
-    private method cellIsEmpty {rowIndex colIndex} {
+    # private --> testing
+    method cellIsEmpty {rowIndex colIndex} {
         expr {[cell $rowIndex $colIndex] eq {}}
     }
 
 
-    private method cellDimName {rowIndex columnIndex} {
+    # private --> testing
+    method cellDimName {rowIndex columnIndex} {
         lindex [cell $rowIndex $columnIndex] 0
     }
-    private method cellSegIndex {rowIndex columnIndex} {
+    # private --> testing
+    method cellSegIndex {rowIndex columnIndex} {
         lindex [cell $rowIndex $columnIndex] 1
     }
-    private method cellFragIndex {rowIndex columnIndex} {
+    # private --> testing
+    method cellFragIndex {rowIndex columnIndex} {
         lindex [cell $rowIndex $columnIndex] 2
     }
-    private method cellId {rowIndex columnIndex} {
+    # private --> testing
+    method cellId {rowIndex columnIndex} {
         lindex [cell $rowIndex $columnIndex] 3
     }
 
-    private method scCell {} { return [cell [scRowIndex] [scColumnIndex]] }
-    private method scDimName {} { cellDimName [scRowIndex] [scColumnIndex] }
-    private method scSegIndex {} { cellSegIndex [scRowIndex] [scColumnIndex] }
-    private method scFragIndex {} { cellFragIndex [scRowIndex] [scColumnIndex] }
+    # private --> testing
+    method scCell {} { return [cell [scRowIndex] [scColumnIndex]] }
+    # private --> testing
+    method scDimName {} { cellDimName [scRowIndex] [scColumnIndex] }
+    # private --> testing
+    method scSegIndex {} { cellSegIndex [scRowIndex] [scColumnIndex] }
+    # private --> testing
+    method scFragIndex {} { cellFragIndex [scRowIndex] [scColumnIndex] }
 
-    private method scRowLength {} {
+    # private --> testing
+    method scRowLength {} {
         if {$sc eq {}} {
             return -1
         } else {
@@ -616,7 +700,8 @@ itcl::class DimGrid {
         }
     }
 
-    private method scRowEmpty {} {
+    # private --> testing
+    method scRowEmpty {} {
         if {[scRowLength] <= 1} {
             return 1
         } else {
@@ -624,22 +709,16 @@ itcl::class DimGrid {
         }
     }
 
-    private method scRow {} {
-        if {! [scRowEmpty]} {
-            return [::dinah::dbGetSegment [scDimName] [scSegIndex]]
-        } else {
-            return {}
-        }
-    }
-
-    private method scOnLastItem {} {
+    # private --> testing
+    method scOnLastItem {} {
         if {[scRowEmpty]} {
             return 0
         }
         expr {[scFragIndex] == ([scRowLength] - 1)}
     }
 
-    private method newSegmentWith {fragId} {
+    # private --> testing
+    method newSegmentWith {fragId} {
         if {![::dinah::editable $x]} {
             error "DimGrid::newSegmentWith --> X dimension $x is read only"
         }
@@ -652,5 +731,6 @@ itcl::class DimGrid {
             error "DimGrid::newSegmentWith --> $errorMsg"
         }
         mkGrid $fragId
+        cursorMoved
     }
 }
