@@ -54,6 +54,24 @@ namespace eval ::dinah {
 
     ::dinah::dbAppendSegmentToDim "d.3" [list $label4 $label10 $label19 $label8]
 
+    # x = d.1 ; y = d.2
+    #
+    # 0          17
+    # 1           1
+    # 2          18
+    # 3           9
+    # 4    17    19
+    # 5     1  2  3  4  5  6  7  8
+    # 6    18    20
+    # 7     9    15
+    # 8    19    21
+    # 9     3
+    #10    20
+    #11    15
+    #12    21
+    #
+    #       0  1  2  3  4  5  6  7
+
     #########
     # TESTS #
     #########
@@ -127,8 +145,76 @@ namespace eval ::dinah {
     }
 
     $grid mkGrid
-    puts [$grid getGridWidth]
-    puts [$grid getGridHeight]
-    puts [$grid getColumn 0]
+
+    if {[$grid getGridWidth] ne 8} {
+        incr nbFailures
+        puts "T9 KO"
+    }
+
+    if {[$grid getGridHeight] ne 13} {
+        incr nbFailures
+        puts "T10 KO"
+    }
+
+    if {[$grid getColumn 0] ne {{4 17} {5 1} {6 18} {7 9} {8 19} {9 3} {10 20}\
+            {11 15} {12 21}}} {
+        incr nbFailures
+        puts "T11 KO"
+    }
+
+    if {[$grid scRowIndex] ne 5} {
+        incr nbFailures
+        puts "T12 KO"
+    }
+
+    if {[$grid scColumnIndex] ne 0} {
+        incr nbFailures
+        puts "T13 KO"
+    }
+
+    if {[$grid scDimName] ne "d.1"} {
+        incr nbFailures
+        puts "T14 KO"
+    }
+
+    if {[$grid scSegIndex] != 0} {
+        incr nbFailures
+        puts "T15 KO"
+    }
+
+    if {[$grid scFragIndex] != 0} {
+        incr nbFailures
+        puts "T16 KO"
+    }
+
+    if {[$grid fragPositionInGrid 15] ne {{11 0} {7 2}}} {
+        incr nbFailures
+        puts "T17 KO"
+    }
+
+    if {[$grid fragBelongsToGrid 15] != 1} {
+        incr nbFailures
+        puts "T18 KO"
+    }
+
+    if {[$grid fragBelongsToGrid 16] != 0} {
+        incr nbFailures
+        puts "T19 KO"
+    }
+
+    if {[$grid getScRow] ne {1 2 3 4 5 6 7 8}} {
+        incr nbFailures
+        puts "T20 KO"
+    }
+
+    if {[$grid getRowIndicesForColumn 2] ne {0 1 2 3 4 5 6 7 8}} {
+        incr nbFailures
+        puts "T21 KO"
+    }
+    $grid scRight
+    $grid scRight
+    $grid scUp
+    puts [$grid scRowIndex]
+    puts [$grid scColumnIndex]
     puts "$nbFailures test(s) failed"
 }

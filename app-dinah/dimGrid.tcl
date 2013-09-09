@@ -305,7 +305,7 @@ itcl::class DimGrid {
         return $col
     }
 
-    private method getScRow {} {
+    public method getScRow {} {
         if {! [scRowEmpty]} {
             return [::dinah::dbGetSegment [scDimName] [scSegIndex]]
         } else {
@@ -322,13 +322,13 @@ itcl::class DimGrid {
     method fragPositionInGrid {fragId} {
         set fragPositions {}
         for {set j 0} {$j < [getGridWidth]} {incr j} {
-            set i [lindex 0\
-                [lsearch -index 1 -exact -inline [getColumn $j] $fragId]]
+            set i [lindex\
+                [lsearch -index 1 -exact -inline [getColumn $j] $fragId] 0]
             if {$i ne ""} {
                 lappend fragPositions [list $i $j]
             }
         }
-        return fragPositions
+        return $fragPositions
     }
 
     # private --> testing
@@ -397,7 +397,7 @@ itcl::class DimGrid {
         set id [scId]
         if {[scId] ne {}} {
             foreach dim [::dinah::dbGetDimensions] {
-                if {[::dinah::dbFragmentBelongsToDim $dim [scId]} {
+                if {[::dinah::dbFragmentBelongsToDim $dim [scId]]} {
                     lappend scDim $dim
                 }
             }
@@ -693,7 +693,7 @@ itcl::class DimGrid {
             return -1
         } else {
             set scRowLength 0
-            foreach {k v} [array get [lindex $sc 0],*] {
+            foreach {k v} [array get grid [lindex $sc 0],*] {
                 incr scRowLength
             }
             return $scRowLength
