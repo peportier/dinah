@@ -14,6 +14,11 @@ itcl::class DimGrid {
     private variable history {}
     private variable historyIndex 0
     private variable numModifier 1
+    private variable windowMaxWidth 4
+    private variable windowMaxHeight 4
+    private variable windowTopRow 0
+    private variable windowLeftColumn 0
+    private variable windowUpdate 0
 
     constructor {} {}
 
@@ -74,20 +79,9 @@ itcl::class DimGrid {
 
     public method scId {} { cellId [scRowIndex] [scColumnIndex] }
 
-    public method prevHistory {} {
-        if {$historyIndex != 0} {
-            incr historyIndex -1
-            gotoHistory $historyIndex
-        }
-    }
+    public method prevHistory {} {gotoHistory -1}
 
-    public method nextHistory {} {
-        if {  ([llength $history] > 0) &&
-              ($historyIndex != [expr {[llength $history] - 1}])  } {
-            incr historyIndex
-            gotoHistory $historyIndex
-        }
-    }
+    public method nextHistory {} {gotoHistory 1}
 
     public method blank {} {
         initGrid
@@ -100,7 +94,7 @@ itcl::class DimGrid {
             set oldY $y
             setY $x
             setX $oldY
-            mkGrid [scId]
+            mkGridAndCenterWindow [scId]
             addToHistory
             cursorMoved
         }
@@ -115,7 +109,7 @@ itcl::class DimGrid {
                         $newSegIndex 0} fragId]} {
                     error "DimGrid::nextSegment --> $fragId"
                 }
-                mkGrid $fragId
+                mkGridAndCenterWindow $fragId
                 addToHistory
                 cursorMoved
             }
@@ -154,7 +148,7 @@ itcl::class DimGrid {
                         [list $srcId $fragId]
                 }
             }
-            mkGrid $srcId
+            mkGridAndCenterWindow $srcId
         } elseif {$direction in {up down}} {
             if { ![::dinah::editable $y] } {
                 error "DimGrid::insertFragIntoGrid --> dimension $y is\
@@ -177,7 +171,7 @@ itcl::class DimGrid {
                         [list $fragId $srcId]
                 }
             }
-            mkGrid $srcId
+            mkGridAndCenterWindow $srcId
         } else {
             error "DimGrid::insertFragIntoGrid --> $direction is not a valid\
                    direction, should be 'before', 'after', 'above' or 'below'"
@@ -256,7 +250,7 @@ itcl::class DimGrid {
                 [::dinah::dbGetClipboard]} errorMsg]} {
             error "DimGrid::pasteClipboardIntoNewSegment --> $errorMsg"
         }
-        mkGrid [lindex [::dinah::dbGetClipboard] 0]
+        mkGridAndCenterWindow [lindex [::dinah::dbGetClipboard] 0]
         addToHistory
         cursorMoved
     }
@@ -269,6 +263,24 @@ itcl::class DimGrid {
         if {[catch {newSegmentWith [::dinah::dbClipboardLastItem]} errorMsg]} {
             error "DimGrid::pasteClipboardLastItemIntoNewSegment --> $errorMsg"
         }
+    }
+
+    public method pasteClipboardIntoNewDim {newDimName} {
+        if {[::dinah::dbClipboardIsEmpty]} {
+            error "DimGrid::pasteClipboardIntoNewDim --> clipboard is\
+                   empty"
+        }
+        if {[catch {::dinah::dbNewDim $newDimName} errorMsg]} {
+            error "DimGrid::pasteClipboardIntoNewDim --> $errorMsg"
+        }
+        if {$shapeH} {
+            setX $newDimName
+        } else {
+            setY $newDimName
+        }
+        mkGridAndCenterWindow [lindex [::dinah::dbGetClipboard] 0]
+        addToHistory
+        cursorMoved
     }
 
     public method newSegmentWithNew {typeOfFrag} {
@@ -305,7 +317,7 @@ itcl::class DimGrid {
                     errorMsg]} {
                 error "DimGrid::deleteRowSegment --> $errorMsg"
             }
-            mkGrid [scRowIndex] [getMainAxisIndex]
+            mkGridAndCenterWindow [cellId [scRowIndex] [getMainAxisIndex]]
         }
     }
 
@@ -323,7 +335,7 @@ itcl::class DimGrid {
                     errorMsg]} {
                 error "DimGrid::deleteColumnSegment --> $errorMsg"
             }
-            mkGrid [getMainAxisIndex] [scColumnIndex]
+            mkGridAndCenterWindow [cellId [getMainAxisIndex] [scColumnIndex]]
         } else {
             if {[scColumnIndex] ne [getMainAxisIndex]} {
                 error "DimGrid::deleteColumnSegment --> the selection cursor\
@@ -377,9 +389,11 @@ itcl::class DimGrid {
             if {[getMainAxisLength] == 1} {
                 blank
             } elseif {[scColumnIndex] == ([getGridWidth] - 1)} {
-                mkGrid [cellId [scRowIndex] [expr {[scColumnIndex] - 1}]]
+                mkGridAndCenterWindow [cellId [scRowIndex] \
+                                              [expr {[scColumnIndex] - 1}]]
             } else {
-                mkGrid [cellId [scRowIndex] [expr {[scColumnIndex] + 1}]]
+                mkGridAndCenterWindow [cellId [scRowIndex] \
+                                              [expr {[scColumnIndex] + 1}]]
             }
         } else {
             if {![::dinah::dbFragmentBelongsToDim $x [scId]]} {
@@ -389,7 +403,7 @@ itcl::class DimGrid {
             if {[catch {::dinah::dbRemoveFragmentFromDim $x [scId]} errorMsg]} {
                 error "DimGrid::deleteScFromRow --> $errorMsg"
             }
-            mkGrid [cellId [scRowIndex] [getMainAxisIndex]]
+            mkGridAndCenterWindow [cellId [scRowIndex] [getMainAxisIndex]]
         }
     }
 
@@ -405,7 +419,7 @@ itcl::class DimGrid {
             if {[catch {::dinah::dbRemoveFragmentFromDim $y [scId]} errorMsg]} {
                 error "DimGrid::deleteScFromColumn --> $errorMsg"
             }
-            mkGrid [cellId [getMainAxisIndex] [scColumnIndex]]
+            mkGridAndCenterWindow [cellId [getMainAxisIndex] [scColumnIndex]]
         } else {
             if {[scColumnIndex] ne [getMainAxisIndex]} {
                 error "DimGrid::deleteScFromColumn --> the selection cursor is\
@@ -419,9 +433,11 @@ itcl::class DimGrid {
             if {[getMainAxisLength] == 1} {
                 blank
             } elseif {[scRowIndex] == ([getGridHeight] - 1)} {
-                mkGrid [cellId [expr {[scRowIndex] - 1}] [scColumnIndex]]
+                mkGridAndCenterWindow [cellId [expr {[scRowIndex] - 1}] \
+                                              [scColumnIndex]]
             } else {
-                mkGrid [cellId [expr {[scRowIndex] + 1}] [scColumnIndex]]
+                mkGridAndCenterWindow [cellId [expr {[scRowIndex] + 1}] \
+                                              [scColumnIndex]]
             }
         }
     }
@@ -448,6 +464,20 @@ itcl::class DimGrid {
         return $col
     }
 
+    public method getRow {i} {
+        if {($i < 0) || ($i >= [getGridHeight])} {
+            return {}
+        }
+        set columnIndices {}
+        foreach {k v} [array get grid $i,*] {
+            if {$v ne {}} {lappend columnIndices [regsub {^.*,} $k ""]}
+        }
+        set columnIndices [lsort -integer $columnIndices]
+        set row {}
+        foreach j $columnIndices { lappend row [list $j [cellId $i $j]] }
+        return $row
+    }
+
     public method getMainAxis {} {
         if {! [mainAxisEmpty]} {
             return [::dinah::dbGetSegment [getMainAxisDimName] \
@@ -458,6 +488,7 @@ itcl::class DimGrid {
     }
 
     public method scFarRight {} {
+        setWindowUpdate 0
         if {$sc ne {}} {
             for {set j [scColumnIndex]} {$j < [getGridWidth]} {incr j} {
                 if {$grid([scRowIndex],$j) eq {}} {
@@ -466,12 +497,16 @@ itcl::class DimGrid {
                 }
             }
             if {$j ne [scColumnIndex]} {
+                set deltaCol [expr {$j - [scColumnIndex]}]
                 set sc [list [scRowIndex] $j]
+                setWindowLeftColumn [expr {[getWindowLeftColumn] + $deltaCol}]
+                setWindowUpdate 1
             }
         }
     }
 
     public method scFarLeft {} {
+        setWindowUpdate 0
         if {$sc ne {}} {
             for {set j [scColumnIndex]} {$j >= 0} {incr j -1} {
                 if {$grid([scRowIndex],$j) eq {}} {
@@ -480,12 +515,16 @@ itcl::class DimGrid {
                 }
             }
             if {$j ne [scColumnIndex]} {
+                set deltaCol [expr {$j - [scColumnIndex]}]
                 set sc [list [scRowIndex] $j]
+                setWindowLeftColumn [expr {[getWindowLeftColumn] + $deltaCol}]
+                setWindowUpdate 1
             }
         }
     }
 
     public method scFarUp {} {
+        setWindowUpdate 0
         if {$sc ne {}} {
             for {set i [scRowIndex]} {$i >= 0} {incr i -1} {
                 if {$grid($i,[scColumnIndex]) eq {}} {
@@ -494,12 +533,16 @@ itcl::class DimGrid {
                 }
             }
             if {$i ne [scRowIndex]} {
+                set deltaRow [expr {$i - [scRowIndex]}]
                 set sc [list $i [scColumnIndex]]
+                setWindowTopRow [expr {[getWindowTopRow] + $deltaRow}]
+                setWindowUpdate 1
             }
         }
     }
 
     public method scFarDown {} {
+        setWindowUpdate 0
         if {$sc ne {}} {
             for {set i [scRowIndex]} {$i < [getGridHeight]} {incr i} {
                 if {$grid($i,[scColumnIndex]) eq {}} {
@@ -508,8 +551,47 @@ itcl::class DimGrid {
                 }
             }
             if {$i ne [scRowIndex]} {
+                set deltaRow [expr {$i - [scRowIndex]}]
                 set sc [list $i [scColumnIndex]]
+                setWindowTopRow [expr {[getWindowTopRow] + $deltaRow}]
+                setWindowUpdate 1
             }
+        }
+    }
+
+    public method oneWindowRight {} {
+        setWindowUpdate 0
+        if {([getWindowLeftColumn] + [getWindowMaxWidth]) < [getGridWidth]} {
+            setWindowLeftColumn [expr {[getWindowLeftColumn] + \
+                                       [getWindowMaxWidth]}]
+            setWindowUpdate 1
+        }
+    }
+
+    public method oneWindowLeft {} {
+        setWindowUpdate 0
+        if {([getWindowLeftColumn] - [getWindowMaxWidth]) >= 0} {
+            setWindowLeftColumn [expr {[getWindowLeftColumn] - \
+                                       [getWindowMaxWidth]}]
+            setWindowUpdate 1
+        }
+    }
+
+    public method oneWindowDown {} {
+        setWindowUpdate 0
+        if {([getWindowTopRow] + [getWindowMaxHeight]) < [getGridHeight]} {
+            setWindowTopRow [expr {[getWindowTopRow] + \
+                                   [getWindowMaxHeight]}]
+            setWindowUpdate 1
+        }
+    }
+
+    public method oneWindowUp {} {
+        setWindowUpdate 0
+        if {([getWindowTopRow] - [getWindowMaxHeight]) >= 0} {
+            setWindowTopRow [expr {[getWindowTopRow] - \
+                                   [getWindowMaxHeight]}]
+            setWindowUpdate 1
         }
     }
 
@@ -545,9 +627,196 @@ itcl::class DimGrid {
         set mainAxisDimName
     }
 
+    # with no change of x and y,
+    # is there a new grid under the selection cursor?
+    public method newGridAvailable {} {
+        if {![gridEmpty]} {
+            if {$shapeH} {
+                if {[scRowIndex] ne [getMainAxisIndex]} {
+                    if {[::dinah::dbFragmentBelongsToDim [getMainAxisDimName]\
+                            [scId]]} {
+                        return 1
+                    } else {
+                        return 0
+                    }
+                } else {
+                    return 0
+                }
+            } else {
+                if {[scColumnIndex] ne [getMainAxisIndex]} {
+                    if {[::dinah::dbFragmentBelongsToDim [getMainAxisDimName]\
+                            [scId]]} {
+                        return 1
+                    } else {
+                        return 0
+                    }
+                } else {
+                    return 0
+                }
+            }
+        } else {
+            return 0
+        }
+    }
+
+    public method getWindowMaxWidth {} {
+        set windowMaxWidth
+    }
+
+    public method getWindowMaxHeight {} {
+        set windowMaxHeight
+    }
+
+    public method incrWindowMaxWidth {step} {
+        setWindowMaxWidth [expr {[getWindowMaxWidth] + $step}]
+    }
+
+    public method incrWindowMaxHeight {step} {
+        setWindowMaxHeight [expr {[getWindowMaxHeight] + $step}]
+    }
+
+    public method getWindowTopRow {} {
+        set windowTopRow
+    }
+
+    public method getWindowLeftColumn {} {
+        set windowLeftColumn
+    }
+
+    public method getWindow {} {
+        set windowItems {}
+        for { set i [getWindowTopRow] ; set wI 0 }\
+                { ($i < [getGridHeight]) &&\
+                  ($i < ([getWindowTopRow] + [getWindowMaxHeight])) }\
+                { incr i ; incr wI } {
+            for { set j [getWindowLeftColumn] ; set wJ 0 }\
+                    { ($j < [getGridWidth]) &&\
+                      ($j < ([getWindowLeftColumn] + [getWindowMaxWidth])) }\
+                    { incr j ; incr wJ } {
+                set fragId [cellId $i $j]
+                if {$fragId ne {}} {
+                    set notification ""
+                    if {$shapeH} {
+                        set column [getColumn $j]
+                        set columnLength [llength $column]
+                        if {$columnLength > 1} {
+                            set columnPosition [lsearch -integer -index 1 \
+                                                $column $fragId]
+                            incr columnPosition
+                            set notification [concat $notification \
+                                    "col: $columnPosition/$columnLength ; "]
+                        }
+                        set openNS 1
+                        if {$i eq [getMainAxisIndex]} {
+                            set openEW 1
+                            set rowPosition [expr {$j + 1}]
+                            set rowLength [getMainAxisLength]
+                            set notification [concat $notification \
+                                    "row: $rowPosition/$rowLength ; "]
+                        } else {
+                            set openEW 0
+                        }
+                    } else {
+                        set row [getRow $i]
+                        set rowLength [llength $row]
+                        if {$rowLength > 1} {
+                            set rowPosition [lsearch -integer -index 1 \
+                                                $row $fragId]
+                            incr rowPosition
+                            set notification [concat $notification \
+                                    "row: $rowPosition/$rowLength ; "]
+                        }
+                        set openEW 1
+                        if {$j eq [getMainAxisIndex]} {
+                            set openNS 1
+                            set columnPosition [expr {$i + 1}]
+                            set columnLength [getMainAxisLength]
+                            set notification [concat $notification \
+                                    "row: $columnPosition/$columnLength ; "]
+                        } else {
+                            set openNS 0
+                        }
+                    }
+                    lappend windowItems [list $fragId $openEW $openNS\
+                        $notification]
+                }
+            }
+        }
+        return $windowItems
+    }
+
+    public method mkGridOnSc {} {
+        if {[scId] ne {}} {
+            mkGridAndCenterWindow [scId]
+        }
+    }
+
+    public method centerWindow {} {
+        setWindowUpdate 0
+        if {![gridEmpty]} {
+            set halfWidth [expr { round([getWindowMaxWidth] / 2) +\
+                                  ([getWindowMaxWidth] % 2) }]
+            set halfHeight [expr { round([getWindowMaxHeight] / 2) +\
+                                   ([getWindowMaxHeight] % 2) }]
+            setWindowLeftColumn [expr {[scColumnIndex] - ($halfWidth - 1)}]
+            setWindowTopRow [expr {[scRowIndex] - ($halfHeight - 1)}]
+            setWindowUpdate 1
+        }
+    }
+
+    public method mkGridAndCenterWindow {{fragId {}}} {
+        mkGrid $fragId
+        centerWindow
+    }
+
+    public method windowWasUpdated {} {
+        set windowUpdate
+    }
+
     ###################
     # PRIVATE METHODS #
     ###################
+
+    # private --> testing
+    method setWindowUpdate {v} {
+        set windowUpdate $v
+    }
+
+    # private --> testing
+    method insideWindow {i j} {
+        expr { ($i >= [getWindowTopRow]) &&\
+               ($i < ([getWindowTopRow] + [getWindowMaxHeight])) &&\
+               ($j >= [getWindowLeftColumn]) &&\
+               ($j < ([getWindowLeftColumn] + [getWindowMaxWidth])) }
+    }
+
+    # private --> testing
+    method setWindowTopRow {i} {
+        if {($i >= 0) && ($i < [getGridHeight]} {
+            set windowTopRow $i
+        }
+    }
+
+    # private --> testing
+    method setWindowLeftColumn {j} {
+        if {($j >= 0) && ($j < [getGridWidth]} {
+            set windowLeftColumn $j
+        }
+    }
+
+    # private --> testing
+    method setWindowMaxWidth {nbColumns} {
+        if {$nbColumns >= 0} {
+            set windowMaxWidth $nbColumns
+        }
+    }
+
+    # private --> testing
+    method setWindowMaxHeight {nbRows} {
+        if {$nbRows >= 0} {
+            set windowMaxHeight $nbRows
+        }
+    }
 
     # private --> testing
     method setMainAxisDimName {v} {
@@ -581,6 +850,7 @@ itcl::class DimGrid {
 
     # private --> testing
     method switchHI {} {
+        setWindowUpdate 0
         if {![gridEmpty]} {
             transposeGrid
             set shapeH [expr {! $shapeH}]
@@ -591,6 +861,8 @@ itcl::class DimGrid {
             set oldGridWidth [getGridWidth]
             setGridWidth [getGridHeight]
             setGridHeight $oldGridWidth
+            transposeWindow
+            setWindowUpdate 1
             return 1
         } else {
             return 0
@@ -607,6 +879,16 @@ itcl::class DimGrid {
                 set grid($j,$i) $oldGrid($i,$j)
             }
         }
+    }
+
+    # private --> testing
+    method transposeWindow {} {
+        set oldWindowMaxWidth [getWindowMaxWidth]
+        setWindowMaxWidth [getWindowMaxHeight]
+        setWindowMaxHeight $oldWindowMaxWidth
+        set oldWindowTopRow [getWindowTopRow]
+        setWindowTopRow [getWindowLeftColumn]
+        setWindowLeftColumn $oldWindowTopRow
     }
 
     # private --> testing
@@ -658,42 +940,47 @@ itcl::class DimGrid {
     }
 
     # private --> testing
-    method gotoHistory {index} {
-        if {$historyIndex != 0} {
-            incr historyIndex -1
-            gotoHistory $historyIndex
-        }
-
-        if {  ([llength $history] > 0) &&
-              ($historyIndex != [expr {[llength $history] - 1}])  } {
-            incr historyIndex
-            gotoHistory $historyIndex
-        }
-
-        set historyScId [lindex [lindex $history $index] 0]
-        set historyDimX [lindex [lindex $history $index] 1]
-        set historyDimY [lindex [lindex $history $index] 2]
-        set historyShapeH [lindex [lindex $history $index] 3]
-        if {$historyShapeH} {
-
+    method gotoHistory {direction} {
+        if {$direction == -1} {
+            if {$historyIndex != 0} {
+                incr historyIndex -1
+            } else {
+                error "DimGrid::gotoHistory --> no more history"
+            }
+        } elseif {$direction == 1} {
+            if {  ([llength $history] > 0) &&
+                  ($historyIndex != [expr {[llength $history] - 1}])  } {
+                incr historyIndex
+            } else {
+                error "DimGrid::gotoHistory --> no more history"
+            }
         } else {
-
+            error "DimGrid::gotoHistory --> direction should be 1 or -1\
+                (and not $direction)"
         }
-        setX [lindex [lindex $history $index] 1]
-        setY [lindex [lindex $history $index] 2]
+
+        set historyScId [lindex [lindex $history $historyIndex] 0]
+        set historyDimX [lindex [lindex $history $historyIndex] 1]
+        set historyDimY [lindex [lindex $history $historyIndex] 2]
+        set historyShapeH [lindex [lindex $history $historyIndex] 3]
+
+        setX $historyDimX
+        setY $historyDimY
         # we call initGrid before setShapeH because we don't want to compute
         # the transpose of non empty matrix for nothing
         initGrid
-        if {[lindex [lindex $history $index] 3]} {
+        if {$historyShapeH} {
             setShapeH
         } else {
             setShapeI
         }
-        mkGrid [lindex [lindex $history $index] 0]
-        # we don't call cursorMoved when going back in history
-        # but we have to call explicitly mkScDim (which would otherwise be
-        # called by cursorMoved
-        mkScDim
+        # in case of a previous operation such as deleteRowSegment or
+        # deleteColumnSegment or deleteScFromRow or deleteScFromColumn,
+        # going back in history can fail. We then try to go one step further:
+        if {[catch {mkGridAndCenterWindow $historyScId}]} {
+            gotoHistory $direction
+        }
+        cursorMoved
     }
 
     # private --> testing
@@ -750,7 +1037,7 @@ itcl::class DimGrid {
             return 0
         } else {
             setX $nextDim
-            mkGrid [scId]
+            mkGridOnSc
             addToHistory
             cursorMoved
             return 1
@@ -766,7 +1053,7 @@ itcl::class DimGrid {
             return 0
         } else {
             setY $nextDim
-            mkGrid [scId]
+            mkGridOnSc
             addToHistory
             cursorMoved
             return 1
@@ -793,9 +1080,16 @@ itcl::class DimGrid {
 
     # private --> testing
     method scHoriz {i} {
-        set newScCol [expr {[scColumnIndex] + $i}]
+        setWindowUpdate 0
+        set oldScCol [scColumnIndex]
+        set newScCol [expr {$oldScCol + $i}]
         if {![cellIsEmpty [scRowIndex] $newScCol]} {
             set sc [list [scRowIndex] $newScCol]
+            if {! [insideWindow [scRowIndex] [scColumnIndex]]} {
+                set deltaCol [expr {$newScCol - $oldScCol}]
+                setWindowLeftColumn [expr {[getWindowLeftColumn] + $deltaCol}]
+                setWindowUpdate 1
+            }
             cursorMoved
             return 1
         } else {
@@ -805,9 +1099,16 @@ itcl::class DimGrid {
 
     # private --> testing
     method scVertic {i} {
-        set newScRow [expr {[scRowIndex] + $i}]
+        setWindowUpdate 0
+        set oldScRow [scRowIndex]
+        set newScRow [expr {$oldScRow + $i}]
         if {![cellIsEmpty $newScRow [scColumnIndex]]} {
             set sc [list $newScRow [scColumnIndex]]
+            if {! [insideWindow [scRowIndex] [scColumnIndex]]} {
+                set deltaRow [expr {$newScRow - $oldScRow}]
+                setWindowTopRow [expr {[getWindowTopRow] + $deltaRow}]
+                setWindowUpdate 1
+            }
             cursorMoved
             return 1
         } else {
@@ -1017,7 +1318,7 @@ itcl::class DimGrid {
                 [list $fragId]} errorMsg]} {
             error "DimGrid::newSegmentWith --> $errorMsg"
         }
-        mkGrid $fragId
+        mkGridAndCenterWindow $fragId
         cursorMoved
     }
 }
