@@ -7,7 +7,7 @@ itcl::class DimGrid {
     private variable sc {}; # selection cursor: {rowIndex columnIndex}
     private variable shapeH 1;
     private variable mainAxisIndex {}; # is a row index if $shapeH and a
-                                       # column index if not $shapeH.
+                                       # column index otherwise.
     private variable mainAxisSegIndex {}
     private variable mainAxisDimName {}
     private variable scDim {}

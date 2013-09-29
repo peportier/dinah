@@ -80,4 +80,4 @@ DimGrid
 **********----------**********
 sticky notes everywhere
 transclusion avec embedded text
-
+trace
