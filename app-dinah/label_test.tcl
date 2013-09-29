@@ -7,7 +7,6 @@ namespace eval ::dinah {
     ########
     # INIT #
     ########
-
     source label_test_preamble.tcl
 
     #########

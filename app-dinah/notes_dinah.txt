@@ -1,0 +1,83 @@
+constructeur Dim appelé une seule fois par la proc dimWin de common
+
+dimWin appelée de manière triviale par subDim et order dans common, par newWindowOnCursor dans dim, par openInterval dans txt
+
+dimWin appelée par mkWindow de Container pour créer les objets privés dim(1), dim(2), etc.
+
+méthode quart de Container renvoie un Dim (un des objets dim(1), dim(2), etc.).
+
+la méthode quart de Container est utilisée dans bouvard et desanti
+
+méthodes de Dim utilisées publiquement :
+setX ; setY ; updateEntries ; buildAndGrid ; newTreeOnCursor ; scRight ; query ; setOnMoveCursor ; scId ; setWWidth ; setWHeight ; getFocus ; setTreeNavDim ; getX ; setModeNotice ; setModeTranscription
+
+**********----------**********
+
+introduire une autre façon d'éditer le label d'un objet
+
+ajouter des guards un peu partout
+
+**********----------**********
+
+externals used by dim:
+
+Obj
+Autocomplete
+
+pour le drag & drop:
+package require BWidget
+
+::dinah::dbExists
+::dinah::dbNewDim
+::dinah::dbLGet
+::dinah::dbGet
+::dinah::dbSetDim
+::dinah::dbGetDimSize
+::dinah::dbNewEmptyNode
+::dinah::dbAppendSegmentToDim
+::dinah::dbGetSegment
+::dinah::dbClearClipboard
+::dinah::dbGetClipboard
+::dinah::dbAddFragmentToCleanClipboard
+::dinah::dbAddFragmentToClipboard
+::dinah::dbAddSegmentToCleanClipboard
+::dinah::dbClipboardLastItem
+::dinah::dbClipboardIsEmpty
+::dinah::dbNodeBelongsToDim
+::dinah::dbRemoveSegment
+::dinah::dbReplaceSegment
+::dinah::dbFindInDim
+
+::dinah::editable
+::dinah::newTopLevel
+::dinah::objname
+::dinah::randomColor
+::dinah::mkObj
+$::dinah::mouse
+$::dinah::backgroundColor
+$::dinah::fragmentBorderWidth
+$::dinah::selectionCursorColor
+
+**********----------**********
+
+écrire un mécanisme de clonage digne de ce nom
+
+revoir objet Date
+
+**********----------**********
+Obj
+
+plus de delete associé à l'objet, c'est seulement dans le contexte d'une vue dimensionnelle ou tableau qu'un objet peut être supprimé d'une dimension donnée.
+
+**********----------**********
+DimGrid
+
+* cursorMoved
+* goto {match} --> sur toute la grille + next/prev result
+* pasteClipboardIntoNewDim ; pasteClipboardLastItemIntoNewDim ;
+  newDimWith ; newDimWithNew  <-- j'en suis là
+
+**********----------**********
+sticky notes everywhere
+transclusion avec embedded text
+
