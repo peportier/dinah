@@ -337,7 +337,7 @@ itcl::class DimGrid {
         if {[scId] eq {}} {
             error "DimGrid::copy --> no fragment under selection cursor"
         }
-        if {[catch {::dinah::dbAddFragmentToEmptyClipboard [scId] errorMsg]} {
+        if {[catch {::dinah::dbAddFragmentToEmptyClipboard [scId]} errorMsg]} {
             error "DimGrid::copy --> $errorMsg"
         }
     }

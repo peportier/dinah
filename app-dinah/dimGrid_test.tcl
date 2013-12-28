@@ -202,19 +202,21 @@ namespace eval ::dinah {
         puts "T19 KO"
     }
 
-    if {[$grid getScRow] ne {1 2 3 4 5 6 7 8}} {
-        incr nbFailures
-        puts "T20 KO"
-    }
+    puts [$grid getRow [$grid scRowIndex]]
+    puts [$grid getRowIndicesForColumn 0]
+    #if {[$grid getScRow] ne {1 2 3 4 5 6 7 8}} {
+    #    incr nbFailures
+    #    puts "T20 KO"
+    #}
 
-    if {[$grid getRowIndicesForColumn 2] ne {0 1 2 3 4 5 6 7 8}} {
-        incr nbFailures
-        puts "T21 KO"
-    }
-    $grid scRight
-    $grid scRight
-    $grid scUp
-    puts [$grid scRowIndex]
-    puts [$grid scColumnIndex]
+    #if {[$grid getRowIndicesForColumn 2] ne {0 1 2 3 4 5 6 7 8}} {
+    #    incr nbFailures
+    #    puts "T21 KO"
+    #}
+    #$grid scRight
+    #$grid scRight
+    #$grid scUp
+    #puts [$grid scRowIndex]
+    #puts [$grid scColumnIndex]
     puts "$nbFailures test(s) failed"
 }
