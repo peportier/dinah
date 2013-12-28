@@ -116,14 +116,14 @@ itcl::class DimGrid {
         }
     }
 
-    public method insertFragIntoGrid {fragId {direction right} {srcId ""}} {
+    public method insertFragIntoGrid {fragId {direction right} {dstId ""}} {
         if {![::dinah::dbIsAFragment $fragId]} {
             error "DimGrid::insertFragIntoGrid --> $fragId is not the\
                    identifier of a valid fragment"
         }
-        if {$srcId eq ""} { set srcId [scId] }
-        if {! [fragBelongsToGrid $srcId]} {
-            error "DimGrid::insertFragIntoGrid --> there is no fragment $srcId\
+        if {$dstId eq ""} { set dstId [scId] }
+        if {! [fragBelongsToGrid $dstId]} {
+            error "DimGrid::insertFragIntoGrid --> there is no fragment $dstId\
                    in the grid"
         }
         if {$direction in {left right}} {
@@ -131,56 +131,58 @@ itcl::class DimGrid {
                 error "DimGrid::insertFragIntoGrid --> dimension $x is\
                        read only"
             }
-            if {[::dinah::dbFragmentBelongsToDim $x $srcId]} {
+            if {[::dinah::dbFragmentBelongsToDim $x $dstId]} {
                 if {$direction eq "left"} {
                     ::dinah::dbInsertFragmentIntoDim \
-                        $fragId before $x $srcId
+                        $fragId before $x $dstId
                 } else {
                     ::dinah::dbInsertFragmentIntoDim \
-                        $fragId after $x $srcId
+                        $fragId after $x $dstId
                 }
             } else {
                 if {$direction eq "left"} {
                     ::dinah::dbAppendSegmentToDim $x \
-                        [list $fragId $srcId]
+                        [list $fragId $dstId]
                 } else {
                     ::dinah::dbAppendSegmentToDim $x \
-                        [list $srcId $fragId]
+                        [list $dstId $fragId]
                 }
             }
-            mkGridAndCenterWindow $srcId
+            mkGridAndCenterWindow $dstId
         } elseif {$direction in {up down}} {
             if { ![::dinah::editable $y] } {
                 error "DimGrid::insertFragIntoGrid --> dimension $y is\
                        read only"
             }
-            if {[::dinah::dbFragmentBelongsToDim $y $srcId]} {
+            if {[::dinah::dbFragmentBelongsToDim $y $dstId]} {
                 if {$direction eq "up"} {
                     ::dinah::dbInsertFragmentIntoDim \
-                        $fragId before $y $srcId
+                        $fragId before $y $dstId
                 } else {
                     ::dinah::dbInsertFragmentIntoDim \
-                        $fragId after $y $srcId
+                        $fragId after $y $dstId
                 }
             } else {
                 if {$direction eq "up"} {
                     ::dinah::dbAppendSegmentToDim $y \
-                        [list $srcId $fragId]
+                        [list $dstId $fragId]
                 } else {
                     ::dinah::dbAppendSegmentToDim $y \
-                        [list $fragId $srcId]
+                        [list $fragId $dstId]
                 }
             }
-            mkGridAndCenterWindow $srcId
+            mkGridAndCenterWindow $dstId
         } else {
             error "DimGrid::insertFragIntoGrid --> $direction is not a valid\
-                   direction, should be 'before', 'after', 'above' or 'below'"
+                   direction, should be 'left', 'right', 'up' or 'down'"
         }
     }
 
-    public method new {type {direction right} {srcId ""}} {
-        set newFragmentId [::dinah::dbNewEmptyFragment $type]
-        if {[catch {insertFragIntoGrid $newFragmentId $direction $srcId}\
+    public method new {type {direction right} {dstId ""}} {
+        if {[catch {::dinah::dbNewEmptyFragment $type} newFragmentId]} {
+            error "DimGrid::new --> $newFragmentId"
+        }
+        if {[catch {insertFragIntoGrid $newFragmentId $direction $dstId}\
                 errorMsg]} {
             ::dinah::dbRemoveFragment $newFragmentId
             error "DimGrid::new --> $errorMsg"
@@ -265,24 +267,6 @@ itcl::class DimGrid {
         }
     }
 
-    public method pasteClipboardIntoNewDim {newDimName} {
-        if {[::dinah::dbClipboardIsEmpty]} {
-            error "DimGrid::pasteClipboardIntoNewDim --> clipboard is\
-                   empty"
-        }
-        if {[catch {::dinah::dbNewDim $newDimName} errorMsg]} {
-            error "DimGrid::pasteClipboardIntoNewDim --> $errorMsg"
-        }
-        if {$shapeH} {
-            setX $newDimName
-        } else {
-            setY $newDimName
-        }
-        mkGridAndCenterWindow [lindex [::dinah::dbGetClipboard] 0]
-        addToHistory
-        cursorMoved
-    }
-
     public method newSegmentWithNew {typeOfFrag} {
         if {[catch {::dinah::dbNewEmptyFragment $typeOfFrag} newFrag]} {
             error "DimGrid::newSegmentWithNew --> $newFrag"
@@ -353,7 +337,9 @@ itcl::class DimGrid {
         if {[scId] eq {}} {
             error "DimGrid::copy --> no fragment under selection cursor"
         }
-        ::dinah::dbAddFragmentToEmptyClipboard [scId]
+        if {[catch {::dinah::dbAddFragmentToEmptyClipboard [scId] errorMsg]} {
+            error "DimGrid::copy --> $errorMsg"
+        }
     }
 
     public method copycat {} {
@@ -758,8 +744,10 @@ itcl::class DimGrid {
                                   ([getWindowMaxWidth] % 2) }]
             set halfHeight [expr { round([getWindowMaxHeight] / 2) +\
                                    ([getWindowMaxHeight] % 2) }]
-            setWindowLeftColumn [expr {[scColumnIndex] - ($halfWidth - 1)}]
-            setWindowTopRow [expr {[scRowIndex] - ($halfHeight - 1)}]
+            set leftColumn [expr {[scColumnIndex] - ($halfWidth - 1)}]
+            setWindowLeftColumn [expr {$leftColumn < 0 ? 0 : $leftColumn}]
+            set topRow [expr {[scRowIndex] - ($halfHeight - 1)}]
+            setWindowTopRow [expr {$topRow < 0 ? 0 : $topRow}]
             setWindowUpdate 1
         }
     }
@@ -976,9 +964,9 @@ itcl::class DimGrid {
         }
         # in case of a previous operation such as deleteRowSegment or
         # deleteColumnSegment or deleteScFromRow or deleteScFromColumn,
-        # going back in history can fail. We then try to go one step further:
+        # going back in history can fail. We then blank the grid:
         if {[catch {mkGridAndCenterWindow $historyScId}]} {
-            gotoHistory $direction
+            blank
         }
         cursorMoved
     }
