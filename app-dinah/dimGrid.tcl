@@ -95,7 +95,6 @@ itcl::class DimGrid {
             setY $x
             setX $oldY
             mkGridAndCenterWindow [scId]
-            addToHistory
             cursorMoved
         }
     }
@@ -110,7 +109,6 @@ itcl::class DimGrid {
                     error "DimGrid::nextSegment --> $fragId"
                 }
                 mkGridAndCenterWindow $fragId
-                addToHistory
                 cursorMoved
             }
         }
@@ -253,7 +251,6 @@ itcl::class DimGrid {
             error "DimGrid::pasteClipboardIntoNewSegment --> $errorMsg"
         }
         mkGridAndCenterWindow [lindex [::dinah::dbGetClipboard] 0]
-        addToHistory
         cursorMoved
     }
 
@@ -753,8 +750,8 @@ itcl::class DimGrid {
     }
 
     public method mkGridAndCenterWindow {{fragId {}}} {
-        mkGrid $fragId
-        centerWindow
+        _mkGridAndCenterWindow $fragId
+        addToHistory
     }
 
     public method windowWasUpdated {} {
@@ -764,6 +761,12 @@ itcl::class DimGrid {
     ###################
     # PRIVATE METHODS #
     ###################
+
+    # private --> testing
+    method _mkGridAndCenterWindow {{fragId {}}} {
+        mkGrid $fragId
+        centerWindow
+    }
 
     # private --> testing
     method setWindowUpdate {v} {
@@ -780,14 +783,14 @@ itcl::class DimGrid {
 
     # private --> testing
     method setWindowTopRow {i} {
-        if {($i >= 0) && ($i < [getGridHeight]} {
+        if {($i >= 0) && ($i < [getGridHeight])} {
             set windowTopRow $i
         }
     }
 
     # private --> testing
     method setWindowLeftColumn {j} {
-        if {($j >= 0) && ($j < [getGridWidth]} {
+        if {($j >= 0) && ($j < [getGridWidth])} {
             set windowLeftColumn $j
         }
     }
@@ -921,8 +924,8 @@ itcl::class DimGrid {
         if { ([lindex $lastStep 0] ne [scId]) ||
              ([lindex $lastStep 1] ne [getX]) ||
              ([lindex $lastStep 2] ne [getY]) ||
-             ([lindex $lastStep 3] ne [$shapeH])} {
-            lappend history [list [scId] [getX] [getY] [shapeH]]
+             ([lindex $lastStep 3] ne $shapeH)} {
+            lappend history [list [scId] [getX] [getY] $shapeH]
             incr historyIndex
         }
     }
@@ -965,7 +968,7 @@ itcl::class DimGrid {
         # in case of a previous operation such as deleteRowSegment or
         # deleteColumnSegment or deleteScFromRow or deleteScFromColumn,
         # going back in history can fail. We then blank the grid:
-        if {[catch {mkGridAndCenterWindow $historyScId}]} {
+        if {[catch {_mkGridAndCenterWindow $historyScId}]} {
             blank
         }
         cursorMoved
@@ -1025,8 +1028,7 @@ itcl::class DimGrid {
             return 0
         } else {
             setX $nextDim
-            mkGridOnSc
-            addToHistory
+            mkGridAndCenterWindow [scId]
             cursorMoved
             return 1
         }
@@ -1041,8 +1043,7 @@ itcl::class DimGrid {
             return 0
         } else {
             setY $nextDim
-            mkGridOnSc
-            addToHistory
+            mkGridAndCenterWindow [scId]
             cursorMoved
             return 1
         }

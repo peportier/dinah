@@ -54,7 +54,7 @@ namespace eval ::dinah {
 
     ::dinah::dbAppendSegmentToDim "d.3" [list $label4 $label10 $label19 $label8]
 
-    # x = d.1 ; y = d.2
+    # x = d.1 ; y = d.2 ; sc = {5 0}
     #
     # 0          17
     # 1           1
@@ -71,6 +71,26 @@ namespace eval ::dinah {
     #12    21
     #
     #       0  1  2  3  4  5  6  7
+    #
+    # SWAP
+    # x = d.2 ; y = d.1 ; sc = {6 5} test T25
+    #
+    # 0                          9
+    # 1                         10
+    # 2                         11
+    # 3                         12
+    # 4                    1    13                 
+    # 5                    2    14
+    # 6    17  1 18  9 19  3 20 15 21
+    # 7        2    10     4    16
+    # 8        3    11     5
+    # 9        4    12     6
+    #10        5    13     7
+    #11        6    14     8
+    #12        7    15
+    #13        8    16
+    #
+    #       0  1  2  3  4  5  6  7  8
 
     #########
     # TESTS #
@@ -144,7 +164,7 @@ namespace eval ::dinah {
         puts "T8 KO"
     }
 
-    $grid mkGrid
+    $grid mkGridAndCenterWindow
 
     if {[$grid getGridWidth] ne 8} {
         incr nbFailures
@@ -202,21 +222,110 @@ namespace eval ::dinah {
         puts "T19 KO"
     }
 
-    puts [$grid getRow [$grid scRowIndex]]
-    puts [$grid getRowIndicesForColumn 0]
-    #if {[$grid getScRow] ne {1 2 3 4 5 6 7 8}} {
-    #    incr nbFailures
-    #    puts "T20 KO"
-    #}
+    if {[$grid getRow [$grid scRowIndex]] ne {{0 1} {1 2} {2 3} {3 4}\
+                                              {4 5} {5 6} {6 7} {7 8}}} {
 
-    #if {[$grid getRowIndicesForColumn 2] ne {0 1 2 3 4 5 6 7 8}} {
-    #    incr nbFailures
-    #    puts "T21 KO"
-    #}
-    #$grid scRight
-    #$grid scRight
-    #$grid scUp
-    #puts [$grid scRowIndex]
-    #puts [$grid scColumnIndex]
+        incr nbFailures
+        puts "T20 KO"
+    }
+
+    if {[$grid getRowIndicesForColumn 0] ne {4 5 6 7 8 9 10 11 12}} {
+        incr nbFailures
+        puts "T21 KO"
+    }
+    $grid scRight
+    $grid scRight
+    $grid scUp
+    $grid scDown
+    $grid scDown
+    $grid scUp
+    $grid scLeft
+
+    if {[$grid scRowIndex] ne 5} {
+        incr nbFailures
+        puts "T22 KO"
+    }
+
+    if {[$grid scColumnIndex] ne 1} {
+        incr nbFailures
+        puts "T23 KO"
+    }
+
+    if {[$grid scId] ne 2} {
+        incr nbFailures
+        puts "T24 KO"
+    }
+
+    $grid scRight
+    $grid swapDim
+    if {[$grid scRowIndex] ne 6} {
+        incr nbFailures
+        puts "T25 KO"
+    }
+    if {[$grid scColumnIndex] ne 5} {
+        incr nbFailures
+        puts "T26 KO"
+    }
+    if {[$grid getGridWidth] ne 9} {
+        incr nbFailures
+        puts "T27 KO"
+    }
+    if {[$grid getGridHeight] ne 14} {
+        incr nbFailures
+        puts "T28 KO"
+    }
+
+    $grid prevHistory
+    if {[$grid getX] ne "d.1"} {
+        incr nbFailures
+        puts "T29 KO"
+    }
+    if {[$grid getY] ne "d.2"} {
+        incr nbFailures
+        puts "T30 KO"
+    }
+    if {[$grid scRowIndex] ne 5} {
+        incr nbFailures
+        puts "T31 KO"
+    }
+    if {[$grid scColumnIndex] ne 0} {
+        incr nbFailures
+        puts "T32 KO"
+    }
+    if {[$grid getGridWidth] ne 8} {
+        incr nbFailures
+        puts "T33 KO"
+    }
+    if {[$grid getGridHeight] ne 13} {
+        incr nbFailures
+        puts "T34 KO"
+    }
+
+    $grid nextHistory
+    if {[$grid getX] ne "d.2"} {
+        incr nbFailures
+        puts "T35 KO"
+    }
+    if {[$grid getY] ne "d.1"} {
+        incr nbFailures
+        puts "T36 KO"
+    }
+    if {[$grid scRowIndex] ne 6} {
+        incr nbFailures
+        puts "T37 KO"
+    }
+    if {[$grid scColumnIndex] ne 5} {
+        incr nbFailures
+        puts "T38 KO"
+    }
+    if {[$grid getGridWidth] ne 9} {
+        incr nbFailures
+        puts "T39 KO"
+    }
+    if {[$grid getGridHeight] ne 14} {
+        incr nbFailures
+        puts "T40 KO"
+    }
+
     puts "$nbFailures test(s) failed"
 }
